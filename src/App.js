@@ -15,7 +15,7 @@ const GroceryChecklist = () => {
   const [itemToRemove, setItemToRemove] = useState(null);
 
   // Your n8n webhook URL - verified working in browser
-  const WEBHOOK_URL = 'https://missouri-means-revealed-card.trycloudflare.com/webhook/5eb40df4-7053-4166-9b7b-6893789ff943/fetch_grocery_items';
+  const WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/5eb40df4-7053-4166-9b7b-6893789ff943/fetch_grocery_items';
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
