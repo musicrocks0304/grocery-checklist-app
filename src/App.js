@@ -237,14 +237,6 @@ const GroceryChecklist = () => {
     }
   };
 
-  const getCurrentDate = () => {
-    return new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
   const getWeekDateRange = () => {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
