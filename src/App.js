@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { Check, ShoppingCart, Plus, AlertCircle, Wifi } from 'lucide-react';
+import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X } from 'lucide-react';
 
 const GroceryChecklist = () => {
-  const [groceryData, setGroceryData] = useState({ categories: [] });
+  const [groceryData, setGroceryData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState([]);
+  const [showDebug, setShowDebug] = useState(false);
+  const [activeTab, setActiveTab] = useState('');
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [showFinalList, setShowFinalList] = useState(false);
+  const [newItemText, setNewItemText] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [itemToRemove, setItemToRemove] = useState(null);
 
   // Your n8n webhook URL - verified working in browser
-  // For local development, try using localhost directly:
-  // const WEBHOOK_URL = 'http://localhost:5678/webhook/5eb40df4-7053-4166-9b7b-6893789ff943/fetch_grocery_items';
   const WEBHOOK_URL = 'https://missouri-means-revealed-card.trycloudflare.com/webhook/5eb40df4-7053-4166-9b7b-6893789ff943/fetch_grocery_items';
 
   // Debug logging function
@@ -24,7 +29,6 @@ const GroceryChecklist = () => {
     addDebugLog('Testing basic connectivity...');
     
     try {
-      // First, test if we can reach any external URL
       const testResponse = await fetch('https://api.github.com/zen', {
         method: 'GET',
         mode: 'cors'
@@ -38,14 +42,6 @@ const GroceryChecklist = () => {
     } catch (err) {
       addDebugLog('❌ No external connectivity', err.message);
     }
-
-    // Test webhook connectivity with different approaches
-    try {
-      addDebugLog('Testing webhook with no-cors mode...');
-      addDebugLog('✅ Webhook request sent (no-cors mode)');
-    } catch (err) {
-      addDebugLog('❌ Webhook unreachable even in no-cors mode', err.message);
-    }
   };
 
   // Fetch grocery data from your n8n webhook
@@ -55,13 +51,11 @@ const GroceryChecklist = () => {
         setError(null);
         setDebugInfo([]);
         
-        // Run connectivity test first
         await testConnectivity();
         
         addDebugLog('Fetching grocery data from n8n webhook...');
         addDebugLog('Webhook URL:', WEBHOOK_URL);
         
-        // Try different fetch configurations
         const fetchConfigs = [
           {
             name: 'Standard CORS',
@@ -104,7 +98,6 @@ const GroceryChecklist = () => {
               status: response.status,
               statusText: response.statusText,
               type: response.type,
-              headers: Object.fromEntries([...response.headers.entries()])
             });
 
             if (response.ok) {
@@ -135,69 +128,28 @@ const GroceryChecklist = () => {
           throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
         }
         
-        // Handle the actual data structure from your n8n webhook
-        let formattedData;
+        setGroceryData(data);
         
-        if (Array.isArray(data)) {
-          addDebugLog('Data is an array with length:', data.length);
-          // If it's an array of items, group by category
-          const groupedByCategory = {};
-          data.forEach(item => {
-            const categoryName = item.Category || 'General';
-            if (!groupedByCategory[categoryName]) {
-              groupedByCategory[categoryName] = [];
-            }
-            groupedByCategory[categoryName].push({
-              id: item.ItemID?.toString() || Math.random().toString(),
-              label: item.ItemName || 'Unknown Item'
-            });
-          });
-          
-          formattedData = {
-            categories: Object.keys(groupedByCategory).map(categoryName => ({
-              name: categoryName,
-              items: groupedByCategory[categoryName]
-            }))
-          };
-        } else if (data.ItemID && data.ItemName) {
-          addDebugLog('Data is a single item');
-          // Single item - convert to expected format
-          formattedData = {
-            categories: [{
-              name: data.Category || 'General',
-              items: [{
-                id: data.ItemID.toString(),
-                label: data.ItemName
-              }]
-            }]
-          };
-        } else if (data.categories) {
-          addDebugLog('Data already has categories structure');
-          // Already in expected format
-          formattedData = data;
-        } else {
-          // Unknown format
-          addDebugLog('⚠️ Unexpected data format');
-          formattedData = { categories: [] };
+        // Set the first category as active tab
+        const categories = [...new Set(data.map(item => item.Category))];
+        if (categories.length > 0) {
+          setActiveTab(categories[0]);
         }
         
-        addDebugLog('✅ Successfully formatted data:', formattedData);
-        setGroceryData(formattedData);
+        addDebugLog('✅ Successfully loaded data');
       } catch (error) {
         addDebugLog('❌ Error in fetchGroceryData:', error.message);
         setError(error.message);
         // Fallback to sample data if webhook fails
-        setGroceryData({
-          categories: [
-            { 
-              name: "Sample Data (Webhook Failed)", 
-              items: [
-                { id: "1", label: "Grapes (sample)" },
-                { id: "2", label: "Almond Milk (sample)" }
-              ] 
-            }
-          ]
-        });
+        const sampleData = [
+          { ItemID: 1, ItemName: "Grapes", Category: "Lunches" },
+          { ItemID: 2, ItemName: "Pastry Pups", Category: "Lunches" },
+          { ItemID: 3, ItemName: "Almond Milk", Category: "Breakfast" },
+          { ItemID: 4, ItemName: "BelVita Breakfast biscuits", Category: "Snacks" },
+          { ItemID: 5, ItemName: "Peanut Butter", Category: "General" }
+        ];
+        setGroceryData(sampleData);
+        setActiveTab("Lunches");
       } finally {
         setIsLoading(false);
       }
@@ -205,12 +157,6 @@ const GroceryChecklist = () => {
 
     fetchGroceryData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const [selectedItems, setSelectedItems] = useState(new Set());
-  const [showFinalList, setShowFinalList] = useState(false);
-  const [newItemText, setNewItemText] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [showDebug, setShowDebug] = useState(true);
 
   const handleItemToggle = (itemId) => {
     const newSelected = new Set(selectedItems);
@@ -220,6 +166,39 @@ const GroceryChecklist = () => {
       newSelected.add(itemId);
     }
     setSelectedItems(newSelected);
+  };
+
+  const handleRemoveItem = async (item) => {
+    setItemToRemove(item);
+  };
+
+  const confirmRemoveItem = async () => {
+    if (!itemToRemove) return;
+    
+    try {
+      // This would send a request to your n8n webhook to deactivate the item
+      const removalData = {
+        action: "deactivate_item",
+        itemId: itemToRemove.ItemID
+      };
+      
+      addDebugLog('Removing item from database:', removalData);
+      
+      // For now, remove it from local state
+      setGroceryData(groceryData.filter(item => item.ItemID !== itemToRemove.ItemID));
+      
+      // Remove from selected items if it was selected
+      const newSelected = new Set(selectedItems);
+      newSelected.delete(itemToRemove.ItemID.toString());
+      setSelectedItems(newSelected);
+      
+      addDebugLog('✅ Item removed successfully');
+    } catch (error) {
+      addDebugLog('❌ Error removing item:', error.message);
+      alert('Failed to remove item. Please try again.');
+    } finally {
+      setItemToRemove(null);
+    }
   };
 
   const handleSubmit = async () => {
@@ -242,26 +221,19 @@ const GroceryChecklist = () => {
     }
   };
 
-  const handleAddItem = async (categoryName) => {
-    if (newItemText.trim()) {
-      // For now, just add locally
+  const handleAddItem = async () => {
+    if (newItemText.trim() && activeTab) {
       const newItem = {
-        id: Date.now().toString(),
-        label: newItemText.trim()
+        ItemID: Date.now(),
+        ItemName: newItemText.trim(),
+        Category: activeTab
       };
       
-      const updatedCategories = groceryData.categories.map(cat => {
-        if (cat.name === categoryName) {
-          return { ...cat, items: [...cat.items, newItem] };
-        }
-        return cat;
-      });
-      
-      setGroceryData({ categories: updatedCategories });
+      setGroceryData([...groceryData, newItem]);
       setNewItemText('');
       setShowAddForm(false);
       
-      addDebugLog('Added item locally:', { category: categoryName, item: newItem });
+      addDebugLog('Added item locally:', newItem);
     }
   };
 
@@ -273,22 +245,78 @@ const GroceryChecklist = () => {
     });
   };
 
-  const getFinalGroceryList = () => {
-    const finalList = {};
-    groceryData.categories.forEach(category => {
-      const selectedInCategory = category.items.filter(item => 
-        selectedItems.has(item.id)
-      );
-      if (selectedInCategory.length > 0) {
-        finalList[category.name] = selectedInCategory;
+  const getWeekDateRange = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+    
+    // If Thursday (4), Friday (5), or Saturday (6), show next week
+    // Otherwise show current week
+    const showNextWeek = dayOfWeek >= 4;
+    
+    // Find the Sunday of the current week
+    const daysToSunday = dayOfWeek;
+    const currentWeekSunday = new Date(today);
+    currentWeekSunday.setDate(today.getDate() - daysToSunday);
+    
+    // Determine which Sunday to use as the start
+    const targetSunday = new Date(currentWeekSunday);
+    if (showNextWeek) {
+      targetSunday.setDate(targetSunday.getDate() + 7);
+    }
+    
+    // Get the Saturday (6 days after Sunday)
+    const targetSaturday = new Date(targetSunday);
+    targetSaturday.setDate(targetSunday.getDate() + 6);
+    
+    // Format the dates
+    const formatDate = (date) => {
+      const day = date.getDate();
+      const month = date.toLocaleDateString('en-US', { month: 'long' });
+      return `${month} ${day}${getOrdinalSuffix(day)}`;
+    };
+    
+    const getOrdinalSuffix = (day) => {
+      if (day > 3 && day < 21) return 'th';
+      switch (day % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
       }
+    };
+    
+    const year = targetSunday.getFullYear();
+    return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
+  };
+
+  const getCategories = () => {
+    return [...new Set(groceryData.map(item => item.Category))];
+  };
+
+  const getItemsByCategory = (category) => {
+    return groceryData.filter(item => item.Category === category);
+  };
+
+  const getFinalGroceryList = () => {
+    const selectedItemIds = Array.from(selectedItems);
+    const selectedGroceryItems = groceryData.filter(item => 
+      selectedItemIds.includes(item.ItemID.toString())
+    );
+    
+    const groupedByCategory = {};
+    selectedGroceryItems.forEach(item => {
+      if (!groupedByCategory[item.Category]) {
+        groupedByCategory[item.Category] = [];
+      }
+      groupedByCategory[item.Category].push(item);
     });
-    return finalList;
+    
+    return groupedByCategory;
   };
 
   if (isLoading) {
     return (
-      <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading grocery items from your database...</p>
@@ -301,15 +329,15 @@ const GroceryChecklist = () => {
   if (showFinalList) {
     const finalList = getFinalGroceryList();
     return (
-      <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
         <div className="flex items-center gap-3 mb-6">
           <ShoppingCart className="text-green-600" size={28} />
           <h1 className="text-2xl font-bold text-gray-800">Weekly Grocery List</h1>
         </div>
         
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <p className="text-lg font-semibold text-gray-700">{getCurrentDate()}</p>
-          <p className="text-sm text-gray-600">Items selected: {selectedItems.size}</p>
+          <p className="text-lg font-semibold text-gray-700">{getWeekDateRange()}</p>
+          <p className="text-sm text-gray-600 mt-1">Items selected: {selectedItems.size}</p>
         </div>
 
         {Object.entries(finalList).map(([categoryName, items]) => (
@@ -319,9 +347,9 @@ const GroceryChecklist = () => {
             </h2>
             <ul className="space-y-2">
               {items.map(item => (
-                <li key={item.id} className="flex items-center gap-2 text-gray-700">
+                <li key={item.ItemID} className="flex items-center gap-2 text-gray-700">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  {item.label}
+                  {item.ItemName}
                 </li>
               ))}
             </ul>
@@ -349,51 +377,92 @@ const GroceryChecklist = () => {
     );
   }
 
+  const categories = getCategories();
+  const currentCategoryItems = getItemsByCategory(activeTab);
+
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Debug Panel */}
-      {showDebug && (
-        <div className="mb-6 p-4 bg-gray-900 text-white rounded-lg shadow-lg">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Wifi size={20} />
-              Debug Information
-            </h3>
-            <button
-              onClick={() => setShowDebug(false)}
-              className="text-gray-400 hover:text-white"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
-            {debugInfo.map((log, index) => (
-              <div key={index} className="flex gap-2">
-                <span className="text-gray-400">[{log.timestamp}]</span>
-                <span className={
-                  log.message.includes('✅') ? 'text-green-400' :
-                  log.message.includes('❌') ? 'text-red-400' :
-                  log.message.includes('⚠️') ? 'text-yellow-400' :
-                  'text-gray-200'
-                }>
-                  {log.message}
-                </span>
-                {log.data && (
-                  <span className="text-gray-500">
-                    {typeof log.data === 'object' ? JSON.stringify(log.data, null, 2) : log.data}
-                  </span>
-                )}
+    <div className="max-w-4xl mx-auto">
+      {/* Confirmation Modal */}
+      {itemToRemove && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertCircle className="text-red-600 flex-shrink-0 mt-1" size={24} />
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Remove Item from Database?</h3>
+                <p className="mt-2 text-gray-600">
+                  Are you sure you want to permanently remove <strong>"{itemToRemove.ItemName}"</strong> from the {itemToRemove.Category} category?
+                </p>
+                <p className="mt-2 text-sm text-gray-500">
+                  This action will deactivate the item in your database and it won't appear in future grocery lists.
+                </p>
               </div>
-            ))}
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setItemToRemove(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRemoveItem}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Remove Item
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       <div className="p-6 bg-white rounded-lg shadow-lg">
-        <div className="flex items-center gap-3 mb-6">
-          <Check className="text-blue-600" size={28} />
-          <h1 className="text-2xl font-bold text-gray-800">Weekly Grocery Selection</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Check className="text-blue-600" size={28} />
+            <h1 className="text-2xl font-bold text-gray-800">Weekly Grocery Selection</h1>
+          </div>
+          
+          {/* Debug Toggle */}
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            <Wifi size={16} />
+            Debug Info
+            {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
         </div>
+
+        {/* Debug Panel */}
+        {showDebug && (
+          <div className="mb-6 p-4 bg-gray-900 text-white rounded-lg shadow-lg">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
+              <Wifi size={20} />
+              Debug Information
+            </h3>
+            <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
+              {debugInfo.map((log, index) => (
+                <div key={index} className="flex gap-2">
+                  <span className="text-gray-400">[{log.timestamp}]</span>
+                  <span className={
+                    log.message.includes('✅') ? 'text-green-400' :
+                    log.message.includes('❌') ? 'text-red-400' :
+                    log.message.includes('⚠️') ? 'text-yellow-400' :
+                    'text-gray-200'
+                  }>
+                    {log.message}
+                  </span>
+                  {log.data && (
+                    <span className="text-gray-500">
+                      {typeof log.data === 'object' ? JSON.stringify(log.data, null, 2) : log.data}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -402,71 +471,114 @@ const GroceryChecklist = () => {
               <div>
                 <p className="font-semibold text-red-800">Connection Error</p>
                 <p className="text-red-700 text-sm mt-1">{error}</p>
-                <button
-                  onClick={() => setShowDebug(true)}
-                  className="mt-2 text-sm text-red-600 underline hover:text-red-800"
-                >
-                  Show debug information
-                </button>
+                <p className="text-red-600 text-sm mt-1">Using sample data instead.</p>
               </div>
             </div>
           </div>
         )}
 
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <p className="text-lg font-medium text-blue-900">{getWeekDateRange()}</p>
+        </div>
+
         <p className="text-gray-600 mb-6">Please select items for this week's grocery list:</p>
 
-        {groceryData.categories.map((category) => (
-          <div key={category.name} className="mb-6 bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-800">{category.name}</h2>
+        {/* Category Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
               <button
-                onClick={() => setShowAddForm(showAddForm === category.name ? false : category.name)}
-                className="text-blue-600 hover:text-blue-800 transition-colors"
-                title="Add new item"
+                key={category}
+                onClick={() => setActiveTab(category)}
+                className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
+                  activeTab === category
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                <Plus size={20} />
+                {category}
+                <span className="ml-2 text-sm opacity-80">
+                  ({getItemsByCategory(category).length})
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Items for Active Category */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">{activeTab} Items</h2>
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+              title="Add new item"
+            >
+              <Plus size={20} />
+              Add Item
+            </button>
+          </div>
+          
+          {showAddForm && (
+            <div className="mb-4 flex gap-2">
+              <input
+                type="text"
+                value={newItemText}
+                onChange={(e) => setNewItemText(e.target.value)}
+                placeholder={`New ${activeTab} item...`}
+                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
+              />
+              <button
+                onClick={handleAddItem}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewItemText('');
+                }}
+                className="px-3 py-2 text-gray-600 hover:text-gray-800"
+              >
+                <X size={20} />
               </button>
             </div>
-            
-            {showAddForm === category.name && (
-              <div className="mb-3 flex gap-2">
+          )}
+          
+          <div className="space-y-2">
+            {currentCategoryItems.map((item) => (
+              <div
+                key={item.ItemID}
+                className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group"
+              >
                 <input
-                  type="text"
-                  value={newItemText}
-                  onChange={(e) => setNewItemText(e.target.value)}
-                  placeholder="New item name..."
-                  className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddItem(category.name)}
+                  type="checkbox"
+                  id={`item-${item.ItemID}`}
+                  checked={selectedItems.has(item.ItemID.toString())}
+                  onChange={() => handleItemToggle(item.ItemID.toString())}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
-                <button
-                  onClick={() => handleAddItem(category.name)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                <label
+                  htmlFor={`item-${item.ItemID}`}
+                  className={`flex-1 cursor-pointer text-gray-700 ${
+                    selectedItems.has(item.ItemID.toString()) ? 'font-medium' : ''
+                  }`}
                 >
-                  Add
+                  {item.ItemName}
+                </label>
+                <button
+                  onClick={() => handleRemoveItem(item)}
+                  className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-800 transition-all"
+                  title="Remove item from database"
+                >
+                  <Trash2 size={18} />
                 </button>
               </div>
-            )}
-            
-            <div className="space-y-2">
-              {category.items.map((item) => (
-                <label 
-                  key={item.id} 
-                  className="flex items-center gap-3 p-2 hover:bg-white rounded cursor-pointer transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedItems.has(item.id)}
-                    onChange={() => handleItemToggle(item.id)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <span className={`text-gray-700 ${selectedItems.has(item.id) ? 'font-medium' : ''}`}>
-                    {item.label}
-                  </span>
-                </label>
-              ))}
-            </div>
+            ))}
           </div>
-        ))}
+        </div>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-4">
           <div className="flex-1 text-sm text-gray-600 flex items-center">
