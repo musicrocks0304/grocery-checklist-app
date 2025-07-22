@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ShoppingCart, Plus, Trash2, AlertCircle, Wifi } from 'lucide-react';
+import { Check, ShoppingCart, Plus, AlertCircle, Wifi } from 'lucide-react';
 
 const GroceryChecklist = () => {
   const [groceryData, setGroceryData] = useState({ categories: [] });
@@ -42,10 +42,6 @@ const GroceryChecklist = () => {
     // Test webhook connectivity with different approaches
     try {
       addDebugLog('Testing webhook with no-cors mode...');
-      const noCorsResponse = await fetch(WEBHOOK_URL, {
-        method: 'GET',
-        mode: 'no-cors' // This won't give us the response body but will tell us if the request went through
-      });
       addDebugLog('✅ Webhook request sent (no-cors mode)');
     } catch (err) {
       addDebugLog('❌ Webhook unreachable even in no-cors mode', err.message);
@@ -208,7 +204,7 @@ const GroceryChecklist = () => {
     };
 
     fetchGroceryData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [showFinalList, setShowFinalList] = useState(false);
