@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X } from 'lucide-react';
+import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers } from 'lucide-react';
 
 const GroceryChecklist = () => {
   const [groceryData, setGroceryData] = useState([]);
@@ -13,6 +13,7 @@ const GroceryChecklist = () => {
   const [newItemText, setNewItemText] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
+  const [groupBy, setGroupBy] = useState('Category'); // New state for grouping mode
 
   // Your n8n webhook URL - verified working in browser
   const WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/5eb40df4-7053-4166-9b7b-6893789ff943/fetch_grocery_items';
@@ -130,26 +131,26 @@ const GroceryChecklist = () => {
         
         setGroceryData(data);
         
-        // Set the first category as active tab
-        const categories = [...new Set(data.map(item => item.Category))];
-        if (categories.length > 0) {
-          setActiveTab(categories[0]);
+        // Set the first group as active tab
+        const groups = getGroups(data, groupBy);
+        if (groups.length > 0) {
+          setActiveTab(groups[0]);
         }
         
         addDebugLog('✅ Successfully loaded data');
       } catch (error) {
         addDebugLog('❌ Error in fetchGroceryData:', error.message);
         setError(error.message);
-        // Fallback to sample data if webhook fails
+        // Fallback to sample data if webhook fails - now includes new fields
         const sampleData = [
-          { ItemID: 1, ItemName: "Grapes", Category: "Lunches" },
-          { ItemID: 2, ItemName: "Pastry Pups", Category: "Lunches" },
-          { ItemID: 3, ItemName: "Almond Milk", Category: "Breakfast" },
-          { ItemID: 4, ItemName: "BelVita Breakfast biscuits", Category: "Snacks" },
-          { ItemID: 5, ItemName: "Peanut Butter", Category: "General" }
+          { ItemID: 1, ItemName: "Grapes", Category: "Lunches", Store: "Tom Thumb", GroceryStoreSection: "Produce" },
+          { ItemID: 2, ItemName: "Pastry Pups", Category: "Lunches", Store: "Trader Joe's", GroceryStoreSection: "Frozen" },
+          { ItemID: 3, ItemName: "Almond Milk", Category: "Breakfast", Store: "Whole Foods", GroceryStoreSection: "Refrigerated" },
+          { ItemID: 4, ItemName: "BelVita Breakfast biscuits", Category: "Snacks", Store: "Kroger", GroceryStoreSection: "Snacks" },
+          { ItemID: 5, ItemName: "Peanut Butter", Category: "General", Store: "Costco", GroceryStoreSection: "Pantry" }
         ];
         setGroceryData(sampleData);
-        setActiveTab("Lunches");
+        setActiveTab(getGroups(sampleData, groupBy)[0]);
       } finally {
         setIsLoading(false);
       }
@@ -157,6 +158,25 @@ const GroceryChecklist = () => {
 
     fetchGroceryData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Get unique groups based on the grouping mode
+  const getGroups = (data = groceryData, groupingKey = groupBy) => {
+    return [...new Set(data.map(item => item[groupingKey]))].filter(Boolean);
+  };
+
+  // Get items by group
+  const getItemsByGroup = (group, groupingKey = groupBy) => {
+    return groceryData.filter(item => item[groupingKey] === group);
+  };
+
+  // Handle grouping mode change
+  const handleGroupByChange = (newGroupBy) => {
+    setGroupBy(newGroupBy);
+    const groups = getGroups(groceryData, newGroupBy);
+    if (groups.length > 0) {
+      setActiveTab(groups[0]);
+    }
+  };
 
   const handleItemToggle = (itemId) => {
     const newSelected = new Set(selectedItems);
@@ -223,10 +243,13 @@ const GroceryChecklist = () => {
 
   const handleAddItem = async () => {
     if (newItemText.trim() && activeTab) {
+      // For new items, we need to determine default values for other grouping fields
       const newItem = {
         ItemID: Date.now(),
         ItemName: newItemText.trim(),
-        Category: activeTab
+        Category: groupBy === 'Category' ? activeTab : 'General',
+        Store: groupBy === 'Store' ? activeTab : 'Tom Thumb',
+        GroceryStoreSection: groupBy === 'GroceryStoreSection' ? activeTab : 'Pantry'
       };
       
       setGroceryData([...groceryData, newItem]);
@@ -281,14 +304,6 @@ const GroceryChecklist = () => {
     return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
 
-  const getCategories = () => {
-    return [...new Set(groceryData.map(item => item.Category))];
-  };
-
-  const getItemsByCategory = (category) => {
-    return groceryData.filter(item => item.Category === category);
-  };
-
   const getFinalGroceryList = () => {
     const selectedItemIds = Array.from(selectedItems);
     const selectedGroceryItems = groceryData.filter(item => 
@@ -341,7 +356,10 @@ const GroceryChecklist = () => {
               {items.map(item => (
                 <li key={item.ItemID} className="flex items-center gap-2 text-gray-700">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  {item.ItemName}
+                  <span>{item.ItemName}</span>
+                  <span className="text-sm text-gray-500 ml-2">
+                    ({item.Store} - {item.GroceryStoreSection})
+                  </span>
                 </li>
               ))}
             </ul>
@@ -369,8 +387,8 @@ const GroceryChecklist = () => {
     );
   }
 
-  const categories = getCategories();
-  const currentCategoryItems = getItemsByCategory(activeTab);
+  const groups = getGroups();
+  const currentGroupItems = getItemsByGroup(activeTab);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -475,32 +493,57 @@ const GroceryChecklist = () => {
 
         <p className="text-gray-600 mb-6">Please select items for this week's grocery list:</p>
 
-        {/* Category Tabs */}
+        {/* Grouping Mode Selector */}
+        <div className="mb-6 flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-2 text-gray-700">
+            <Layers size={20} />
+            <span className="font-medium">Group by:</span>
+          </div>
+          <div className="flex gap-2">
+            {['Category', 'Store', 'GroceryStoreSection'].map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handleGroupByChange(mode)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  groupBy === mode
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                {mode === 'GroceryStoreSection' ? 'Store Section' : mode}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Group Tabs */}
         <div className="mb-6 border-b border-gray-200">
           <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
+            {groups.map((group) => (
               <button
-                key={category}
-                onClick={() => setActiveTab(category)}
+                key={group}
+                onClick={() => setActiveTab(group)}
                 className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
-                  activeTab === category
+                  activeTab === group
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {category}
+                {group}
                 <span className="ml-2 text-sm opacity-80">
-                  ({getItemsByCategory(category).length})
+                  ({getItemsByGroup(group).length})
                 </span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Items for Active Category */}
+        {/* Items for Active Group */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">{activeTab} Items</h2>
+            <h2 className="text-lg font-semibold text-gray-800">
+              {groupBy === 'GroceryStoreSection' ? 'Store Section' : groupBy}: {activeTab}
+            </h2>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
               className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
@@ -517,7 +560,7 @@ const GroceryChecklist = () => {
                 type="text"
                 value={newItemText}
                 onChange={(e) => setNewItemText(e.target.value)}
-                placeholder={`New ${activeTab} item...`}
+                placeholder={`New item for ${activeTab}...`}
                 className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
               />
@@ -540,7 +583,7 @@ const GroceryChecklist = () => {
           )}
           
           <div className="space-y-2">
-            {currentCategoryItems.map((item) => (
+            {currentGroupItems.map((item) => (
               <div
                 key={item.ItemID}
                 className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group"
@@ -554,11 +597,22 @@ const GroceryChecklist = () => {
                 />
                 <label
                   htmlFor={`item-${item.ItemID}`}
-                  className={`flex-1 cursor-pointer text-gray-700 ${
+                  className={`flex-1 cursor-pointer ${
                     selectedItems.has(item.ItemID.toString()) ? 'font-medium' : ''
                   }`}
                 >
-                  {item.ItemName}
+                  <span className="text-gray-700">{item.ItemName}</span>
+                  <div className="text-sm text-gray-500 mt-1">
+                    {groupBy !== 'Category' && (
+                      <span className="mr-3">Category: {item.Category}</span>
+                    )}
+                    {groupBy !== 'Store' && (
+                      <span className="mr-3">Store: {item.Store}</span>
+                    )}
+                    {groupBy !== 'GroceryStoreSection' && (
+                      <span>Section: {item.GroceryStoreSection}</span>
+                    )}
+                  </div>
                 </label>
                 <button
                   onClick={() => handleRemoveItem(item)}
