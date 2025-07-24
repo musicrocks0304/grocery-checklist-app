@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers, MessageCircle, ChefHat } from 'lucide-react';
+import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers, ChefHat } from 'lucide-react';
 import ChatBot from './ChatBot';
 
 const App = () => {

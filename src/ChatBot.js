@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles } from 'lucide-react';
+import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, Check, X, ShoppingCart } from 'lucide-react';
 
 const ChatBot = ({ onBack }) => {
   const [messages, setMessages] = useState([
@@ -15,10 +15,17 @@ const ChatBot = ({ onBack }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [selectedMeals, setSelectedMeals] = useState([]);
+  const [showIngredientsPanel, setShowIngredientsPanel] = useState(false);
+  const [selectedIngredients, setSelectedIngredients] = useState(new Set());
+  const [loadingIngredients, setLoadingIngredients] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Your n8n webhook URL for the chatbot
   const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/your-chatbot-webhook-id/meal_planning';
+  
+  // Your n8n webhook URL for getting ingredients
+  const INGREDIENTS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/your-ingredients-webhook-id/get_ingredients';
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
@@ -52,6 +59,135 @@ const ChatBot = ({ onBack }) => {
   // Remove typing indicator
   const removeTypingIndicator = (typingId) => {
     setMessages(prev => prev.filter(msg => msg.id !== typingId));
+  };
+
+  // Add a meal to the selected meals list
+  const addMealToList = (mealName, mealDescription) => {
+    const newMeal = {
+      id: Date.now(),
+      name: mealName,
+      description: mealDescription,
+      ingredients: []
+    };
+    
+    setSelectedMeals(prev => [...prev, newMeal]);
+    
+    // Automatically fetch ingredients for this meal
+    fetchIngredientsForMeal(newMeal);
+    
+    addDebugLog('Added meal to planning list:', newMeal);
+  };
+
+  // Fetch ingredients for a specific meal
+  const fetchIngredientsForMeal = async (meal) => {
+    setLoadingIngredients(true);
+    addDebugLog('Fetching ingredients for meal:', meal.name);
+    
+    try {
+      const requestBody = {
+        meal_name: meal.name,
+        meal_description: meal.description,
+        context: 'get_ingredients'
+      };
+
+      addDebugLog('Ingredients request payload:', requestBody);
+
+      // Simulate API call for demo
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Generate sample ingredients based on meal type
+      let sampleIngredients = [];
+      const mealLower = meal.name.toLowerCase();
+      
+      if (mealLower.includes('overnight oats') || mealLower.includes('oats')) {
+        sampleIngredients = [
+          { id: 1, name: "Rolled Oats", category: "Pantry", store: "Kroger", section: "Cereal Aisle", needed: true },
+          { id: 2, name: "Chia Seeds", category: "Health Foods", store: "Whole Foods", section: "Health Foods", needed: true },
+          { id: 3, name: "Fresh Berries", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 4, name: "Honey", category: "Pantry", store: "Kroger", section: "Condiments", needed: true },
+          { id: 5, name: "Vanilla Extract", category: "Baking", store: "Kroger", section: "Baking", needed: false }
+        ];
+      } else if (mealLower.includes('smoothie')) {
+        sampleIngredients = [
+          { id: 6, name: "Frozen Mango", category: "Frozen", store: "Trader Joe's", section: "Frozen", needed: true },
+          { id: 7, name: "Spinach", category: "Produce", store: "Whole Foods", section: "Produce", needed: true },
+          { id: 8, name: "Protein Powder", category: "Health Foods", store: "Whole Foods", section: "Health Foods", needed: true },
+          { id: 9, name: "Coconut Water", category: "Beverages", store: "Tom Thumb", section: "Beverages", needed: true }
+        ];
+      } else if (mealLower.includes('salad')) {
+        sampleIngredients = [
+          { id: 10, name: "Mixed Greens", category: "Produce", store: "Whole Foods", section: "Produce", needed: true },
+          { id: 11, name: "Cherry Tomatoes", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 12, name: "Cucumber", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 13, name: "Feta Cheese", category: "Dairy", store: "Whole Foods", section: "Refrigerated", needed: true },
+          { id: 14, name: "Olive Oil", category: "Pantry", store: "Costco", section: "Condiments", needed: false }
+        ];
+      } else {
+        sampleIngredients = [
+          { id: 15, name: "Chicken Breast", category: "Meat", store: "Tom Thumb", section: "Meat", needed: true },
+          { id: 16, name: "Rice", category: "Pantry", store: "Costco", section: "Pantry", needed: true },
+          { id: 17, name: "Broccoli", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 18, name: "Garlic", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true }
+        ];
+      }
+
+      // Update the meal with ingredients
+      setSelectedMeals(prev => prev.map(m => 
+        m.id === meal.id 
+          ? { ...m, ingredients: sampleIngredients }
+          : m
+      ));
+
+      // Auto-select ingredients that are marked as needed
+      const neededIngredientIds = sampleIngredients
+        .filter(ing => ing.needed)
+        .map(ing => `${meal.id}-${ing.id}`);
+      
+      setSelectedIngredients(prev => {
+        const newSet = new Set(prev);
+        neededIngredientIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+
+      addDebugLog('✅ Ingredients fetched successfully:', sampleIngredients);
+      
+    } catch (error) {
+      addDebugLog('❌ Error fetching ingredients:', error.message);
+    } finally {
+      setLoadingIngredients(false);
+    }
+  };
+
+  // Toggle ingredient selection
+  const toggleIngredient = (mealId, ingredientId) => {
+    const key = `${mealId}-${ingredientId}`;
+    setSelectedIngredients(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
+  // Remove meal from planning list
+  const removeMeal = (mealId) => {
+    setSelectedMeals(prev => prev.filter(m => m.id !== mealId));
+    
+    // Remove all ingredients for this meal from selected ingredients
+    setSelectedIngredients(prev => {
+      const newSet = new Set();
+      prev.forEach(key => {
+        if (!key.startsWith(`${mealId}-`)) {
+          newSet.add(key);
+        }
+      });
+      return newSet;
+    });
+    
+    addDebugLog('Removed meal from planning list:', mealId);
   };
 
   // Send message to n8n webhook
@@ -101,18 +237,40 @@ const ChatBot = ({ onBack }) => {
 
       // Simulate different responses based on message content
       let botResponse = "";
+      let suggestedMeals = [];
       const lowerMessage = messageToSend.toLowerCase();
       
       if (lowerMessage.includes('breakfast')) {
-        botResponse = "🍳 Great choice for breakfast planning! Based on your grocery list, I see you have almond milk and could add BelVita breakfast biscuits. Here are some ideas:\n\n• **Overnight Oats**: Mix almond milk with oats, add berries and nuts\n• **Smoothie Bowl**: Blend almond milk with frozen fruits, top with granola\n• **Avocado Toast**: If you get bread and avocados, perfect protein-rich start\n\nWould you like specific recipes for any of these?";
+        botResponse = "🍳 Great choice for breakfast planning! Based on your grocery list, I see you have almond milk and could add BelVita breakfast biscuits. Here are some ideas:";
+        suggestedMeals = [
+          { name: "Overnight Oats", description: "Mix almond milk with oats, add berries and nuts for a nutritious start" },
+          { name: "Smoothie Bowl", description: "Blend almond milk with frozen fruits, top with granola and fresh berries" },
+          { name: "Avocado Toast", description: "Perfect protein-rich start with bread, avocados, and a sprinkle of seeds" }
+        ];
       } else if (lowerMessage.includes('lunch')) {
-        botResponse = "🥗 Perfect! I notice you have grapes on your list. Here are some fresh lunch ideas:\n\n• **Chicken Grape Salad**: Grilled chicken with grapes, walnuts, and greens\n• **Pastry Pups Combo**: Quick option with a side salad using your grapes\n• **Mediterranean Wrap**: If you add some deli meat and cheese\n\nWhat type of lunch vibe are you going for - quick and easy or more elaborate?";
+        botResponse = "🥗 Perfect! I notice you have grapes on your list. Here are some fresh lunch ideas:";
+        suggestedMeals = [
+          { name: "Chicken Grape Salad", description: "Grilled chicken with grapes, walnuts, and mixed greens" },
+          { name: "Pastry Pups Combo", description: "Quick option with a side salad using your grapes and vegetables" },
+          { name: "Mediterranean Wrap", description: "Fresh wrap with deli meat, cheese, and Mediterranean vegetables" }
+        ];
       } else if (lowerMessage.includes('dinner') || lowerMessage.includes('meal')) {
-        botResponse = "🍽️ Excellent! Let me suggest some dinner ideas that work with your grocery preferences:\n\n• **Sheet Pan Dinner**: Protein + roasted vegetables (great use of any produce you pick up)\n• **Stir-fry Night**: Quick cooking with whatever proteins and veggies you have\n• **Comfort Food**: Something hearty using pantry staples like your peanut butter for sauces\n\nAny dietary restrictions or cuisines you're craving this week?";
+        botResponse = "🍽️ Excellent! Let me suggest some dinner ideas that work with your grocery preferences:";
+        suggestedMeals = [
+          { name: "Sheet Pan Dinner", description: "One-pan meal with protein and roasted vegetables" },
+          { name: "Stir-fry Night", description: "Quick cooking with proteins, vegetables, and rice" },
+          { name: "Comfort Food Bowl", description: "Hearty meal using pantry staples and fresh ingredients" }
+        ];
       } else if (lowerMessage.includes('snack')) {
-        botResponse = "🍇 I see you're thinking snacks! Your BelVita biscuits and grapes are perfect starts. Here are some ideas:\n\n• **Energy Bites**: Mix peanut butter with oats and mini chocolate chips\n• **Fruit & Nut Combo**: Grapes with almonds or cheese\n• **Yogurt Parfait**: Layer with your breakfast biscuits as crunch\n\nWould you like me to suggest quantities for your shopping list?";
+        botResponse = "🍇 I see you're thinking snacks! Your BelVita biscuits and grapes are perfect starts. Here are some ideas:";
+        suggestedMeals = [
+          { name: "Energy Bites", description: "Mix peanut butter with oats and mini chocolate chips" },
+          { name: "Fruit & Nut Combo", description: "Grapes with almonds or cheese for balanced nutrition" },
+          { name: "Yogurt Parfait", description: "Layer yogurt with breakfast biscuits as crunch and fresh fruits" }
+        ];
       } else {
         botResponse = `✨ I'd love to help you plan some amazing meals! Based on your current grocery list (grapes, pastry pups, almond milk, BelVita biscuits, and peanut butter), I can suggest meals that incorporate these items plus some additional ingredients.\n\nWhat type of meals interest you most:\n• Quick weekday dinners\n• Healthy lunch prep\n• Breakfast ideas\n• Snack combinations\n\nOr tell me about any specific cravings or dietary goals you have this week!`;
+        suggestedMeals = [];
       }
 
       addDebugLog('Simulated bot response:', botResponse);
@@ -123,6 +281,7 @@ const ChatBot = ({ onBack }) => {
         id: Date.now() + 1,
         type: 'bot',
         content: botResponse,
+        suggestedMeals: suggestedMeals,
         timestamp: new Date().toLocaleTimeString()
       };
 
@@ -191,8 +350,9 @@ const ChatBot = ({ onBack }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div className="max-w-7xl mx-auto flex gap-6">
+      {/* Main Chat Area */}
+      <div className={`bg-white rounded-lg shadow-lg overflow-hidden transition-all ${showIngredientsPanel ? 'flex-1' : 'w-full max-w-4xl mx-auto'}`}>
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6">
           <div className="flex items-center justify-between mb-4">
@@ -207,15 +367,26 @@ const ChatBot = ({ onBack }) => {
               <h1 className="text-2xl font-bold">AI Meal Planner</h1>
             </div>
             
-            {/* Debug Toggle */}
-            <button
-              onClick={() => setShowDebug(!showDebug)}
-              className="flex items-center gap-2 text-sm hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
-            >
-              <Wifi size={16} />
-              Debug Info
-              {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Ingredients Panel Toggle */}
+              <button
+                onClick={() => setShowIngredientsPanel(!showIngredientsPanel)}
+                className="flex items-center gap-2 text-sm hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
+              >
+                <ShoppingCart size={16} />
+                Meal Plans ({selectedMeals.length})
+              </button>
+              
+              {/* Debug Toggle */}
+              <button
+                onClick={() => setShowDebug(!showDebug)}
+                className="flex items-center gap-2 text-sm hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
+              >
+                <Wifi size={16} />
+                Debug Info
+                {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
           </div>
           
           <div className="bg-white/20 rounded-lg p-3">
@@ -281,6 +452,33 @@ const ChatBot = ({ onBack }) => {
                   ) : (
                     <div>
                       <div className="whitespace-pre-line">{message.content}</div>
+                      
+                      {/* Meal Suggestion Buttons */}
+                      {message.suggestedMeals && message.suggestedMeals.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {message.suggestedMeals.map((meal, index) => (
+                            <div key={index} className="bg-gray-50 p-3 rounded-lg border">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-gray-800">{meal.name}</h4>
+                                  <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    addMealToList(meal.name, meal.description);
+                                    setShowIngredientsPanel(true);
+                                  }}
+                                  className="ml-3 flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                                >
+                                  <Plus size={14} />
+                                  Add to Plan
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
                       <div
                         className={`text-xs mt-2 ${
                           message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
@@ -334,6 +532,121 @@ const ChatBot = ({ onBack }) => {
           </div>
         </div>
       </div>
+      
+      {/* Ingredients Panel */}
+      {showIngredientsPanel && (
+        <div className="w-96 bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingCart size={20} />
+                <h2 className="text-lg font-semibold">Meal Plans & Ingredients</h2>
+              </div>
+              <button
+                onClick={() => setShowIngredientsPanel(false)}
+                className="p-1 hover:bg-white/20 rounded transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-sm opacity-90 mt-1">
+              {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} planned
+            </p>
+          </div>
+
+          <div className="h-96 overflow-y-auto p-4">
+            {selectedMeals.length === 0 ? (
+              <div className="text-center text-gray-500 mt-8">
+                <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
+                <p>No meals planned yet</p>
+                <p className="text-sm mt-1">Add meals from chat suggestions to see ingredients here</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {selectedMeals.map((meal) => (
+                  <div key={meal.id} className="border rounded-lg">
+                    <div className="bg-gray-50 p-3 border-b">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-800">{meal.name}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
+                        </div>
+                        <button
+                          onClick={() => removeMeal(meal.id)}
+                          className="text-red-600 hover:text-red-800 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="p-3">
+                      {loadingIngredients && meal.ingredients.length === 0 ? (
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                          <span className="text-sm">Loading ingredients...</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-gray-700 mb-2">
+                            Ingredients ({meal.ingredients.length}):
+                          </div>
+                          {meal.ingredients.map((ingredient) => {
+                            const ingredientKey = `${meal.id}-${ingredient.id}`;
+                            const isSelected = selectedIngredients.has(ingredientKey);
+                            
+                            return (
+                              <div key={ingredient.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleIngredient(meal.id, ingredient.id)}
+                                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                />
+                                <div className="flex-1">
+                                  <div className={`text-sm ${isSelected ? 'font-medium' : ''}`}>
+                                    {ingredient.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {ingredient.store} - {ingredient.section}
+                                  </div>
+                                </div>
+                                {ingredient.needed && (
+                                  <div className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                                    Recommended
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {selectedMeals.length > 0 && (
+            <div className="border-t p-4 bg-gray-50">
+              <div className="text-sm text-gray-600 mb-3">
+                Selected: {selectedIngredients.size} ingredient{selectedIngredients.size !== 1 ? 's' : ''}
+              </div>
+              <button
+                onClick={() => {
+                  console.log('Adding selected ingredients to main grocery list:', Array.from(selectedIngredients));
+                  alert('Ingredients would be added to your main grocery list!');
+                }}
+                disabled={selectedIngredients.size === 0}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                Add to Grocery List
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
