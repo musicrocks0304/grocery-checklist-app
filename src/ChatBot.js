@@ -22,7 +22,7 @@ const ChatBot = ({ onBack }) => {
   const messagesEndRef = useRef(null);
 
   // Your n8n webhook URL for the chatbot
-  const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/your-chatbot-webhook-id/meal_planning';
+  const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/call_grocery_agent';
   
   // Your n8n webhook URL for getting ingredients
   const INGREDIENTS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/your-ingredients-webhook-id/get_ingredients';
@@ -247,48 +247,45 @@ const ChatBot = ({ onBack }) => {
 
       addDebugLog('Request payload:', requestBody);
 
-      // For demo purposes, simulate API call with timeout
-      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 2000));
+      // Make actual API call to n8n webhook
+      const response = await fetch(CHATBOT_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        mode: 'cors',
+        body: JSON.stringify(requestBody)
+      });
 
-      // Simulate different responses based on message content
-      let botResponse = "";
-      let suggestedMeals = [];
-      const lowerMessage = messageToSend.toLowerCase();
-      
-      if (lowerMessage.includes('breakfast')) {
-        botResponse = "🍳 Great choice for breakfast planning! Based on your grocery list, I see you have almond milk and BelVita breakfast biscuits. Here are some personalized breakfast ideas:";
-        suggestedMeals = [
-          { name: "Overnight Oats with Berries", description: "Creamy oats soaked in your almond milk with fresh berries and a touch of honey" },
-          { name: "Green Smoothie Bowl", description: "Blend almond milk with spinach, mango, and banana - top with your BelVita biscuits crushed for crunch" },
-          { name: "Peanut Butter Toast Stack", description: "Toast with your peanut butter, sliced banana, and crushed BelVita biscuits on top" }
-        ];
-      } else if (lowerMessage.includes('lunch')) {
-        botResponse = "🥗 Perfect! I notice you have grapes on your list. Here are some fresh lunch ideas:";
-        suggestedMeals = [
-          { name: "Chicken Grape Salad", description: "Grilled chicken with grapes, walnuts, and mixed greens" },
-          { name: "Pastry Pups Combo", description: "Quick option with a side salad using your grapes and vegetables" },
-          { name: "Mediterranean Wrap", description: "Fresh wrap with deli meat, cheese, and Mediterranean vegetables" }
-        ];
-      } else if (lowerMessage.includes('dinner') || lowerMessage.includes('meal')) {
-        botResponse = "🍽️ Excellent! Let me suggest some dinner ideas that work with your grocery preferences:";
-        suggestedMeals = [
-          { name: "Sheet Pan Dinner", description: "One-pan meal with protein and roasted vegetables" },
-          { name: "Stir-fry Night", description: "Quick cooking with proteins, vegetables, and rice" },
-          { name: "Comfort Food Bowl", description: "Hearty meal using pantry staples and fresh ingredients" }
-        ];
-      } else if (lowerMessage.includes('snack')) {
-        botResponse = "🍇 I see you're thinking snacks! Your BelVita biscuits and grapes are perfect starts. Here are some ideas:";
-        suggestedMeals = [
-          { name: "Energy Bites", description: "Mix peanut butter with oats and mini chocolate chips" },
-          { name: "Fruit & Nut Combo", description: "Grapes with almonds or cheese for balanced nutrition" },
-          { name: "Yogurt Parfait", description: "Layer yogurt with breakfast biscuits as crunch and fresh fruits" }
-        ];
-      } else {
-        botResponse = `✨ I'd love to help you plan some amazing meals! Based on your current grocery list (grapes, pastry pups, almond milk, BelVita biscuits, and peanut butter), I can suggest meals that incorporate these items plus some additional ingredients.\n\nWhat type of meals interest you most:\n• Quick weekday dinners\n• Healthy lunch prep\n• Breakfast ideas\n• Snack combinations\n\nOr tell me about any specific cravings or dietary goals you have this week!`;
-        suggestedMeals = [];
+      addDebugLog('Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        type: response.type,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      addDebugLog('Simulated bot response:', botResponse);
+      const responseText = await response.text();
+      addDebugLog('Raw response:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        addDebugLog('Parsed JSON data:', data);
+      } catch (parseError) {
+        addDebugLog('❌ JSON parse error:', parseError.message);
+        throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+      }
+
+      // Extract bot response and suggested meals from n8n response
+      // Adjust these based on your n8n workflow's response structure
+      const botResponse = data.response || data.message || "I received your message but couldn't process it properly. Please try again!";
+      const suggestedMeals = data.suggestedMeals || data.meals || [];
+
+      addDebugLog('✅ Real AI agent response:', botResponse);
 
       removeTypingIndicator(typingId);
 
