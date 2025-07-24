@@ -20,7 +20,7 @@ const ChatBot = ({ onBack }) => {
   const [loadingIngredients, setLoadingIngredients] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Your n8n webhook URL for the chatbot - using the same working webhook as grocery data
+  // Your n8n webhook URL for the chatbot - using the actual webhook from your n8n flow
   const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/call_grocery_agent';
 
   // Your n8n webhook URL for getting ingredients
@@ -239,6 +239,7 @@ const ChatBot = ({ onBack }) => {
       addDebugLog('Webhook URL:', CHATBOT_WEBHOOK_URL);
 
       const requestBody = {
+        body: messageToSend,
         message: messageToSend,
         timestamp: new Date().toISOString(),
         context: 'meal_planning'
@@ -279,22 +280,46 @@ const ChatBot = ({ onBack }) => {
         throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
       }
 
-      // Handle the actual n8n response format - it returns an array with output
+      // Handle the AI Agent response format
       let botResponse = "I received your message but couldn't process it properly. Please try again!";
       let suggestedMeals = [];
 
-      if (Array.isArray(data) && data.length > 0 && data[0].output) {
-        botResponse = data[0].output;
+      if (Array.isArray(data) && data.length > 0) {
+        // Handle AI Agent response format
+        if (data[0].output) {
+          botResponse = data[0].output;
+        } else if (data[0].text) {
+          botResponse = data[0].text;
+        } else if (typeof data[0] === 'string') {
+          botResponse = data[0];
+        }
 
         // Try to extract meal suggestions from the response text
-        // You can enhance this logic based on your AI agent's response format
+        // Enhanced logic for recipe suggestions from Spoonacular API
         const responseText = botResponse.toLowerCase();
-        if (responseText.includes('italian') || responseText.includes('pasta')) {
-          suggestedMeals = [
-            { name: "Spaghetti Carbonara", description: "Classic Italian pasta with eggs, cheese, and pancetta" },
-            { name: "Chicken Parmigiana", description: "Breaded chicken breast with marinara sauce and mozzarella" },
-            { name: "Margherita Pizza", description: "Simple pizza with fresh tomatoes, mozzarella, and basil" }
-          ];
+        
+        // Look for recipe names in the response and create meal suggestions
+        if (responseText.includes('recipe') || responseText.includes('meal') || responseText.includes('dish')) {
+          // Extract recipe suggestions based on common patterns
+          if (responseText.includes('italian') || responseText.includes('pasta')) {
+            suggestedMeals = [
+              { name: "Spaghetti Carbonara", description: "Classic Italian pasta with eggs, cheese, and pancetta" },
+              { name: "Chicken Parmigiana", description: "Breaded chicken breast with marinara sauce and mozzarella" },
+              { name: "Margherita Pizza", description: "Simple pizza with fresh tomatoes, mozzarella, and basil" }
+            ];
+          } else if (responseText.includes('breakfast')) {
+            suggestedMeals = [
+              { name: "Overnight Oats", description: "Creamy oats soaked overnight with your favorite toppings" },
+              { name: "Avocado Toast", description: "Whole grain toast topped with fresh avocado and seasonings" },
+              { name: "Berry Smoothie Bowl", description: "Thick smoothie bowl topped with fresh berries and granola" }
+            ];
+          } else if (responseText.includes('dinner')) {
+            suggestedMeals = [
+              { name: "Sheet Pan Dinner", description: "One-pan meal with protein and roasted vegetables" },
+              { name: "Stir Fry", description: "Quick and healthy vegetable and protein stir fry" },
+              { name: "Grilled Chicken Salad", description: "Fresh salad with grilled chicken and seasonal vegetables" }
+            ];
+          }
         }
       }
 
