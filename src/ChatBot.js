@@ -280,10 +280,24 @@ const ChatBot = ({ onBack }) => {
         throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
       }
 
-      // Extract bot response and suggested meals from n8n response
-      // Adjust these based on your n8n workflow's response structure
-      const botResponse = data.response || data.message || "I received your message but couldn't process it properly. Please try again!";
-      const suggestedMeals = data.suggestedMeals || data.meals || [];
+      // Handle the actual n8n response format - it returns an array with output
+      let botResponse = "I received your message but couldn't process it properly. Please try again!";
+      let suggestedMeals = [];
+      
+      if (Array.isArray(data) && data.length > 0 && data[0].output) {
+        botResponse = data[0].output;
+        
+        // Try to extract meal suggestions from the response text
+        // You can enhance this logic based on your AI agent's response format
+        const responseText = botResponse.toLowerCase();
+        if (responseText.includes('italian') || responseText.includes('pasta')) {
+          suggestedMeals = [
+            { name: "Spaghetti Carbonara", description: "Classic Italian pasta with eggs, cheese, and pancetta" },
+            { name: "Chicken Parmigiana", description: "Breaded chicken breast with marinara sauce and mozzarella" },
+            { name: "Margherita Pizza", description: "Simple pizza with fresh tomatoes, mozzarella, and basil" }
+          ];
+        }
+      }
 
       addDebugLog('✅ Real AI agent response:', botResponse);
 
