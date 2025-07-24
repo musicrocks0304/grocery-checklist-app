@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, Check, X, ShoppingCart } from 'lucide-react';
+import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, X, ShoppingCart } from 'lucide-react';
 
 const ChatBot = ({ onBack }) => {
   const [messages, setMessages] = useState([
@@ -91,7 +91,15 @@ const ChatBot = ({ onBack }) => {
       };
 
       addDebugLog('Ingredients request payload:', requestBody);
+      addDebugLog('Ingredients webhook URL:', INGREDIENTS_WEBHOOK_URL);
 
+      // For now, simulate API call - you can uncomment below to use real webhook
+      // const response = await fetch(INGREDIENTS_WEBHOOK_URL, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(requestBody)
+      // });
+      
       // Simulate API call for demo
       await new Promise(resolve => setTimeout(resolve, 1500));
 
@@ -101,33 +109,40 @@ const ChatBot = ({ onBack }) => {
       
       if (mealLower.includes('overnight oats') || mealLower.includes('oats')) {
         sampleIngredients = [
-          { id: 1, name: "Rolled Oats", category: "Pantry", store: "Kroger", section: "Cereal Aisle", needed: true },
-          { id: 2, name: "Chia Seeds", category: "Health Foods", store: "Whole Foods", section: "Health Foods", needed: true },
-          { id: 3, name: "Fresh Berries", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 4, name: "Honey", category: "Pantry", store: "Kroger", section: "Condiments", needed: true },
+          { id: 1, name: "Rolled Oats", category: "Breakfast", store: "Kroger", section: "Cereal Aisle", needed: true },
+          { id: 2, name: "Fresh Berries (Mixed)", category: "Breakfast", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 3, name: "Honey", category: "Breakfast", store: "Kroger", section: "Condiments", needed: true },
+          { id: 4, name: "Chia Seeds", category: "Health Foods", store: "Whole Foods", section: "Health Foods", needed: true },
           { id: 5, name: "Vanilla Extract", category: "Baking", store: "Kroger", section: "Baking", needed: false }
         ];
       } else if (mealLower.includes('smoothie')) {
         sampleIngredients = [
-          { id: 6, name: "Frozen Mango", category: "Frozen", store: "Trader Joe's", section: "Frozen", needed: true },
-          { id: 7, name: "Spinach", category: "Produce", store: "Whole Foods", section: "Produce", needed: true },
-          { id: 8, name: "Protein Powder", category: "Health Foods", store: "Whole Foods", section: "Health Foods", needed: true },
-          { id: 9, name: "Coconut Water", category: "Beverages", store: "Tom Thumb", section: "Beverages", needed: true }
+          { id: 6, name: "Frozen Mango Chunks", category: "Breakfast", store: "Trader Joe's", section: "Frozen", needed: true },
+          { id: 7, name: "Fresh Spinach", category: "Breakfast", store: "Whole Foods", section: "Produce", needed: true },
+          { id: 8, name: "Banana", category: "Breakfast", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 9, name: "Greek Yogurt", category: "Breakfast", store: "Whole Foods", section: "Refrigerated", needed: false }
+        ];
+      } else if (mealLower.includes('peanut butter') || mealLower.includes('toast')) {
+        sampleIngredients = [
+          { id: 10, name: "Whole Grain Bread", category: "Breakfast", store: "Kroger", section: "Bakery", needed: true },
+          { id: 11, name: "Banana", category: "Breakfast", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 12, name: "Cinnamon", category: "Breakfast", store: "Kroger", section: "Spices", needed: false },
+          { id: 13, name: "Sliced Almonds", category: "Breakfast", store: "Whole Foods", section: "Nuts", needed: false }
         ];
       } else if (mealLower.includes('salad')) {
         sampleIngredients = [
-          { id: 10, name: "Mixed Greens", category: "Produce", store: "Whole Foods", section: "Produce", needed: true },
-          { id: 11, name: "Cherry Tomatoes", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 12, name: "Cucumber", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 13, name: "Feta Cheese", category: "Dairy", store: "Whole Foods", section: "Refrigerated", needed: true },
-          { id: 14, name: "Olive Oil", category: "Pantry", store: "Costco", section: "Condiments", needed: false }
+          { id: 14, name: "Mixed Greens", category: "Lunches", store: "Whole Foods", section: "Produce", needed: true },
+          { id: 15, name: "Cherry Tomatoes", category: "Lunches", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 16, name: "Cucumber", category: "Lunches", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 17, name: "Feta Cheese", category: "Lunches", store: "Whole Foods", section: "Refrigerated", needed: true },
+          { id: 18, name: "Olive Oil", category: "Lunches", store: "Costco", section: "Condiments", needed: false }
         ];
       } else {
         sampleIngredients = [
-          { id: 15, name: "Chicken Breast", category: "Meat", store: "Tom Thumb", section: "Meat", needed: true },
-          { id: 16, name: "Rice", category: "Pantry", store: "Costco", section: "Pantry", needed: true },
-          { id: 17, name: "Broccoli", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 18, name: "Garlic", category: "Produce", store: "Tom Thumb", section: "Produce", needed: true }
+          { id: 19, name: "Chicken Breast", category: "General", store: "Tom Thumb", section: "Meat", needed: true },
+          { id: 20, name: "Rice", category: "General", store: "Costco", section: "Pantry", needed: true },
+          { id: 21, name: "Broccoli", category: "General", store: "Tom Thumb", section: "Produce", needed: true },
+          { id: 22, name: "Garlic", category: "General", store: "Tom Thumb", section: "Produce", needed: true }
         ];
       }
 
@@ -241,11 +256,11 @@ const ChatBot = ({ onBack }) => {
       const lowerMessage = messageToSend.toLowerCase();
       
       if (lowerMessage.includes('breakfast')) {
-        botResponse = "🍳 Great choice for breakfast planning! Based on your grocery list, I see you have almond milk and could add BelVita breakfast biscuits. Here are some ideas:";
+        botResponse = "🍳 Great choice for breakfast planning! Based on your grocery list, I see you have almond milk and BelVita breakfast biscuits. Here are some personalized breakfast ideas:";
         suggestedMeals = [
-          { name: "Overnight Oats", description: "Mix almond milk with oats, add berries and nuts for a nutritious start" },
-          { name: "Smoothie Bowl", description: "Blend almond milk with frozen fruits, top with granola and fresh berries" },
-          { name: "Avocado Toast", description: "Perfect protein-rich start with bread, avocados, and a sprinkle of seeds" }
+          { name: "Overnight Oats with Berries", description: "Creamy oats soaked in your almond milk with fresh berries and a touch of honey" },
+          { name: "Green Smoothie Bowl", description: "Blend almond milk with spinach, mango, and banana - top with your BelVita biscuits crushed for crunch" },
+          { name: "Peanut Butter Toast Stack", description: "Toast with your peanut butter, sliced banana, and crushed BelVita biscuits on top" }
         ];
       } else if (lowerMessage.includes('lunch')) {
         botResponse = "🥗 Perfect! I notice you have grapes on your list. Here are some fresh lunch ideas:";
@@ -635,13 +650,32 @@ const ChatBot = ({ onBack }) => {
               </div>
               <button
                 onClick={() => {
-                  console.log('Adding selected ingredients to main grocery list:', Array.from(selectedIngredients));
-                  alert('Ingredients would be added to your main grocery list!');
+                  const selectedIngredientsList = [];
+                  selectedMeals.forEach(meal => {
+                    meal.ingredients.forEach(ingredient => {
+                      const key = `${meal.id}-${ingredient.id}`;
+                      if (selectedIngredients.has(key)) {
+                        selectedIngredientsList.push({
+                          meal: meal.name,
+                          ingredient: ingredient.name,
+                          category: ingredient.category,
+                          store: ingredient.store,
+                          section: ingredient.section
+                        });
+                      }
+                    });
+                  });
+                  
+                  addDebugLog('Selected ingredients ready for main grocery list:', selectedIngredientsList);
+                  console.log('Selected ingredients to add to main grocery list:', selectedIngredientsList);
+                  
+                  // This would integrate with your main grocery list
+                  alert(`Ready to add ${selectedIngredients.size} ingredients to your main grocery list!\n\nCheck the debug panel for details.`);
                 }}
                 disabled={selectedIngredients.size === 0}
                 className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
-                Add to Grocery List
+                Add to Grocery List ({selectedIngredients.size})
               </button>
             </div>
           )}
