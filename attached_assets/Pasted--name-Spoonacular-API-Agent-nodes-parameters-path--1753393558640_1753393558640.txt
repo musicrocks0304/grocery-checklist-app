@@ -1,0 +1,221 @@
+{
+  "name": "Spoonacular API Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "call_grocery_agent",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        0
+      ],
+      "id": "6b59b0cf-c372-449b-a0ee-2aa52e2d7208",
+      "name": "Webhook",
+      "webhookId": "c0ee80fa-e2ec-45f0-a463-3141aa768dff"
+    },
+    {
+      "parameters": {
+        "enableResponseOutput": true,
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Accept"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        400,
+        0
+      ],
+      "id": "bc851a2d-11e0-4b32-9e97-0f5a5b6c6cad",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "{{ $node[\"Webhook\"].json[\"body\"] }}",
+        "options": {
+          "systemMessage": "You are a friendly recipe assistant. You have access to exactly one tool:\n\nspoonacularComplexSearch\n– Calls the Spoonacular /recipes/complexSearch endpoint with parameters:\n• query (string) – free‑text search\n• number (integer) – max results\n• cuisine, diet, intolerances, includeIngredients, excludeIngredients (all strings)\n\nWhenever the user asks for recipes, respond by emitting a JSON “tool call” in the form:\n\njson\nCopy\nEdit\n{\n  \"tool\":\"spoonacularComplexSearch\",\n  \"parameters\": { … }\n}\nAfter the HTTP node runs, read the returned JSON and reply naturally, listing recipe titles, IDs and any brief summary."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        0
+      ],
+      "id": "ef2d3399-3dd7-438c-8f30-cf8cee6748ad",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search for recipes via Spoonacular’s complexSearch endpoint. Accepts free‑text queries and common filters like cuisine, diet, and ingredients.",
+        "url": "https://api.spoonacular.com/recipes/complexSearch",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+            },
+            {
+              "name": "number",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters1_Value', ``, 'string') }}"
+            },
+            {
+              "name": "cuisine",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters2_Value', ``, 'string') }}"
+            },
+            {
+              "name": "diet",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters3_Value', ``, 'string') }}"
+            },
+            {
+              "name": "excludeIngredients",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters4_Value', ``, 'string') }}"
+            },
+            {
+              "name": "apiKey",
+              "value": "254aa8aba2004da490042a11895a532d"
+            },
+            {
+              "name": "excludeIngredients",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters6_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        220
+      ],
+      "id": "f63ff921-3899-442d-a384-1aea86aa3e6c",
+      "name": "spoonacularComplexSearch",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-20250514",
+          "cachedResultName": "Claude 4 Sonnet"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        -220,
+        220
+      ],
+      "id": "3bba359f-89dc-42ac-a88e-96543c3b914e",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "L7zjljOSFhPif3PO",
+          "name": "Anthropic account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "spoonacularComplexSearch": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f0734dcd-2f3e-4632-8db6-fff751e2a012",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "875b1a2db08d1e46c405f95320c92c99e56f3cc640e553274dfe9969e8157871"
+  },
+  "id": "UsrnHCWpe6zfIbcn",
+  "tags": []
+}
