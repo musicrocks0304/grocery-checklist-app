@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
-import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers } from 'lucide-react';
+import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers, MessageCircle, ChefHat } from 'lucide-react';
+import ChatBot from './ChatBot';
 
-const GroceryChecklist = () => {
+const App = () => {
+  const [currentScreen, setCurrentScreen] = useState('grocery');
+
+  if (currentScreen === 'chatbot') {
+    return <ChatBot onBack={() => setCurrentScreen('grocery')} />;
+  }
+
+  return <GroceryChecklist onNavigate={setCurrentScreen} />;
+};
+
+const GroceryChecklist = ({ onNavigate }) => {
   const [groceryData, setGroceryData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -433,15 +444,26 @@ const GroceryChecklist = () => {
             <h1 className="text-2xl font-bold text-gray-800">Weekly Grocery Selection</h1>
           </div>
           
-          {/* Debug Toggle */}
-          <button
-            onClick={() => setShowDebug(!showDebug)}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <Wifi size={16} />
-            Debug Info
-            {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
+          <div className="flex items-center gap-3">
+            {/* AI Meal Planner Button */}
+            <button
+              onClick={() => onNavigate('chatbot')}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all"
+            >
+              <ChefHat size={18} />
+              AI Meal Planner
+            </button>
+            
+            {/* Debug Toggle */}
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <Wifi size={16} />
+              Debug Info
+              {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
         </div>
 
         {/* Debug Panel */}
@@ -643,4 +665,4 @@ const GroceryChecklist = () => {
   );
 };
 
-export default GroceryChecklist;
+export default App;
