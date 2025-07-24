@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, X, ShoppingCart } from 'lucide-react';
 
@@ -21,9 +20,9 @@ const ChatBot = ({ onBack }) => {
   const [loadingIngredients, setLoadingIngredients] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Your n8n webhook URL for the chatbot
+  // Your n8n webhook URL for the chatbot - using the same working webhook as grocery data
   const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/call_grocery_agent';
-  
+
   // Your n8n webhook URL for getting ingredients
   const INGREDIENTS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/your-ingredients-webhook-id/get_ingredients';
 
@@ -69,12 +68,12 @@ const ChatBot = ({ onBack }) => {
       description: mealDescription,
       ingredients: []
     };
-    
+
     setSelectedMeals(prev => [...prev, newMeal]);
-    
+
     // Automatically fetch ingredients for this meal
     fetchIngredientsForMeal(newMeal);
-    
+
     addDebugLog('Added meal to planning list:', newMeal);
   };
 
@@ -82,7 +81,7 @@ const ChatBot = ({ onBack }) => {
   const fetchIngredientsForMeal = async (meal) => {
     setLoadingIngredients(true);
     addDebugLog('Fetching ingredients for meal:', meal.name);
-    
+
     try {
       const requestBody = {
         meal_name: meal.name,
@@ -99,14 +98,14 @@ const ChatBot = ({ onBack }) => {
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify(requestBody)
       // });
-      
+
       // Simulate API call for demo
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Generate sample ingredients based on meal type
       let sampleIngredients = [];
       const mealLower = meal.name.toLowerCase();
-      
+
       if (mealLower.includes('overnight oats') || mealLower.includes('oats')) {
         sampleIngredients = [
           { id: 1, name: "Rolled Oats", category: "Breakfast", store: "Kroger", section: "Cereal Aisle", needed: true },
@@ -157,7 +156,7 @@ const ChatBot = ({ onBack }) => {
       const neededIngredientIds = sampleIngredients
         .filter(ing => ing.needed)
         .map(ing => `${meal.id}-${ing.id}`);
-      
+
       setSelectedIngredients(prev => {
         const newSet = new Set(prev);
         neededIngredientIds.forEach(id => newSet.add(id));
@@ -165,7 +164,7 @@ const ChatBot = ({ onBack }) => {
       });
 
       addDebugLog('✅ Ingredients fetched successfully:', sampleIngredients);
-      
+
     } catch (error) {
       addDebugLog('❌ Error fetching ingredients:', error.message);
     } finally {
@@ -190,7 +189,7 @@ const ChatBot = ({ onBack }) => {
   // Remove meal from planning list
   const removeMeal = (mealId) => {
     setSelectedMeals(prev => prev.filter(m => m.id !== mealId));
-    
+
     // Remove all ingredients for this meal from selected ingredients
     setSelectedIngredients(prev => {
       const newSet = new Set();
@@ -201,7 +200,7 @@ const ChatBot = ({ onBack }) => {
       });
       return newSet;
     });
-    
+
     addDebugLog('Removed meal from planning list:', mealId);
   };
 
@@ -232,13 +231,13 @@ const ChatBot = ({ onBack }) => {
         method: 'GET',
         mode: 'cors'
       });
-      
+
       if (testResponse.ok) {
         addDebugLog('✅ External connectivity working');
       }
 
       addDebugLog('Webhook URL:', CHATBOT_WEBHOOK_URL);
-      
+
       const requestBody = {
         message: messageToSend,
         timestamp: new Date().toISOString(),
@@ -247,12 +246,12 @@ const ChatBot = ({ onBack }) => {
 
       addDebugLog('Request payload:', requestBody);
 
-      // Make actual API call to n8n webhook
+      // Use the exact same method that works for grocery data
+      addDebugLog('Making API call to chatbot webhook...');
       const response = await fetch(CHATBOT_WEBHOOK_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
         },
         mode: 'cors',
         body: JSON.stringify(requestBody)
@@ -283,10 +282,10 @@ const ChatBot = ({ onBack }) => {
       // Handle the actual n8n response format - it returns an array with output
       let botResponse = "I received your message but couldn't process it properly. Please try again!";
       let suggestedMeals = [];
-      
+
       if (Array.isArray(data) && data.length > 0 && data[0].output) {
         botResponse = data[0].output;
-        
+
         // Try to extract meal suggestions from the response text
         // You can enhance this logic based on your AI agent's response format
         const responseText = botResponse.toLowerCase();
@@ -317,14 +316,14 @@ const ChatBot = ({ onBack }) => {
     } catch (error) {
       addDebugLog('❌ Error in sendMessage:', error.message);
       removeTypingIndicator(typingId);
-      
+
       const errorMessage = {
         id: Date.now() + 1,
         type: 'bot',
         content: "I'm having trouble connecting to my meal planning brain right now! 🧠💭 But I can still help with some basic suggestions. What type of meals are you thinking about?",
         timestamp: new Date().toLocaleTimeString()
       };
-      
+
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -342,25 +341,25 @@ const ChatBot = ({ onBack }) => {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const showNextWeek = dayOfWeek >= 4;
-    
+
     const daysToSunday = dayOfWeek;
     const currentWeekSunday = new Date(today);
     currentWeekSunday.setDate(today.getDate() - daysToSunday);
-    
+
     const targetSunday = new Date(currentWeekSunday);
     if (showNextWeek) {
       targetSunday.setDate(targetSunday.getDate() + 7);
     }
-    
+
     const targetSaturday = new Date(targetSunday);
     targetSaturday.setDate(targetSunday.getDate() + 6);
-    
+
     const formatDate = (date) => {
       const day = date.getDate();
       const month = date.toLocaleDateString('en-US', { month: 'long' });
       return `${month} ${day}${getOrdinalSuffix(day)}`;
     };
-    
+
     const getOrdinalSuffix = (day) => {
       if (day > 3 && day < 21) return 'th';
       switch (day % 10) {
@@ -370,7 +369,7 @@ const ChatBot = ({ onBack }) => {
         default: return 'th';
       }
     };
-    
+
     const year = targetSunday.getFullYear();
     return `Meal planning for ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
@@ -392,7 +391,7 @@ const ChatBot = ({ onBack }) => {
               <ChefHat size={28} />
               <h1 className="text-2xl font-bold">AI Meal Planner</h1>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {/* Ingredients Panel Toggle */}
               <button
@@ -402,7 +401,7 @@ const ChatBot = ({ onBack }) => {
                 <ShoppingCart size={16} />
                 Meal Plans ({selectedMeals.length})
               </button>
-              
+
               {/* Debug Toggle */}
               <button
                 onClick={() => setShowDebug(!showDebug)}
@@ -414,7 +413,7 @@ const ChatBot = ({ onBack }) => {
               </button>
             </div>
           </div>
-          
+
           <div className="bg-white/20 rounded-lg p-3">
             <p className="text-sm font-medium">{getWeekDateRange()}</p>
             <p className="text-xs opacity-90 mt-1">Get personalized meal suggestions based on your preferences</p>
@@ -478,7 +477,7 @@ const ChatBot = ({ onBack }) => {
                   ) : (
                     <div>
                       <div className="whitespace-pre-line">{message.content}</div>
-                      
+
                       {/* Meal Suggestion Buttons */}
                       {message.suggestedMeals && message.suggestedMeals.length > 0 && (
                         <div className="mt-3 space-y-2">
@@ -504,7 +503,7 @@ const ChatBot = ({ onBack }) => {
                           ))}
                         </div>
                       )}
-                      
+
                       <div
                         className={`text-xs mt-2 ${
                           message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
@@ -544,7 +543,7 @@ const ChatBot = ({ onBack }) => {
               Send
             </button>
           </div>
-          
+
           <div className="flex items-center justify-between mt-3">
             <div className="text-sm text-gray-500">
               💡 Try asking about breakfast ideas, lunch prep, or dinner suggestions!
@@ -558,7 +557,7 @@ const ChatBot = ({ onBack }) => {
           </div>
         </div>
       </div>
-      
+
       {/* Ingredients Panel */}
       {showIngredientsPanel && (
         <div className="w-96 bg-white rounded-lg shadow-lg overflow-hidden">
@@ -605,7 +604,7 @@ const ChatBot = ({ onBack }) => {
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="p-3">
                       {loadingIngredients && meal.ingredients.length === 0 ? (
                         <div className="flex items-center gap-2 text-gray-500">
@@ -620,7 +619,7 @@ const ChatBot = ({ onBack }) => {
                           {meal.ingredients.map((ingredient) => {
                             const ingredientKey = `${meal.id}-${ingredient.id}`;
                             const isSelected = selectedIngredients.has(ingredientKey);
-                            
+
                             return (
                               <div key={ingredient.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
                                 <input
@@ -676,10 +675,10 @@ const ChatBot = ({ onBack }) => {
                       }
                     });
                   });
-                  
+
                   addDebugLog('Selected ingredients ready for main grocery list:', selectedIngredientsList);
                   console.log('Selected ingredients to add to main grocery list:', selectedIngredientsList);
-                  
+
                   // This would integrate with your main grocery list
                   alert(`Ready to add ${selectedIngredients.size} ingredients to your main grocery list!\n\nCheck the debug panel for details.`);
                 }}
