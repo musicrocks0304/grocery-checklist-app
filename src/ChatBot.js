@@ -129,14 +129,14 @@ const ChatBot = ({ onBack }) => {
         // Check if it's the new structured format with ingredients_detail
         if (responseData.output && responseData.output.responseType === 'ingredients_detail' && responseData.output.ingredients) {
           let ingredientId = 1;
-
+          
           responseData.output.ingredients.forEach(categoryGroup => {
             const categoryName = categoryGroup.category || 'General';
-
+            
             if (categoryGroup.items && Array.isArray(categoryGroup.items)) {
               categoryGroup.items.forEach(item => {
                 const quantity = item.quantity && item.unit ? `${item.quantity} ${item.unit}` : (item.quantity || '');
-
+                
                 ingredients.push({
                   id: ingredientId++,
                   name: item.name,
@@ -847,87 +847,73 @@ const ChatBot = ({ onBack }) => {
           <div className="h-96 overflow-y-auto p-4">
             {selectedMeals.length === 0 ? (
               <div className="text-center text-gray-500 mt-8">
-                <ShoppingCart size={48} className="mx-auto mb-3 opacity-50"```python
-/ >
+                <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
                 <p>No meals planned yet</p>
                 <p className="text-sm mt-1">Add meals from chat suggestions to see ingredients here</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {selectedMeals.map((meal) => {
-                  const [isCollapsed, setIsCollapsed] = useState(true);
-
-                  return (
-                    <div key={meal.id} className="border rounded-lg">
-                      <div className="bg-gray-50 p-3 border-b">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-800">{meal.name}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setIsCollapsed(!isCollapsed)}
-                              className="text-gray-600 hover:text-gray-800 transition-colors"
-                            >
-                              {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                            </button>
-                            <button
-                              onClick={() => removeMeal(meal.id)}
-                              className="text-red-600 hover:text-red-800 transition-colors"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
+                {selectedMeals.map((meal) => (
+                  <div key={meal.id} className="border rounded-lg">
+                    <div className="bg-gray-50 p-3 border-b">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-800">{meal.name}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
                         </div>
+                        <button
+                          onClick={() => removeMeal(meal.id)}
+                          className="text-red-600 hover:text-red-800 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
-                      {!isCollapsed && (
-                        <div className="p-3">
-                          {loadingIngredients && meal.ingredients.length === 0 ? (
-                            <div className="flex items-center gap-2 text-gray-500">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                              <span className="text-sm">Loading ingredients...</span>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <div className="text-sm font-medium text-gray-700 mb-2">
-                                Ingredients ({meal.ingredients.length}):
-                              </div>
-                              {meal.ingredients.map((ingredient) => {
-                                const ingredientKey = `${meal.id}-${ingredient.id}`;
-                                const isSelected = selectedIngredients.has(ingredientKey);
+                    </div>
 
-                                return (
-                                  <div key={ingredient.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={() => toggleIngredient(meal.id, ingredient.id)}
-                                      className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
-                                    />
-                                    <div className="flex-1">
-                                      <div className={`text-sm ${isSelected ? 'font-medium' : ''}`}>
-                                        {ingredient.name}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        {ingredient.store} - {ingredient.section}
-                                      </div>
-                                    </div>
-                                    {ingredient.needed && (
-                                      <div className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                                        Recommended
-                                      </div>
-                                    )}
+                    <div className="p-3">
+                      {loadingIngredients && meal.ingredients.length === 0 ? (
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                          <span className="text-sm">Loading ingredients...</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-gray-700 mb-2">
+                            Ingredients ({meal.ingredients.length}):
+                          </div>
+                          {meal.ingredients.map((ingredient) => {
+                            const ingredientKey = `${meal.id}-${ingredient.id}`;
+                            const isSelected = selectedIngredients.has(ingredientKey);
+
+                            return (
+                              <div key={ingredient.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleIngredient(meal.id, ingredient.id)}
+                                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                />
+                                <div className="flex-1">
+                                  <div className={`text-sm ${isSelected ? 'font-medium' : ''}`}>
+                                    {ingredient.name}
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                                  <div className="text-xs text-gray-500">
+                                    {ingredient.store} - {ingredient.section}
+                                  </div>
+                                </div>
+                                {ingredient.needed && (
+                                  <div className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                                    Recommended
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
