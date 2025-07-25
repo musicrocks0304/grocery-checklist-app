@@ -114,44 +114,76 @@ const ChatBot = ({ onBack }) => {
 
       let ingredients = [];
 
-      if (Array.isArray(data) && data.length > 0 && data[0].output) {
-        const botResponse = data[0].output;
+      if (Array.isArray(data) && data.length > 0) {
+        let responseData = data[0];
 
-        // Parse ingredients from the response
-        let ingredientId = 1;
-        const sections = botResponse.split(/\n(?=[A-Z][^:]+:)/);
+        // Handle nested webhook response structure
+        if (responseData.response && responseData.response.body && Array.isArray(responseData.response.body)) {
+          responseData = responseData.response.body[0];
+        }
 
-        sections.forEach(section => {
-          const lines = section.split('\n');
-          let currentCategory = 'General';
-
-          lines.forEach(line => {
-            if (line.includes(':') && !line.startsWith('-')) {
-              currentCategory = line.replace(':', '').trim();
-            }
-            else if (line.startsWith('-') || line.match(/^\s*\d+/)) {
-              const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
-              if (ingredientMatch) {
-                const fullIngredient = ingredientMatch[1].trim();
-
-                // Parse quantity and name
-                const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
-                const quantity = quantityMatch[1] || '';
-                const name = quantityMatch[2] || fullIngredient;
-
+        // Check if it's the new structured format with ingredients_detail
+        if (responseData.output && responseData.output.responseType === 'ingredients_detail' && responseData.output.ingredients) {
+          let ingredientId = 1;
+          
+          responseData.output.ingredients.forEach(categoryGroup => {
+            const categoryName = categoryGroup.category || 'General';
+            
+            if (categoryGroup.items && Array.isArray(categoryGroup.items)) {
+              categoryGroup.items.forEach(item => {
+                const quantity = item.quantity && item.unit ? `${item.quantity} ${item.unit}` : (item.quantity || '');
+                
                 ingredients.push({
                   id: ingredientId++,
-                  name: name,
+                  name: item.name,
                   quantity: quantity,
-                  category: currentCategory,
-                  store: getStoreForIngredient(name),
-                  section: getSectionForIngredient(name, currentCategory),
+                  category: categoryName,
+                  store: getStoreForIngredient(item.name),
+                  section: getSectionForIngredient(item.name, categoryName),
                   needed: true
                 });
-              }
+              });
             }
           });
-        });
+        }
+        // Fallback to legacy string parsing
+        else if (responseData.output && typeof responseData.output === 'string') {
+          const botResponse = responseData.output;
+          let ingredientId = 1;
+          const sections = botResponse.split(/\n(?=[A-Z][^:]+:)/);
+
+          sections.forEach(section => {
+            const lines = section.split('\n');
+            let currentCategory = 'General';
+
+            lines.forEach(line => {
+              if (line.includes(':') && !line.startsWith('-')) {
+                currentCategory = line.replace(':', '').trim();
+              }
+              else if (line.startsWith('-') || line.match(/^\s*\d+/)) {
+                const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
+                if (ingredientMatch) {
+                  const fullIngredient = ingredientMatch[1].trim();
+
+                  // Parse quantity and name
+                  const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
+                  const quantity = quantityMatch[1] || '';
+                  const name = quantityMatch[2] || fullIngredient;
+
+                  ingredients.push({
+                    id: ingredientId++,
+                    name: name,
+                    quantity: quantity,
+                    category: currentCategory,
+                    store: getStoreForIngredient(name),
+                    section: getSectionForIngredient(name, currentCategory),
+                    needed: true
+                  });
+                }
+              }
+            });
+          });
+        }
       }
 
       // If no ingredients were parsed, use fallback
@@ -308,7 +340,12 @@ const ChatBot = ({ onBack }) => {
       let suggestedMeals = [];
 
       if (Array.isArray(data) && data.length > 0) {
-        const responseData = data[0];
+        let responseData = data[0];
+
+        // Handle nested webhook response structure
+        if (responseData.response && responseData.response.body && Array.isArray(responseData.response.body)) {
+          responseData = responseData.response.body[0];
+        }
 
         // Check if it's the new structured format
         if (responseData.output && typeof responseData.output === 'object' && responseData.output.responseType) {
@@ -386,9 +423,9 @@ const ChatBot = ({ onBack }) => {
         }
 
         // Check if this is an ingredients response
-        if (responseText.includes('ingredients needed for') || 
+        if (typeof responseText === 'string' && (responseText.includes('ingredients needed for') || 
             responseText.includes('Crust & Cheese:') || 
-            responseText.includes('Fruits & Vegetables:')) {
+            responseText.includes('Fruits & Vegetables:'))) {
 
           // Extract the recipe name from the response
           const recipeNameMatch = responseText.match(/ingredients needed for (?:the\s+)?([^(]+)/i);
