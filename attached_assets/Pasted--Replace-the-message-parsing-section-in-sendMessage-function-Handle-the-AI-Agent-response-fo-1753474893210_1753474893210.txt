@@ -1,0 +1,143 @@
+// Replace the message parsing section in sendMessage function
+
+// Handle the AI Agent response format
+let botResponse = "I received your message but couldn't process it properly. Please try again!";
+let suggestedMeals = [];
+
+if (Array.isArray(data) && data.length > 0) {
+  const responseData = data[0];
+  
+  // Check if it's already structured data
+  if (responseData.responseType) {
+    botResponse = responseData.message || "";
+    
+    switch (responseData.responseType) {
+      case "recipe_list":
+        // Convert recipes to meal suggestions
+        if (responseData.recipes && Array.isArray(responseData.recipes)) {
+          suggestedMeals = responseData.recipes.map(recipe => ({
+            name: recipe.name,
+            description: recipe.description,
+            recipeId: recipe.id,
+            servings: recipe.servings || 4
+          }));
+        }
+        break;
+        
+      case "ingredients_detail":
+        // Handle ingredients response
+        if (responseData.ingredients && responseData.recipeName) {
+          // Find the meal this belongs to
+          const targetMeal = selectedMeals.find(meal => 
+            meal.name.toLowerCase().includes(responseData.recipeName.toLowerCase()) ||
+            responseData.recipeName.toLowerCase().includes(meal.name.toLowerCase())
+          );
+          
+          if (targetMeal) {
+            // Convert structured ingredients to flat list
+            const ingredients = [];
+            let ingredientId = 1;
+            
+            responseData.ingredients.forEach(category => {
+              category.items.forEach(item => {
+                ingredients.push({
+                  id: ingredientId++,
+                  name: item.name,
+                  quantity: item.quantity || "",
+                  unit: item.unit || "",
+                  category: category.category,
+                  store: getStoreForIngredient(item.name),
+                  section: getSectionForIngredient(item.name, category.category),
+                  needed: true
+                });
+              });
+            });
+            
+            // Update the meal with ingredients
+            setSelectedMeals(prev => prev.map(m => 
+              m.id === targetMeal.id 
+                ? { ...m, ingredients: ingredients }
+                : m
+            ));
+            
+            // Auto-select all ingredients
+            const newSelectedIngredients = ingredients.map(ing => `${targetMeal.id}-${ing.id}`);
+            setSelectedIngredients(prev => {
+              const newSet = new Set(prev);
+              newSelectedIngredients.forEach(id => newSet.add(id));
+              return newSet;
+            });
+            
+            addDebugLog('✅ Structured ingredients added to meal:', { 
+              meal: targetMeal.name, 
+              ingredientCount: ingredients.length 
+            });
+          }
+        }
+        break;
+        
+      case "general_response":
+      default:
+        // Just use the message as-is
+        break;
+    }
+  } 
+  // Fallback for non-structured responses
+  else if (responseData.output) {
+    botResponse = responseData.output;
+  } else if (responseData.text) {
+    botResponse = responseData.text;
+  } else if (typeof responseData === 'string') {
+    botResponse = responseData;
+  }
+}
+
+// Update fetchIngredientsForMeal to expect structured data
+const fetchIngredientsForMeal = async (meal) => {
+  setLoadingIngredients(true);
+  addDebugLog('Fetching ingredients for meal:', meal.name);
+
+  try {
+    const ingredientQuery = `What are the ingredients for ${meal.name}?`;
+    
+    const queryParams = new URLSearchParams({
+      message: ingredientQuery,
+      context: 'get_ingredients',
+      timestamp: new Date().toISOString()
+    });
+
+    const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
+    
+    const response = await fetch(fullURL, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      mode: 'cors'
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseText = await response.text();
+    const data = JSON.parse(responseText);
+    
+    // The structured output parser will handle the ingredients
+    // They'll be processed in the main message handler
+    
+    addDebugLog('✅ Ingredient request sent, awaiting structured response');
+
+  } catch (error) {
+    addDebugLog('❌ Error fetching ingredients:', error.message);
+    // Use fallback ingredients
+    const fallbackIngredients = getFallbackIngredients(meal.name);
+    setSelectedMeals(prev => prev.map(m => 
+      m.id === meal.id 
+        ? { ...m, ingredients: fallbackIngredients }
+        : m
+    ));
+  } finally {
+    setLoadingIngredients(false);
+  }
+};
