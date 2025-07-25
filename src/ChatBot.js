@@ -86,7 +86,7 @@ const ChatBot = ({ onBack }) => {
       // Instead of calling a separate webhook, send a message to the chatbot
       // asking for ingredients for this specific meal
       const ingredientQuery = `What are the ingredients for ${meal.name}?`;
-      
+
       addDebugLog('Sending ingredient query to chatbot:', ingredientQuery);
 
       const queryParams = new URLSearchParams({
@@ -96,7 +96,7 @@ const ChatBot = ({ onBack }) => {
       });
 
       const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
-      
+
       const response = await fetch(fullURL, {
         method: 'GET',
         headers: {
@@ -111,20 +111,20 @@ const ChatBot = ({ onBack }) => {
 
       const responseText = await response.text();
       const data = JSON.parse(responseText);
-      
+
       let ingredients = [];
-      
+
       if (Array.isArray(data) && data.length > 0 && data[0].output) {
         const botResponse = data[0].output;
-        
+
         // Parse ingredients from the response
         let ingredientId = 1;
         const sections = botResponse.split(/\n(?=[A-Z][^:]+:)/);
-        
+
         sections.forEach(section => {
           const lines = section.split('\n');
           let currentCategory = 'General';
-          
+
           lines.forEach(line => {
             if (line.includes(':') && !line.startsWith('-')) {
               currentCategory = line.replace(':', '').trim();
@@ -133,12 +133,12 @@ const ChatBot = ({ onBack }) => {
               const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
               if (ingredientMatch) {
                 const fullIngredient = ingredientMatch[1].trim();
-                
+
                 // Parse quantity and name
                 const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
                 const quantity = quantityMatch[1] || '';
                 const name = quantityMatch[2] || fullIngredient;
-                
+
                 ingredients.push({
                   id: ingredientId++,
                   name: name,
@@ -182,10 +182,10 @@ const ChatBot = ({ onBack }) => {
 
     } catch (error) {
       addDebugLog('❌ Error fetching ingredients:', error.message);
-      
+
       // Fallback to local ingredients based on meal name
       const fallbackIngredients = getFallbackIngredients(meal.name);
-      
+
       setSelectedMeals(prev => prev.map(m => 
         m.id === meal.id 
           ? { ...m, ingredients: fallbackIngredients }
@@ -308,46 +308,75 @@ const ChatBot = ({ onBack }) => {
       let suggestedMeals = [];
 
       if (Array.isArray(data) && data.length > 0) {
-        // Handle AI Agent response format
-        if (data[0].output) {
-          botResponse = data[0].output;
-        } else if (data[0].text) {
-          botResponse = data[0].text;
-        } else if (typeof data[0] === 'string') {
-          botResponse = data[0];
+        const responseData = data[0];
+
+        // Check if it's the new structured format
+        if (responseData.output && typeof responseData.output === 'object' && responseData.output.responseType) {
+          // Handle structured response
+          botResponse = responseData.output.message || "";
+
+          switch (responseData.output.responseType) {
+            case "recipe_list":
+              // Convert recipes to meal suggestions
+              if (responseData.output.recipes && Array.isArray(responseData.output.recipes)) {
+                suggestedMeals = responseData.output.recipes.map(recipe => ({
+                  name: recipe.name,
+                  description: recipe.description,
+                  recipeId: recipe.id,
+                  servings: recipe.servings || 4
+                }));
+              }
+              break;
+
+            case "ingredients_detail":
+              // Handle ingredients response (for future use)
+              if (responseData.output.ingredients && responseData.output.recipeName) {
+                // This would be handled here when ingredient responses come in structured format
+                botResponse = `Ingredients for ${responseData.output.recipeName}:\n${JSON.stringify(responseData.output.ingredients, null, 2)}`;
+              }
+              break;
+          }
+        }
+        // Handle legacy string format
+        else if (responseData.output && typeof responseData.output === 'string') {
+          botResponse = responseData.output;
+        } else if (responseData.text) {
+          botResponse = responseData.text;
+        } else if (typeof responseData === 'string') {
+          botResponse = responseData;
         }
 
-        // Parse recipe suggestions from the AI response
-        const responseText = botResponse;
-        
+        // Parse recipe suggestions from the AI response (legacy format)
+        const responseText = typeof botResponse === 'string' ? botResponse : JSON.stringify(botResponse);
+
         // Extract numbered recipe lists (e.g., "1. Recipe Name")
         const numberedRecipePattern = /(\d+)\.\s*\*\*([^*]+)\*\*(?:\s*\(ID:\s*(\d+)\))?[^\n]*/g;
         let match;
-        
+
         while ((match = numberedRecipePattern.exec(responseText)) !== null) {
           const recipeName = match[2].trim();
           const recipeId = match[3] || null;
-          
+
           // Extract description after the recipe name
           const fullMatch = match[0];
           const descriptionMatch = fullMatch.match(/\*\*[^*]+\*\*(?:\s*\([^)]+\))?\s*-\s*(.+)/);
           const description = descriptionMatch ? descriptionMatch[1].trim() : '';
-          
+
           suggestedMeals.push({
             name: recipeName,
             description: description || `Recipe ID: ${recipeId || 'N/A'}`,
             recipeId: recipeId
           });
         }
-        
+
         // Also check for bullet points without numbers
         if (suggestedMeals.length === 0) {
           const bulletRecipePattern = /[-•]\s*\*\*([^*]+)\*\*(?:\s*\((?:ID:|Recipe ID:)\s*(\d+)\))?[^\n]*/g;
-          
+
           while ((match = bulletRecipePattern.exec(responseText)) !== null) {
             const recipeName = match[1].trim();
             const recipeId = match[2] || null;
-            
+
             suggestedMeals.push({
               name: recipeName,
               description: `Recipe ID: ${recipeId || 'N/A'}`,
@@ -355,27 +384,27 @@ const ChatBot = ({ onBack }) => {
             });
           }
         }
-        
+
         // Check if this is an ingredients response
         if (responseText.includes('ingredients needed for') || 
             responseText.includes('Crust & Cheese:') || 
             responseText.includes('Fruits & Vegetables:')) {
-          
+
           // Extract the recipe name from the response
           const recipeNameMatch = responseText.match(/ingredients needed for (?:the\s+)?([^(]+)/i);
           const recipeName = recipeNameMatch ? recipeNameMatch[1].trim() : 'Current Recipe';
-          
+
           // Parse ingredients from the formatted response
           const ingredients = [];
           let ingredientId = 1;
-          
+
           // Parse sectioned ingredients (e.g., "Crust & Cheese:", "Fruits & Vegetables:")
           const sections = responseText.split(/\n(?=[A-Z][^:]+:)/);
-          
+
           sections.forEach(section => {
             const lines = section.split('\n');
             let currentCategory = 'General';
-            
+
             lines.forEach(line => {
               // Check if this is a category header
               if (line.includes(':') && !line.startsWith('-')) {
@@ -386,12 +415,12 @@ const ChatBot = ({ onBack }) => {
                 const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
                 if (ingredientMatch) {
                   const fullIngredient = ingredientMatch[1].trim();
-                  
+
                   // Parse quantity and name
                   const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
                   const quantity = quantityMatch[1] || '';
                   const name = quantityMatch[2] || fullIngredient;
-                  
+
                   ingredients.push({
                     id: ingredientId++,
                     name: name,
@@ -405,7 +434,7 @@ const ChatBot = ({ onBack }) => {
               }
             });
           });
-          
+
           // If ingredients were found, update the most recent meal in the selected meals
           if (ingredients.length > 0 && selectedMeals.length > 0) {
             // Find the meal that matches this recipe name
@@ -413,14 +442,14 @@ const ChatBot = ({ onBack }) => {
               meal.name.toLowerCase().includes(recipeName.toLowerCase()) ||
               recipeName.toLowerCase().includes(meal.name.toLowerCase())
             );
-            
+
             if (mealToUpdate) {
               setSelectedMeals(prev => prev.map(m => 
                 m.id === mealToUpdate.id 
                   ? { ...m, ingredients: ingredients }
                   : m
               ));
-              
+
               // Auto-select all ingredients
               const newSelectedIngredients = ingredients.map(ing => `${mealToUpdate.id}-${ing.id}`);
               setSelectedIngredients(prev => {
@@ -428,7 +457,7 @@ const ChatBot = ({ onBack }) => {
                 newSelectedIngredients.forEach(id => newSet.add(id));
                 return newSet;
               });
-              
+
               addDebugLog('✅ Ingredients parsed and added to meal:', { meal: mealToUpdate.name, ingredients });
             }
           }
@@ -514,7 +543,7 @@ const ChatBot = ({ onBack }) => {
   // Helper functions for ingredient parsing
   const getStoreForIngredient = (ingredientName) => {
     const name = ingredientName.toLowerCase();
-    
+
     if (name.includes('cheese') || name.includes('yogurt') || name.includes('milk')) {
       return 'Whole Foods';
     } else if (name.includes('bread') || name.includes('crust')) {
@@ -524,13 +553,13 @@ const ChatBot = ({ onBack }) => {
     } else if (name.includes('vinegar') || name.includes('oil')) {
       return 'Costco';
     }
-    
+
     return 'Kroger'; // Default store
   };
 
   const getSectionForIngredient = (ingredientName, category) => {
     const name = ingredientName.toLowerCase();
-    
+
     if (category.toLowerCase().includes('cheese') || name.includes('cheese')) {
       return 'Refrigerated';
     } else if (category.toLowerCase().includes('crust') || name.includes('bread')) {
@@ -544,14 +573,14 @@ const ChatBot = ({ onBack }) => {
     } else if (category.toLowerCase().includes('seasoning') || name.includes('salt') || name.includes('pepper')) {
       return 'Spices';
     }
-    
+
     return 'General';
   };
 
   // Add this helper function for fallback ingredients
   const getFallbackIngredients = (mealName) => {
     const mealLower = mealName.toLowerCase();
-    
+
     // Return appropriate fallback ingredients based on meal type
     if (mealLower.includes('pizza')) {
       return [
@@ -561,7 +590,7 @@ const ChatBot = ({ onBack }) => {
         { id: 4, name: "Toppings", category: "General", store: "Tom Thumb", section: "Various", needed: true }
       ];
     }
-    
+
     // Default fallback
     return [
       { id: 1, name: "Main Ingredient", category: "General", store: "Kroger", section: "General", needed: true },
