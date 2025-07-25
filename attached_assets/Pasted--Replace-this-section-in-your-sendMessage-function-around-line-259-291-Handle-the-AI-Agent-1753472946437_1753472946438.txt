@@ -1,0 +1,170 @@
+// Replace this section in your sendMessage function (around line 259-291)
+
+// Handle the AI Agent response format
+let botResponse = "I received your message but couldn't process it properly. Please try again!";
+let suggestedMeals = [];
+
+if (Array.isArray(data) && data.length > 0) {
+  // Handle AI Agent response format
+  if (data[0].output) {
+    botResponse = data[0].output;
+  } else if (data[0].text) {
+    botResponse = data[0].text;
+  } else if (typeof data[0] === 'string') {
+    botResponse = data[0];
+  }
+
+  // Parse recipe suggestions from the AI response
+  const responseText = botResponse;
+  
+  // Extract numbered recipe lists (e.g., "1. Recipe Name")
+  const numberedRecipePattern = /(\d+)\.\s*\*\*([^*]+)\*\*(?:\s*\(ID:\s*(\d+)\))?[^\n]*/g;
+  let match;
+  
+  while ((match = numberedRecipePattern.exec(responseText)) !== null) {
+    const recipeName = match[2].trim();
+    const recipeId = match[3] || null;
+    
+    // Extract description after the recipe name
+    const fullMatch = match[0];
+    const descriptionMatch = fullMatch.match(/\*\*[^*]+\*\*(?:\s*\([^)]+\))?\s*-\s*(.+)/);
+    const description = descriptionMatch ? descriptionMatch[1].trim() : '';
+    
+    suggestedMeals.push({
+      name: recipeName,
+      description: description || `Recipe ID: ${recipeId || 'N/A'}`,
+      recipeId: recipeId
+    });
+  }
+  
+  // Also check for bullet points without numbers
+  if (suggestedMeals.length === 0) {
+    const bulletRecipePattern = /[-•]\s*\*\*([^*]+)\*\*(?:\s*\((?:ID:|Recipe ID:)\s*(\d+)\))?[^\n]*/g;
+    
+    while ((match = bulletRecipePattern.exec(responseText)) !== null) {
+      const recipeName = match[1].trim();
+      const recipeId = match[2] || null;
+      
+      suggestedMeals.push({
+        name: recipeName,
+        description: `Recipe ID: ${recipeId || 'N/A'}`,
+        recipeId: recipeId
+      });
+    }
+  }
+  
+  // Check if this is an ingredients response
+  if (responseText.includes('ingredients needed for') || 
+      responseText.includes('Crust & Cheese:') || 
+      responseText.includes('Fruits & Vegetables:')) {
+    
+    // Extract the recipe name from the response
+    const recipeNameMatch = responseText.match(/ingredients needed for (?:the\s+)?([^(]+)/i);
+    const recipeName = recipeNameMatch ? recipeNameMatch[1].trim() : 'Current Recipe';
+    
+    // Parse ingredients from the formatted response
+    const ingredients = [];
+    let ingredientId = 1;
+    
+    // Parse sectioned ingredients (e.g., "Crust & Cheese:", "Fruits & Vegetables:")
+    const sections = responseText.split(/\n(?=[A-Z][^:]+:)/);
+    
+    sections.forEach(section => {
+      const lines = section.split('\n');
+      let currentCategory = 'General';
+      
+      lines.forEach(line => {
+        // Check if this is a category header
+        if (line.includes(':') && !line.startsWith('-')) {
+          currentCategory = line.replace(':', '').trim();
+        }
+        // Check if this is an ingredient line
+        else if (line.startsWith('-') || line.match(/^\s*\d+/)) {
+          const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
+          if (ingredientMatch) {
+            const fullIngredient = ingredientMatch[1].trim();
+            
+            // Parse quantity and name
+            const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
+            const quantity = quantityMatch[1] || '';
+            const name = quantityMatch[2] || fullIngredient;
+            
+            ingredients.push({
+              id: ingredientId++,
+              name: name,
+              quantity: quantity,
+              category: currentCategory,
+              store: getStoreForIngredient(name), // Helper function to determine store
+              section: getSectionForIngredient(name, currentCategory), // Helper function for section
+              needed: true
+            });
+          }
+        }
+      });
+    });
+    
+    // If ingredients were found, update the most recent meal in the selected meals
+    if (ingredients.length > 0 && selectedMeals.length > 0) {
+      // Find the meal that matches this recipe name
+      const mealToUpdate = selectedMeals.find(meal => 
+        meal.name.toLowerCase().includes(recipeName.toLowerCase()) ||
+        recipeName.toLowerCase().includes(meal.name.toLowerCase())
+      );
+      
+      if (mealToUpdate) {
+        setSelectedMeals(prev => prev.map(m => 
+          m.id === mealToUpdate.id 
+            ? { ...m, ingredients: ingredients }
+            : m
+        ));
+        
+        // Auto-select all ingredients
+        const newSelectedIngredients = ingredients.map(ing => `${mealToUpdate.id}-${ing.id}`);
+        setSelectedIngredients(prev => {
+          const newSet = new Set(prev);
+          newSelectedIngredients.forEach(id => newSet.add(id));
+          return newSet;
+        });
+        
+        addDebugLog('✅ Ingredients parsed and added to meal:', { meal: mealToUpdate.name, ingredients });
+      }
+    }
+  }
+}
+
+// Helper functions to add after the sendMessage function
+const getStoreForIngredient = (ingredientName) => {
+  const name = ingredientName.toLowerCase();
+  
+  if (name.includes('cheese') || name.includes('yogurt') || name.includes('milk')) {
+    return 'Whole Foods';
+  } else if (name.includes('bread') || name.includes('crust')) {
+    return 'Kroger';
+  } else if (name.includes('peach') || name.includes('arugula') || name.includes('onion')) {
+    return 'Tom Thumb';
+  } else if (name.includes('vinegar') || name.includes('oil')) {
+    return 'Costco';
+  }
+  
+  return 'Kroger'; // Default store
+};
+
+const getSectionForIngredient = (ingredientName, category) => {
+  const name = ingredientName.toLowerCase();
+  
+  if (category.toLowerCase().includes('cheese') || name.includes('cheese')) {
+    return 'Refrigerated';
+  } else if (category.toLowerCase().includes('crust') || name.includes('bread')) {
+    return 'Bakery';
+  } else if (category.toLowerCase().includes('vegetable') || category.toLowerCase().includes('fruit')) {
+    return 'Produce';
+  } else if (name.includes('vinegar') || name.includes('sauce')) {
+    return 'Condiments';
+  } else if (name.includes('nut') || name.includes('walnut')) {
+    return 'Nuts';
+  } else if (category.toLowerCase().includes('seasoning') || name.includes('salt') || name.includes('pepper')) {
+    return 'Spices';
+  }
+  
+  return 'General';
+};

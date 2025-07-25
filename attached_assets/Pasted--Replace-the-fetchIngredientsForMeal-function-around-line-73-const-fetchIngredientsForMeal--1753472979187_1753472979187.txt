@@ -1,0 +1,143 @@
+// Replace the fetchIngredientsForMeal function (around line 73)
+
+const fetchIngredientsForMeal = async (meal) => {
+  setLoadingIngredients(true);
+  addDebugLog('Fetching ingredients for meal:', meal.name);
+
+  try {
+    // Instead of calling a separate webhook, send a message to the chatbot
+    // asking for ingredients for this specific meal
+    const ingredientQuery = `What are the ingredients for ${meal.name}?`;
+    
+    addDebugLog('Sending ingredient query to chatbot:', ingredientQuery);
+
+    const queryParams = new URLSearchParams({
+      message: ingredientQuery,
+      context: 'get_ingredients',
+      timestamp: new Date().toISOString()
+    });
+
+    const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
+    
+    const response = await fetch(fullURL, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      mode: 'cors'
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseText = await response.text();
+    const data = JSON.parse(responseText);
+    
+    let ingredients = [];
+    
+    if (Array.isArray(data) && data.length > 0 && data[0].output) {
+      const botResponse = data[0].output;
+      
+      // Parse ingredients from the response
+      let ingredientId = 1;
+      const sections = botResponse.split(/\n(?=[A-Z][^:]+:)/);
+      
+      sections.forEach(section => {
+        const lines = section.split('\n');
+        let currentCategory = 'General';
+        
+        lines.forEach(line => {
+          if (line.includes(':') && !line.startsWith('-')) {
+            currentCategory = line.replace(':', '').trim();
+          }
+          else if (line.startsWith('-') || line.match(/^\s*\d+/)) {
+            const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
+            if (ingredientMatch) {
+              const fullIngredient = ingredientMatch[1].trim();
+              
+              // Parse quantity and name
+              const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
+              const quantity = quantityMatch[1] || '';
+              const name = quantityMatch[2] || fullIngredient;
+              
+              ingredients.push({
+                id: ingredientId++,
+                name: name,
+                quantity: quantity,
+                category: currentCategory,
+                store: getStoreForIngredient(name),
+                section: getSectionForIngredient(name, currentCategory),
+                needed: true
+              });
+            }
+          }
+        });
+      });
+    }
+
+    // If no ingredients were parsed, use fallback
+    if (ingredients.length === 0) {
+      addDebugLog('No ingredients parsed, using generic list');
+      ingredients = [
+        { id: 1, name: "Main Ingredient", category: "General", store: "Kroger", section: "General", needed: true },
+        { id: 2, name: "Supporting Ingredient", category: "General", store: "Tom Thumb", section: "General", needed: true }
+      ];
+    }
+
+    // Update the meal with ingredients
+    setSelectedMeals(prev => prev.map(m => 
+      m.id === meal.id 
+        ? { ...m, ingredients: ingredients }
+        : m
+    ));
+
+    // Auto-select ingredients that are marked as needed
+    const neededIngredientIds = ingredients
+      .filter(ing => ing.needed)
+      .map(ing => `${meal.id}-${ing.id}`);
+
+    setSelectedIngredients(prev => {
+      const newSet = new Set(prev);
+      neededIngredientIds.forEach(id => newSet.add(id));
+      return newSet;
+    });
+
+    addDebugLog('✅ Ingredients fetched successfully:', ingredients);
+
+  } catch (error) {
+    addDebugLog('❌ Error fetching ingredients:', error.message);
+    
+    // Fallback to local ingredients based on meal name
+    const fallbackIngredients = getFallbackIngredients(meal.name);
+    
+    setSelectedMeals(prev => prev.map(m => 
+      m.id === meal.id 
+        ? { ...m, ingredients: fallbackIngredients }
+        : m
+    ));
+  } finally {
+    setLoadingIngredients(false);
+  }
+};
+
+// Add this helper function for fallback ingredients
+const getFallbackIngredients = (mealName) => {
+  const mealLower = mealName.toLowerCase();
+  
+  // Return appropriate fallback ingredients based on meal type
+  if (mealLower.includes('pizza')) {
+    return [
+      { id: 1, name: "Pizza Dough", category: "Bakery", store: "Kroger", section: "Bakery", needed: true },
+      { id: 2, name: "Mozzarella Cheese", category: "Dairy", store: "Whole Foods", section: "Refrigerated", needed: true },
+      { id: 3, name: "Pizza Sauce", category: "Condiments", store: "Kroger", section: "Condiments", needed: true },
+      { id: 4, name: "Toppings", category: "General", store: "Tom Thumb", section: "Various", needed: true }
+    ];
+  }
+  
+  // Default fallback
+  return [
+    { id: 1, name: "Main Ingredient", category: "General", store: "Kroger", section: "General", needed: true },
+    { id: 2, name: "Seasonings", category: "Spices", store: "Kroger", section: "Spices", needed: true }
+  ];
+};
