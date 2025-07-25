@@ -61,11 +61,12 @@ const ChatBot = ({ onBack }) => {
   };
 
   // Add a meal to the selected meals list
-  const addMealToList = (mealName, mealDescription) => {
+  const addMealToList = (mealName, mealDescription, recipeId = null) => {
     const newMeal = {
       id: Date.now(),
       name: mealName,
       description: mealDescription,
+      recipeId: recipeId,
       ingredients: []
     };
 
@@ -84,14 +85,17 @@ const ChatBot = ({ onBack }) => {
 
     try {
       // Instead of calling a separate webhook, send a message to the chatbot
-      // asking for ingredients for this specific meal
-      const ingredientQuery = `What are the ingredients for ${meal.name}?`;
+      // asking for ingredients for this specific meal, including recipe ID if available
+      const ingredientQuery = meal.recipeId 
+        ? `What are the ingredients for recipe ID ${meal.recipeId}?`
+        : `What are the ingredients for ${meal.name}?`;
 
       addDebugLog('Sending ingredient query to chatbot:', ingredientQuery);
 
       const queryParams = new URLSearchParams({
         message: ingredientQuery,
         context: 'get_ingredients',
+        recipeId: meal.recipeId || '',
         timestamp: new Date().toISOString()
       });
 
@@ -751,7 +755,7 @@ const ChatBot = ({ onBack }) => {
                                 </div>
                                 <button
                                   onClick={() => {
-                                    addMealToList(meal.name, meal.description);
+                                    addMealToList(meal.name, meal.description, meal.recipeId);
                                     setShowIngredientsPanel(true);
                                   }}
                                   className="ml-3 flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
