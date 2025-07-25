@@ -1,0 +1,79 @@
+[
+  {
+    "response": {
+      "body": [
+        {
+          "output": {
+            "responseType": "ingredients_detail",
+            "ingredients": [
+              {
+                "category": "Vegetables",
+                "items": [
+                  {
+                    "name": "zucchini",
+                    "quantity": "3",
+                    "unit": "whole"
+                  },
+                  {
+                    "name": "grape tomatoes",
+                    "quantity": "15",
+                    "unit": "whole"
+                  },
+                  {
+                    "name": "garlic",
+                    "quantity": "1",
+                    "unit": "tsp"
+                  }
+                ]
+              },
+              {
+                "category": "Dairy",
+                "items": [
+                  {
+                    "name": "shredded mozzarella cheese",
+                    "quantity": "1",
+                    "unit": "cup"
+                  },
+                  {
+                    "name": "parmesan cheese"
+                  }
+                ]
+              },
+              {
+                "category": "Pantry Items",
+                "items": [
+                  {
+                    "name": "olive oil"
+                  },
+                  {
+                    "name": "bread crumbs"
+                  },
+                  {
+                    "name": "salt and pepper"
+                  }
+                ]
+              },
+              {
+                "category": "Herbs",
+                "items": [
+                  {
+                    "name": "fresh basil"
+                  }
+                ]
+              }
+            ],
+            "recipeName": "Zucchini Pizza Boats",
+            "message": "Here are the ingredients you'll need to make Zucchini Pizza Boats. This recipe makes 6 servings and is a delicious low-carb alternative to regular pizza!"
+          }
+        }
+      ],
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, POST, OPTIONS",
+        "access-control-allow-headers": "Content-Type, Accept",
+        "content-type": "application/json"
+      },
+      "statusCode": 200
+    }
+  }
+]
