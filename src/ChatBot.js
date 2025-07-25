@@ -83,77 +83,92 @@ const ChatBot = ({ onBack }) => {
     addDebugLog('Fetching ingredients for meal:', meal.name);
 
     try {
-      const requestBody = {
-        meal_name: meal.name,
-        meal_description: meal.description,
-        context: 'get_ingredients'
-      };
+      // Instead of calling a separate webhook, send a message to the chatbot
+      // asking for ingredients for this specific meal
+      const ingredientQuery = `What are the ingredients for ${meal.name}?`;
+      
+      addDebugLog('Sending ingredient query to chatbot:', ingredientQuery);
 
-      addDebugLog('Ingredients request payload:', requestBody);
-      addDebugLog('Ingredients webhook URL:', INGREDIENTS_WEBHOOK_URL);
+      const queryParams = new URLSearchParams({
+        message: ingredientQuery,
+        context: 'get_ingredients',
+        timestamp: new Date().toISOString()
+      });
 
-      // For now, simulate API call - you can uncomment below to use real webhook
-      // const response = await fetch(INGREDIENTS_WEBHOOK_URL, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(requestBody)
-      // });
+      const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
+      
+      const response = await fetch(fullURL, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors'
+      });
 
-      // Simulate API call for demo
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      // Generate sample ingredients based on meal type
-      let sampleIngredients = [];
-      const mealLower = meal.name.toLowerCase();
+      const responseText = await response.text();
+      const data = JSON.parse(responseText);
+      
+      let ingredients = [];
+      
+      if (Array.isArray(data) && data.length > 0 && data[0].output) {
+        const botResponse = data[0].output;
+        
+        // Parse ingredients from the response
+        let ingredientId = 1;
+        const sections = botResponse.split(/\n(?=[A-Z][^:]+:)/);
+        
+        sections.forEach(section => {
+          const lines = section.split('\n');
+          let currentCategory = 'General';
+          
+          lines.forEach(line => {
+            if (line.includes(':') && !line.startsWith('-')) {
+              currentCategory = line.replace(':', '').trim();
+            }
+            else if (line.startsWith('-') || line.match(/^\s*\d+/)) {
+              const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
+              if (ingredientMatch) {
+                const fullIngredient = ingredientMatch[1].trim();
+                
+                // Parse quantity and name
+                const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
+                const quantity = quantityMatch[1] || '';
+                const name = quantityMatch[2] || fullIngredient;
+                
+                ingredients.push({
+                  id: ingredientId++,
+                  name: name,
+                  quantity: quantity,
+                  category: currentCategory,
+                  store: getStoreForIngredient(name),
+                  section: getSectionForIngredient(name, currentCategory),
+                  needed: true
+                });
+              }
+            }
+          });
+        });
+      }
 
-      if (mealLower.includes('overnight oats') || mealLower.includes('oats')) {
-        sampleIngredients = [
-          { id: 1, name: "Rolled Oats", category: "Breakfast", store: "Kroger", section: "Cereal Aisle", needed: true },
-          { id: 2, name: "Fresh Berries (Mixed)", category: "Breakfast", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 3, name: "Honey", category: "Breakfast", store: "Kroger", section: "Condiments", needed: true },
-          { id: 4, name: "Chia Seeds", category: "Health Foods", store: "Whole Foods", section: "Health Foods", needed: true },
-          { id: 5, name: "Vanilla Extract", category: "Baking", store: "Kroger", section: "Baking", needed: false }
-        ];
-      } else if (mealLower.includes('smoothie')) {
-        sampleIngredients = [
-          { id: 6, name: "Frozen Mango Chunks", category: "Breakfast", store: "Trader Joe's", section: "Frozen", needed: true },
-          { id: 7, name: "Fresh Spinach", category: "Breakfast", store: "Whole Foods", section: "Produce", needed: true },
-          { id: 8, name: "Banana", category: "Breakfast", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 9, name: "Greek Yogurt", category: "Breakfast", store: "Whole Foods", section: "Refrigerated", needed: false }
-        ];
-      } else if (mealLower.includes('peanut butter') || mealLower.includes('toast')) {
-        sampleIngredients = [
-          { id: 10, name: "Whole Grain Bread", category: "Breakfast", store: "Kroger", section: "Bakery", needed: true },
-          { id: 11, name: "Banana", category: "Breakfast", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 12, name: "Cinnamon", category: "Breakfast", store: "Kroger", section: "Spices", needed: false },
-          { id: 13, name: "Sliced Almonds", category: "Breakfast", store: "Whole Foods", section: "Nuts", needed: false }
-        ];
-      } else if (mealLower.includes('salad')) {
-        sampleIngredients = [
-          { id: 14, name: "Mixed Greens", category: "Lunches", store: "Whole Foods", section: "Produce", needed: true },
-          { id: 15, name: "Cherry Tomatoes", category: "Lunches", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 16, name: "Cucumber", category: "Lunches", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 17, name: "Feta Cheese", category: "Lunches", store: "Whole Foods", section: "Refrigerated", needed: true },
-          { id: 18, name: "Olive Oil", category: "Lunches", store: "Costco", section: "Condiments", needed: false }
-        ];
-      } else {
-        sampleIngredients = [
-          { id: 19, name: "Chicken Breast", category: "General", store: "Tom Thumb", section: "Meat", needed: true },
-          { id: 20, name: "Rice", category: "General", store: "Costco", section: "Pantry", needed: true },
-          { id: 21, name: "Broccoli", category: "General", store: "Tom Thumb", section: "Produce", needed: true },
-          { id: 22, name: "Garlic", category: "General", store: "Tom Thumb", section: "Produce", needed: true }
-        ];
+      // If no ingredients were parsed, use fallback
+      if (ingredients.length === 0) {
+        addDebugLog('No ingredients parsed, using generic list');
+        ingredients = getFallbackIngredients(meal.name);
       }
 
       // Update the meal with ingredients
       setSelectedMeals(prev => prev.map(m => 
         m.id === meal.id 
-          ? { ...m, ingredients: sampleIngredients }
+          ? { ...m, ingredients: ingredients }
           : m
       ));
 
       // Auto-select ingredients that are marked as needed
-      const neededIngredientIds = sampleIngredients
+      const neededIngredientIds = ingredients
         .filter(ing => ing.needed)
         .map(ing => `${meal.id}-${ing.id}`);
 
@@ -163,10 +178,19 @@ const ChatBot = ({ onBack }) => {
         return newSet;
       });
 
-      addDebugLog('✅ Ingredients fetched successfully:', sampleIngredients);
+      addDebugLog('✅ Ingredients fetched successfully:', ingredients);
 
     } catch (error) {
       addDebugLog('❌ Error fetching ingredients:', error.message);
+      
+      // Fallback to local ingredients based on meal name
+      const fallbackIngredients = getFallbackIngredients(meal.name);
+      
+      setSelectedMeals(prev => prev.map(m => 
+        m.id === meal.id 
+          ? { ...m, ingredients: fallbackIngredients }
+          : m
+      ));
     } finally {
       setLoadingIngredients(false);
     }
@@ -293,31 +317,120 @@ const ChatBot = ({ onBack }) => {
           botResponse = data[0];
         }
 
-        // Try to extract meal suggestions from the response text
-        // Enhanced logic for recipe suggestions from Spoonacular API
-        const responseText = botResponse.toLowerCase();
-
-        // Look for recipe names in the response and create meal suggestions
-        if (responseText.includes('recipe') || responseText.includes('meal') || responseText.includes('dish')) {
-          // Extract recipe suggestions based on common patterns
-          if (responseText.includes('italian') || responseText.includes('pasta')) {
-            suggestedMeals = [
-              { name: "Spaghetti Carbonara", description: "Classic Italian pasta with eggs, cheese, and pancetta" },
-              { name: "Chicken Parmigiana", description: "Breaded chicken breast with marinara sauce and mozzarella" },
-              { name: "Margherita Pizza", description: "Simple pizza with fresh tomatoes, mozzarella, and basil" }
-            ];
-          } else if (responseText.includes('breakfast')) {
-            suggestedMeals = [
-              { name: "Overnight Oats", description: "Creamy oats soaked overnight with your favorite toppings" },
-              { name: "Avocado Toast", description: "Whole grain toast topped with fresh avocado and seasonings" },
-              { name: "Berry Smoothie Bowl", description: "Thick smoothie bowl topped with fresh berries and granola" }
-            ];
-          } else if (responseText.includes('dinner')) {
-            suggestedMeals = [
-              { name: "Sheet Pan Dinner", description: "One-pan meal with protein and roasted vegetables" },
-              { name: "Stir Fry", description: "Quick and healthy vegetable and protein stir fry" },
-              { name: "Grilled Chicken Salad", description: "Fresh salad with grilled chicken and seasonal vegetables" }
-            ];
+        // Parse recipe suggestions from the AI response
+        const responseText = botResponse;
+        
+        // Extract numbered recipe lists (e.g., "1. Recipe Name")
+        const numberedRecipePattern = /(\d+)\.\s*\*\*([^*]+)\*\*(?:\s*\(ID:\s*(\d+)\))?[^\n]*/g;
+        let match;
+        
+        while ((match = numberedRecipePattern.exec(responseText)) !== null) {
+          const recipeName = match[2].trim();
+          const recipeId = match[3] || null;
+          
+          // Extract description after the recipe name
+          const fullMatch = match[0];
+          const descriptionMatch = fullMatch.match(/\*\*[^*]+\*\*(?:\s*\([^)]+\))?\s*-\s*(.+)/);
+          const description = descriptionMatch ? descriptionMatch[1].trim() : '';
+          
+          suggestedMeals.push({
+            name: recipeName,
+            description: description || `Recipe ID: ${recipeId || 'N/A'}`,
+            recipeId: recipeId
+          });
+        }
+        
+        // Also check for bullet points without numbers
+        if (suggestedMeals.length === 0) {
+          const bulletRecipePattern = /[-•]\s*\*\*([^*]+)\*\*(?:\s*\((?:ID:|Recipe ID:)\s*(\d+)\))?[^\n]*/g;
+          
+          while ((match = bulletRecipePattern.exec(responseText)) !== null) {
+            const recipeName = match[1].trim();
+            const recipeId = match[2] || null;
+            
+            suggestedMeals.push({
+              name: recipeName,
+              description: `Recipe ID: ${recipeId || 'N/A'}`,
+              recipeId: recipeId
+            });
+          }
+        }
+        
+        // Check if this is an ingredients response
+        if (responseText.includes('ingredients needed for') || 
+            responseText.includes('Crust & Cheese:') || 
+            responseText.includes('Fruits & Vegetables:')) {
+          
+          // Extract the recipe name from the response
+          const recipeNameMatch = responseText.match(/ingredients needed for (?:the\s+)?([^(]+)/i);
+          const recipeName = recipeNameMatch ? recipeNameMatch[1].trim() : 'Current Recipe';
+          
+          // Parse ingredients from the formatted response
+          const ingredients = [];
+          let ingredientId = 1;
+          
+          // Parse sectioned ingredients (e.g., "Crust & Cheese:", "Fruits & Vegetables:")
+          const sections = responseText.split(/\n(?=[A-Z][^:]+:)/);
+          
+          sections.forEach(section => {
+            const lines = section.split('\n');
+            let currentCategory = 'General';
+            
+            lines.forEach(line => {
+              // Check if this is a category header
+              if (line.includes(':') && !line.startsWith('-')) {
+                currentCategory = line.replace(':', '').trim();
+              }
+              // Check if this is an ingredient line
+              else if (line.startsWith('-') || line.match(/^\s*\d+/)) {
+                const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
+                if (ingredientMatch) {
+                  const fullIngredient = ingredientMatch[1].trim();
+                  
+                  // Parse quantity and name
+                  const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
+                  const quantity = quantityMatch[1] || '';
+                  const name = quantityMatch[2] || fullIngredient;
+                  
+                  ingredients.push({
+                    id: ingredientId++,
+                    name: name,
+                    quantity: quantity,
+                    category: currentCategory,
+                    store: getStoreForIngredient(name), // Helper function to determine store
+                    section: getSectionForIngredient(name, currentCategory), // Helper function for section
+                    needed: true
+                  });
+                }
+              }
+            });
+          });
+          
+          // If ingredients were found, update the most recent meal in the selected meals
+          if (ingredients.length > 0 && selectedMeals.length > 0) {
+            // Find the meal that matches this recipe name
+            const mealToUpdate = selectedMeals.find(meal => 
+              meal.name.toLowerCase().includes(recipeName.toLowerCase()) ||
+              recipeName.toLowerCase().includes(meal.name.toLowerCase())
+            );
+            
+            if (mealToUpdate) {
+              setSelectedMeals(prev => prev.map(m => 
+                m.id === mealToUpdate.id 
+                  ? { ...m, ingredients: ingredients }
+                  : m
+              ));
+              
+              // Auto-select all ingredients
+              const newSelectedIngredients = ingredients.map(ing => `${mealToUpdate.id}-${ing.id}`);
+              setSelectedIngredients(prev => {
+                const newSet = new Set(prev);
+                newSelectedIngredients.forEach(id => newSet.add(id));
+                return newSet;
+              });
+              
+              addDebugLog('✅ Ingredients parsed and added to meal:', { meal: mealToUpdate.name, ingredients });
+            }
           }
         }
       }
@@ -396,6 +509,64 @@ const ChatBot = ({ onBack }) => {
 
     const year = targetSunday.getFullYear();
     return `Meal planning for ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
+  };
+
+  // Helper functions for ingredient parsing
+  const getStoreForIngredient = (ingredientName) => {
+    const name = ingredientName.toLowerCase();
+    
+    if (name.includes('cheese') || name.includes('yogurt') || name.includes('milk')) {
+      return 'Whole Foods';
+    } else if (name.includes('bread') || name.includes('crust')) {
+      return 'Kroger';
+    } else if (name.includes('peach') || name.includes('arugula') || name.includes('onion')) {
+      return 'Tom Thumb';
+    } else if (name.includes('vinegar') || name.includes('oil')) {
+      return 'Costco';
+    }
+    
+    return 'Kroger'; // Default store
+  };
+
+  const getSectionForIngredient = (ingredientName, category) => {
+    const name = ingredientName.toLowerCase();
+    
+    if (category.toLowerCase().includes('cheese') || name.includes('cheese')) {
+      return 'Refrigerated';
+    } else if (category.toLowerCase().includes('crust') || name.includes('bread')) {
+      return 'Bakery';
+    } else if (category.toLowerCase().includes('vegetable') || category.toLowerCase().includes('fruit')) {
+      return 'Produce';
+    } else if (name.includes('vinegar') || name.includes('sauce')) {
+      return 'Condiments';
+    } else if (name.includes('nut') || name.includes('walnut')) {
+      return 'Nuts';
+    } else if (category.toLowerCase().includes('seasoning') || name.includes('salt') || name.includes('pepper')) {
+      return 'Spices';
+    }
+    
+    return 'General';
+  };
+
+  // Add this helper function for fallback ingredients
+  const getFallbackIngredients = (mealName) => {
+    const mealLower = mealName.toLowerCase();
+    
+    // Return appropriate fallback ingredients based on meal type
+    if (mealLower.includes('pizza')) {
+      return [
+        { id: 1, name: "Pizza Dough", category: "Bakery", store: "Kroger", section: "Bakery", needed: true },
+        { id: 2, name: "Mozzarella Cheese", category: "Dairy", store: "Whole Foods", section: "Refrigerated", needed: true },
+        { id: 3, name: "Pizza Sauce", category: "Condiments", store: "Kroger", section: "Condiments", needed: true },
+        { id: 4, name: "Toppings", category: "General", store: "Tom Thumb", section: "Various", needed: true }
+      ];
+    }
+    
+    // Default fallback
+    return [
+      { id: 1, name: "Main Ingredient", category: "General", store: "Kroger", section: "General", needed: true },
+      { id: 2, name: "Seasonings", category: "Spices", store: "Kroger", section: "Spices", needed: true }
+    ];
   };
 
   return (
