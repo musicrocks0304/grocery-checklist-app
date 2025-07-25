@@ -238,24 +238,23 @@ const ChatBot = ({ onBack }) => {
 
       addDebugLog('Webhook URL:', CHATBOT_WEBHOOK_URL);
 
-      const requestBody = {
-        body: messageToSend,
+      // Use GET method to match n8n webhook configuration
+      const queryParams = new URLSearchParams({
         message: messageToSend,
-        timestamp: new Date().toISOString(),
-        context: 'meal_planning'
-      };
+        context: 'meal_planning',
+        timestamp: new Date().toISOString()
+      });
 
-      addDebugLog('Request payload:', requestBody);
+      const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
+      addDebugLog('Full GET URL:', fullURL);
 
-      // Use the exact same method that works for grocery data
-      addDebugLog('Making API call to chatbot webhook...');
-      const response = await fetch(CHATBOT_WEBHOOK_URL, {
-        method: 'POST',
+      addDebugLog('Making API call to chatbot webhook with GET method...');
+      const response = await fetch(fullURL, {
+        method: 'GET',
         headers: {
           'Accept': 'application/json',
         },
-        mode: 'cors',
-        body: JSON.stringify(requestBody)
+        mode: 'cors'
       });
 
       addDebugLog('Response received:', {
@@ -297,7 +296,7 @@ const ChatBot = ({ onBack }) => {
         // Try to extract meal suggestions from the response text
         // Enhanced logic for recipe suggestions from Spoonacular API
         const responseText = botResponse.toLowerCase();
-        
+
         // Look for recipe names in the response and create meal suggestions
         if (responseText.includes('recipe') || responseText.includes('meal') || responseText.includes('dish')) {
           // Extract recipe suggestions based on common patterns
