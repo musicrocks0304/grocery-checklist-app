@@ -1,0 +1,59 @@
+7:18:16 AM: Netlify Build                                                 
+7:18:16 AM: ────────────────────────────────────────────────────────────────
+7:18:16 AM: ​
+7:18:16 AM: ❯ Version
+7:18:16 AM:   @netlify/build 34.3.0
+7:18:16 AM: ​
+7:18:16 AM: ❯ Flags
+7:18:16 AM:   accountId: 687e900776a884ac202742fb
+7:18:16 AM:   baseRelDir: true
+7:18:16 AM:   buildId: 6884c7795aaf0e000866153e
+7:18:16 AM:   deployId: 6884c7795aaf0e0008661540
+7:18:16 AM: ​
+7:18:16 AM: ❯ Current directory
+7:18:16 AM:   /opt/build/repo
+7:18:16 AM: ​
+7:18:16 AM: ❯ Config file
+7:18:16 AM:   No config file was defined: using default values.
+7:18:16 AM: ​
+7:18:16 AM: ❯ Context
+7:18:16 AM:   production
+7:18:16 AM: ​
+7:18:16 AM: Build command from Netlify app                                
+7:18:16 AM: ────────────────────────────────────────────────────────────────
+7:18:16 AM: ​
+7:18:16 AM: $ npm run build
+7:18:16 AM: > grocery-checklist-app@0.1.0 build
+7:18:16 AM: > react-scripts build
+7:18:17 AM: Creating an optimized production build...
+7:18:23 AM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
+7:18:23 AM: 
+7:18:23 AM: Treating warnings as errors because process.env.CI = true.
+7:18:23 AM: Most CI servers set it automatically.
+7:18:23 AM: 
+7:18:23 AM: Failed to compile.
+7:18:23 AM: 
+7:18:23 AM: [eslint]
+7:18:23 AM: src/ChatBot.js
+7:18:23 AM:   Line 28:9:    'INGREDIENTS_WEBHOOK_URL' is assigned a value but never used  no-unused-vars
+7:18:23 AM:   Line 380:11:  Expected a default case                                       default-case
+7:18:23 AM: ​
+7:18:23 AM: "build.command" failed                                        
+7:18:23 AM: ────────────────────────────────────────────────────────────────
+7:18:23 AM: ​
+7:18:23 AM:   Error message
+7:18:23 AM:   Command failed with exit code 1: npm run build (https://ntl.fyi/exit-code-1)
+7:18:23 AM: ​
+7:18:23 AM:   Error location
+7:18:23 AM:   In Build command from Netlify app:
+7:18:23 AM:   npm run build
+7:18:23 AM: ​
+7:18:23 AM:   Resolved config
+7:18:23 AM:   build:
+7:18:23 AM:     command: npm run build
+7:18:23 AM:     commandOrigin: ui
+7:18:23 AM:     publish: /opt/build/repo/build
+7:18:23 AM:     publishOrigin: ui
+7:18:23 AM: Build failed due to a user error: Build script returned non-zero exit code: 2
+7:18:23 AM: Failing build: Failed to build site
+7:18:23 AM: Finished processing build request in 20.969s
