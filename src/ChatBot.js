@@ -24,9 +24,6 @@ const ChatBot = ({ onBack }) => {
   // Your n8n webhook URL for the chatbot - using the actual webhook from your n8n flow
   const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/call_grocery_agent';
 
-  // Your n8n webhook URL for getting ingredients
-  const INGREDIENTS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/your-ingredients-webhook-id/get_ingredients';
-
   // Debug logging function
   const addDebugLog = (message, data = null) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -130,14 +127,14 @@ const ChatBot = ({ onBack }) => {
         // Check if it's the new structured format with ingredients_detail
         if (responseData.output && responseData.output.responseType === 'ingredients_detail' && responseData.output.ingredients) {
           let ingredientId = 1;
-          
+
           responseData.output.ingredients.forEach(categoryGroup => {
             const categoryName = categoryGroup.category || 'General';
-            
+
             if (categoryGroup.items && Array.isArray(categoryGroup.items)) {
               categoryGroup.items.forEach(item => {
                 const quantity = item.quantity && item.unit ? `${item.quantity} ${item.unit}` : (item.quantity || '');
-                
+
                 ingredients.push({
                   id: ingredientId++,
                   name: item.name,
@@ -396,6 +393,9 @@ const ChatBot = ({ onBack }) => {
                 // This would be handled here when ingredient responses come in structured format
                 botResponse = `Ingredients for ${responseData.output.recipeName}:\n${JSON.stringify(responseData.output.ingredients, null, 2)}`;
               }
+              break;
+            default:
+              // Handle any other response types or do nothing
               break;
           }
         }
@@ -856,7 +856,7 @@ const ChatBot = ({ onBack }) => {
               <button
                 onClick={() => setShowIngredientsPanel(false)}
                 className="p-1 hover:bg-white/20 rounded transition-colors"
-              >
+              >```text
                 <X size={16} />
               </button>
             </div>
@@ -876,7 +876,7 @@ const ChatBot = ({ onBack }) => {
               <div className="space-y-4">
                 {selectedMeals.map((meal) => {
                   const isCollapsed = collapsedMeals.has(meal.id);
-                  
+
                   return (
                     <div key={meal.id} className="border rounded-lg">
                       <div className="bg-gray-50 p-3 border-b">
