@@ -61,7 +61,7 @@ const ChatBot = ({ onBack }) => {
   // Simulate typing indicator
   const showTypingIndicator = () => {
     const typingMessage = {
-      id: Date.now(),
+      id: Date.now() + Math.random(), // Ensure unique ID
       type: 'bot',
       content: '...',
       isTyping: true,
@@ -373,6 +373,28 @@ const ChatBot = ({ onBack }) => {
       });
 
       if (!response.ok) {
+        // Log the error response for debugging
+        const errorText = await response.text();
+        addDebugLog('❌ Server error response:', { 
+          status: response.status, 
+          statusText: response.statusText, 
+          body: errorText 
+        });
+        
+        // For 500 errors, provide a helpful fallback message
+        if (response.status === 500) {
+          removeTypingIndicator(typingId);
+          const fallbackMessage = {
+            id: Date.now() + Math.random(), // Ensure unique ID
+            type: 'bot',
+            content: "I'm experiencing a temporary server issue. Please try again in a moment, or try rephrasing your request. For now, here are some popular pizza ideas: Margherita, Pepperoni, Hawaiian, BBQ Chicken, or Veggie Supreme!",
+            timestamp: new Date().toLocaleTimeString()
+          };
+          setMessages(prev => [...prev, fallbackMessage]);
+          setIsLoading(false);
+          return;
+        }
+        
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -623,7 +645,7 @@ const ChatBot = ({ onBack }) => {
       removeTypingIndicator(typingId);
 
       const botMessage = {
-        id: Date.now() + 1,
+        id: Date.now() + Math.random(), // Ensure unique ID
         type: 'bot',
         content: botResponse,
         suggestedMeals: suggestedMeals,
@@ -638,7 +660,7 @@ const ChatBot = ({ onBack }) => {
       removeTypingIndicator(typingId);
 
       const errorMessage = {
-        id: Date.now() + 1,
+        id: Date.now() + Math.random(), // Ensure unique ID
         type: 'bot',
         content: "I'm having trouble connecting to my meal planning brain right now! 🧠💭 But I can still help with some basic suggestions. What type of meals are you thinking about?",
         timestamp: new Date().toLocaleTimeString()
