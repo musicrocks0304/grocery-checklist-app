@@ -749,7 +749,6 @@ const ChatBot = ({ onBack }) => {
           <div className="bg-white/20 rounded-lg p-3">
             <p className="text-sm font-medium">{getWeekDateRange()}</p>
             <p className="text-xs opacity-90 mt-1">Get personalized meal suggestions based on your preferences</p>
-            <p className="text-xs opacity-75 mt-1">Session ID: {sessionId}</p>
           </div>
         </div>
 
