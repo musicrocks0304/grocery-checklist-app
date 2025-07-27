@@ -100,18 +100,20 @@ const ChatBot = ({ onBack }) => {
     addDebugLog('Fetching ingredients for meal:', meal.name);
 
     try {
-      // Instead of calling a separate webhook, send a message to the chatbot
-      // asking for ingredients for this specific meal, including recipe ID if available
-      const ingredientQuery = meal.recipeId 
-        ? `What are the ingredients for recipe ID ${meal.recipeId}?`
-        : `What are the ingredients for ${meal.name}?`;
+      // Include recipe ID in the query if available
+      let ingredientQuery = `What are the ingredients for ${meal.name}?`;
+      if (meal.recipeId) {
+        ingredientQuery = `What are the ingredients for ${meal.name} (Recipe ID: ${meal.recipeId})?`;
+      }
 
       addDebugLog('Sending ingredient query to chatbot:', ingredientQuery);
+      addDebugLog('Recipe ID being sent:', meal.recipeId || 'None');
 
       const queryParams = new URLSearchParams({
         message: ingredientQuery,
         context: 'get_ingredients',
         recipeId: meal.recipeId || '',
+        recipeName: meal.name,
         timestamp: new Date().toISOString(),
         sessionId: sessionId
       });
@@ -631,42 +633,7 @@ const ChatBot = ({ onBack }) => {
     return `Meal planning for ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
 
-  // Helper functions for ingredient parsing
-  const getStoreForIngredient = (ingredientName) => {
-    const name = ingredientName.toLowerCase();
-
-    if (name.includes('cheese') || name.includes('yogurt') || name.includes('milk')) {
-      return 'Whole Foods';
-    } else if (name.includes('bread') || name.includes('crust')) {
-      return 'Kroger';
-    } else if (name.includes('peach') || name.includes('arugula') || name.includes('onion')) {
-      return 'Tom Thumb';
-    } else if (name.includes('vinegar') || name.includes('oil')) {
-      return 'Costco';
-    }
-
-    return 'Kroger'; // Default store
-  };
-
-  const getSectionForIngredient = (ingredientName, category) => {
-    const name = ingredientName.toLowerCase();
-
-    if (category.toLowerCase().includes('cheese') || name.includes('cheese')) {
-      return 'Refrigerated';
-    } else if (category.toLowerCase().includes('crust') || name.includes('bread')) {
-      return 'Bakery';
-    } else if (category.toLowerCase().includes('vegetable') || category.toLowerCase().includes('fruit')) {
-      return 'Produce';
-    } else if (name.includes('vinegar') || name.includes('sauce')) {
-      return 'Condiments';
-    } else if (name.includes('nut') || name.includes('walnut')) {
-      return 'Nuts';
-    } else if (category.toLowerCase().includes('seasoning') || name.includes('salt') || name.includes('pepper')) {
-      return 'Spices';
-    }
-
-    return 'General';
-  };
+  
 
   // Add this helper function for fallback ingredients
   const getFallbackIngredients = (mealName) => {
