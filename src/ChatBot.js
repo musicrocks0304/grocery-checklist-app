@@ -360,9 +360,6 @@ const ChatBot = ({ onBack }) => {
       addDebugLog('Making API call to chatbot webhook with GET method...');
       const response = await fetch(fullURL, {
         method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
         mode: 'cors'
       });
 
@@ -374,11 +371,18 @@ const ChatBot = ({ onBack }) => {
 
       if (!response.ok) {
         // Log the error response for debugging
-        const errorText = await response.text();
+        let errorText = '';
+        try {
+          errorText = await response.text();
+        } catch (e) {
+          errorText = 'Could not read error response';
+        }
+        
         addDebugLog('❌ Server error response:', { 
           status: response.status, 
           statusText: response.statusText, 
-          body: errorText 
+          body: errorText,
+          url: fullURL 
         });
         
         // For 500 errors, provide a helpful fallback message
@@ -387,7 +391,7 @@ const ChatBot = ({ onBack }) => {
           const fallbackMessage = {
             id: Date.now() + Math.random(), // Ensure unique ID
             type: 'bot',
-            content: "I'm experiencing a temporary server issue. Please try again in a moment, or try rephrasing your request. For now, here are some popular pizza ideas: Margherita, Pepperoni, Hawaiian, BBQ Chicken, or Veggie Supreme!",
+            content: "I'm experiencing a temporary server issue, but your n8n webhook is working correctly. This might be a CORS or header issue. Please try again in a moment!",
             timestamp: new Date().toLocaleTimeString()
           };
           setMessages(prev => [...prev, fallbackMessage]);
