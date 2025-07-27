@@ -419,10 +419,71 @@ const ChatBot = ({ onBack }) => {
               break;
 
             case "ingredients_detail":
-              // Handle ingredients response (for future use)
               if (responseData.output.ingredients && responseData.output.recipeName) {
-                // This would be handled here when ingredient responses come in structured format
-                botResponse = `Ingredients for ${responseData.output.recipeName}:\n${JSON.stringify(responseData.output.ingredients, null, 2)}`;
+                const targetMeal = selectedMeals.find(meal => 
+                  meal.name.toLowerCase().includes(responseData.output.recipeName.toLowerCase()) ||
+                  responseData.output.recipeName.toLowerCase().includes(meal.name.toLowerCase())
+                );
+                
+                if (targetMeal) {
+                  // Update the meal with recipe ID if it wasn't already set
+                  if (responseData.output.recipeId && !targetMeal.recipeId) {
+                    targetMeal.recipeId = responseData.output.recipeId;
+                  }
+                  
+                  // Convert structured ingredients to flat list
+                  const ingredients = [];
+                  let ingredientId = 1;
+                  
+                  responseData.output.ingredients.forEach(category => {
+                    const categoryName = category.category || 'General';
+                    
+                    if (category.items && Array.isArray(category.items)) {
+                      category.items.forEach(item => {
+                        const quantity = item.quantity && item.unit ? `${item.quantity} ${item.unit}` : (item.quantity || '');
+                        
+                        ingredients.push({
+                          id: ingredientId++,
+                          name: item.name,
+                          quantity: quantity,
+                          metricValue: item.amount && item.amount.metric ? item.amount.metric.value : null,
+                          metricUnit: item.amount && item.amount.metric ? item.amount.metric.unit : null,
+                          category: categoryName,
+                          needed: true,
+                          recipeId: responseData.output.recipeId || targetMeal.recipeId // Include recipe ID with each ingredient
+                        });
+                      });
+                    }
+                  });
+                  
+                  // Update the meal with ingredients
+                  setSelectedMeals(prev => prev.map(m => 
+                    m.id === targetMeal.id 
+                      ? { ...m, ingredients: ingredients, recipeId: responseData.output.recipeId || targetMeal.recipeId }
+                      : m
+                  ));
+                  
+                  // Auto-select ingredients that are marked as needed
+                  const neededIngredientIds = ingredients
+                    .filter(ing => ing.needed)
+                    .map(ing => `${targetMeal.id}-${ing.id}`);
+
+                  setSelectedIngredients(prev => {
+                    const newSet = new Set(prev);
+                    neededIngredientIds.forEach(id => newSet.add(id));
+                    return newSet;
+                  });
+                  
+                  addDebugLog('✅ Structured ingredients added to meal:', { 
+                    meal: targetMeal.name, 
+                    recipeId: responseData.output.recipeId || targetMeal.recipeId,
+                    ingredientCount: ingredients.length 
+                  });
+                  
+                  botResponse = `Ingredients for ${responseData.output.recipeName} have been added to your meal plan.`;
+                } else {
+                  botResponse = `Ingredients for ${responseData.output.recipeName}:\n${JSON.stringify(responseData.output.ingredients, null, 2)}`;
+                }
               }
               break;
             default:
