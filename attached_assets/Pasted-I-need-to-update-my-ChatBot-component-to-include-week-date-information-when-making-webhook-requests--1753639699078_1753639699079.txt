@@ -1,0 +1,64 @@
+I need to update my ChatBot component to include week date information when making webhook requests. This will allow me to store which week's groceries each recipe belongs to in my database.
+Please help me:
+
+Add a helper function called getWeekDates that calculates the current grocery week (Sunday-Saturday)
+Update the fetchIngredientsForMeal function to include week date parameters in the webhook request
+Ensure all webhook calls include the week date information
+
+Here's the specific implementation needed:
+1. Add this new helper function right after the existing getWeekDateRange function:
+javascript// Add this helper function to get the actual dates for database storage
+const getWeekDates = () => {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const showNextWeek = dayOfWeek >= 4;
+  
+  const daysToSunday = dayOfWeek;
+  const currentWeekSunday = new Date(today);
+  currentWeekSunday.setDate(today.getDate() - daysToSunday);
+  
+  const targetSunday = new Date(currentWeekSunday);
+  if (showNextWeek) {
+    targetSunday.setDate(targetSunday.getDate() + 7);
+  }
+  
+  const targetSaturday = new Date(targetSunday);
+  targetSaturday.setDate(targetSunday.getDate() + 6);
+  
+  // Format dates for SQL (YYYY-MM-DD)
+  const formatDateForSQL = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+  
+  return {
+    startDate: formatDateForSQL(targetSunday),
+    endDate: formatDateForSQL(targetSaturday),
+    displayRange: getWeekDateRange() // Uses the existing function
+  };
+};
+2. Update the fetchIngredientsForMeal function to include week dates in the query parameters:
+Find the section where queryParams is created and update it to include the week information:
+javascriptconst weekData = getWeekDates();
+
+const queryParams = new URLSearchParams({
+  message: ingredientQuery,
+  context: 'get_ingredients',
+  timestamp: new Date().toISOString(),
+  sessionId: sessionId,
+  weekStartDate: weekData.startDate,
+  weekEndDate: weekData.endDate,
+  weekDateRange: weekData.displayRange
+});
+3. Also update the main sendMessage function to include week dates:
+Find where the main webhook call creates queryParams and update it similarly:
+javascriptconst weekData = getWeekDates();
+
+const queryParams = new URLSearchParams({
+  message: messageToSend,
+  context: 'meal_planning',
+  timestamp: new Date().toISOString(),
+  sessionId: sessionId,
+  weekStartDate: weekData.startDate,
+  weekEndDate: weekData.endDate,
+  weekDateRange: weekData.displayRange
+});
