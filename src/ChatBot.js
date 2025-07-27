@@ -1,7 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, X, ShoppingCart } from 'lucide-react';
 
+// Generate or retrieve session ID
+const getSessionId = () => {
+  let sessionId = localStorage.getItem('chatSessionId');
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('chatSessionId', sessionId);
+  }
+  return sessionId;
+};
+
 const ChatBot = ({ onBack }) => {
+  // Session management
+  const [sessionId] = useState(getSessionId());
+  
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -30,6 +43,11 @@ const ChatBot = ({ onBack }) => {
     setDebugInfo(prev => [...prev, { timestamp, message, data }]);
     console.log(`[${timestamp}] ${message}`, data || '');
   };
+
+  // Log session info on component mount
+  useEffect(() => {
+    addDebugLog('Chat session initialized', { sessionId });
+  }, [sessionId]);
 
   // Scroll to bottom of messages
   const scrollToBottom = () => {
@@ -94,7 +112,8 @@ const ChatBot = ({ onBack }) => {
         message: ingredientQuery,
         context: 'get_ingredients',
         recipeId: meal.recipeId || '',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId
       });
 
       const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
@@ -320,7 +339,8 @@ const ChatBot = ({ onBack }) => {
       const queryParams = new URLSearchParams({
         message: messageToSend,
         context: 'meal_planning',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId
       });
 
       const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
@@ -679,6 +699,11 @@ const ChatBot = ({ onBack }) => {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Session Info */}
+              <div className="text-xs bg-white/20 px-2 py-1 rounded">
+                Session: {sessionId.split('_')[2]?.substr(0, 6)}...
+              </div>
+
               {/* Ingredients Panel Toggle */}
               <button
                 onClick={() => setShowIngredientsPanel(!showIngredientsPanel)}
@@ -697,12 +722,25 @@ const ChatBot = ({ onBack }) => {
                 Debug Info
                 {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
+
+              {/* New Session Button */}
+              <button
+                onClick={() => {
+                  localStorage.removeItem('chatSessionId');
+                  window.location.reload();
+                }}
+                className="text-xs hover:bg-white/20 px-2 py-1 rounded transition-colors"
+                title="Start new session"
+              >
+                New Session
+              </button>
             </div>
           </div>
 
           <div className="bg-white/20 rounded-lg p-3">
             <p className="text-sm font-medium">{getWeekDateRange()}</p>
             <p className="text-xs opacity-90 mt-1">Get personalized meal suggestions based on your preferences</p>
+            <p className="text-xs opacity-75 mt-1">Session ID: {sessionId}</p>
           </div>
         </div>
 
