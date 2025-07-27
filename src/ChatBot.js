@@ -293,7 +293,55 @@ const ChatBot = ({ onBack }) => {
   };
 
   // Remove meal from planning list
-  const removeMeal = (mealId) => {
+  const removeMeal = async (mealId) => {
+    // Find the meal to get its details for the webhook call
+    const mealToRemove = selectedMeals.find(meal => meal.id === mealId);
+    
+    if (!mealToRemove) {
+      addDebugLog('❌ Meal not found for removal:', mealId);
+      return;
+    }
+
+    addDebugLog('Calling webhook to delete meal:', mealToRemove.name);
+
+    try {
+      // Call the webhook with delete context
+      const weekData = getWeekDates();
+      
+      const queryParams = new URLSearchParams({
+        message: `Delete meal: ${mealToRemove.name}`,
+        context: 'delete_meal',
+        deleteFlag: 'true',
+        recipeId: mealToRemove.recipeId || '',
+        recipeName: mealToRemove.name,
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId,
+        weekStartDate: weekData.startDate,
+        weekEndDate: weekData.endDate,
+        weekDateRange: weekData.displayRange
+      });
+
+      const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
+      addDebugLog('Delete meal webhook URL:', fullURL);
+
+      const response = await fetch(fullURL, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors'
+      });
+
+      if (response.ok) {
+        addDebugLog('✅ Delete meal webhook call successful');
+      } else {
+        addDebugLog('⚠️ Delete meal webhook call failed:', response.status);
+      }
+    } catch (error) {
+      addDebugLog('❌ Error calling delete meal webhook:', error.message);
+    }
+
+    // Remove meal from local state regardless of webhook success
     setSelectedMeals(prev => prev.filter(m => m.id !== mealId));
 
     // Remove all ingredients for this meal from selected ingredients
