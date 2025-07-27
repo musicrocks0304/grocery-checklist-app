@@ -109,13 +109,18 @@ const ChatBot = ({ onBack }) => {
       addDebugLog('Sending ingredient query to chatbot:', ingredientQuery);
       addDebugLog('Recipe ID being sent:', meal.recipeId || 'None');
 
+      const weekData = getWeekDates();
+
       const queryParams = new URLSearchParams({
         message: ingredientQuery,
         context: 'get_ingredients',
         recipeId: meal.recipeId || '',
         recipeName: meal.name,
         timestamp: new Date().toISOString(),
-        sessionId: sessionId
+        sessionId: sessionId,
+        weekStartDate: weekData.startDate,
+        weekEndDate: weekData.endDate,
+        weekDateRange: weekData.displayRange
       });
 
       const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
@@ -347,11 +352,16 @@ const ChatBot = ({ onBack }) => {
       addDebugLog('Webhook URL:', CHATBOT_WEBHOOK_URL);
 
       // Use GET method to match n8n webhook configuration
+      const weekData = getWeekDates();
+
       const queryParams = new URLSearchParams({
         message: messageToSend,
         context: 'meal_planning',
         timestamp: new Date().toISOString(),
-        sessionId: sessionId
+        sessionId: sessionId,
+        weekStartDate: weekData.startDate,
+        weekEndDate: weekData.endDate,
+        weekDateRange: weekData.displayRange
       });
 
       const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
@@ -720,7 +730,35 @@ const ChatBot = ({ onBack }) => {
     return `Meal planning for ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
 
-  
+  // Add this helper function to get the actual dates for database storage
+  const getWeekDates = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const showNextWeek = dayOfWeek >= 4;
+    
+    const daysToSunday = dayOfWeek;
+    const currentWeekSunday = new Date(today);
+    currentWeekSunday.setDate(today.getDate() - daysToSunday);
+    
+    const targetSunday = new Date(currentWeekSunday);
+    if (showNextWeek) {
+      targetSunday.setDate(targetSunday.getDate() + 7);
+    }
+    
+    const targetSaturday = new Date(targetSunday);
+    targetSaturday.setDate(targetSunday.getDate() + 6);
+    
+    // Format dates for SQL (YYYY-MM-DD)
+    const formatDateForSQL = (date) => {
+      return date.toISOString().split('T')[0];
+    };
+    
+    return {
+      startDate: formatDateForSQL(targetSunday),
+      endDate: formatDateForSQL(targetSaturday),
+      displayRange: getWeekDateRange() // Uses the existing function
+    };
+  };
 
   // Add this helper function for fallback ingredients
   const getFallbackIngredients = (mealName) => {
