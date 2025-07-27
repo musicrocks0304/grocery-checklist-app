@@ -903,7 +903,7 @@ const ChatBot = ({ onBack }) => {
               <button
                 onClick={() => setShowIngredientsPanel(false)}
                 className="p-1 hover:bg-white/20 rounded transition-colors"
-              >```text
+              >
                 <X size={16} />
               </button>
             </div>
