@@ -153,14 +153,23 @@ const ChatBot = ({ onBack }) => {
             if (categoryGroup.items && Array.isArray(categoryGroup.items)) {
               categoryGroup.items.forEach(item => {
                 const quantity = item.quantity && item.unit ? `${item.quantity} ${item.unit}` : (item.quantity || '');
+                
+                // Extract metric value and unit from amount object if available
+                let metricValue = null;
+                let metricUnit = null;
+                
+                if (item.amount && item.amount.metric) {
+                  metricValue = item.amount.metric.value;
+                  metricUnit = item.amount.metric.unit;
+                }
 
                 ingredients.push({
                   id: ingredientId++,
                   name: item.name,
                   quantity: quantity,
+                  metricValue: metricValue,
+                  metricUnit: metricUnit,
                   category: categoryName,
-                  store: getStoreForIngredient(item.name),
-                  section: getSectionForIngredient(item.name, categoryName),
                   needed: true
                 });
               });
@@ -195,9 +204,9 @@ const ChatBot = ({ onBack }) => {
                     id: ingredientId++,
                     name: name,
                     quantity: quantity,
+                    metricValue: null,
+                    metricUnit: null,
                     category: currentCategory,
-                    store: getStoreForIngredient(name),
-                    section: getSectionForIngredient(name, currentCategory),
                     needed: true
                   });
                 }
@@ -507,9 +516,9 @@ const ChatBot = ({ onBack }) => {
                     id: ingredientId++,
                     name: name,
                     quantity: quantity,
+                    metricValue: null,
+                    metricUnit: null,
                     category: currentCategory,
-                    store: getStoreForIngredient(name), // Helper function to determine store
-                    section: getSectionForIngredient(name, currentCategory), // Helper function for section
                     needed: true
                   });
                 }
@@ -666,17 +675,17 @@ const ChatBot = ({ onBack }) => {
     // Return appropriate fallback ingredients based on meal type
     if (mealLower.includes('pizza')) {
       return [
-        { id: 1, name: "Pizza Dough", category: "Bakery", store: "Kroger", section: "Bakery", needed: true },
-        { id: 2, name: "Mozzarella Cheese", category: "Dairy", store: "Whole Foods", section: "Refrigerated", needed: true },
-        { id: 3, name: "Pizza Sauce", category: "Condiments", store: "Kroger", section: "Condiments", needed: true },
-        { id: 4, name: "Toppings", category: "General", store: "Tom Thumb", section: "Various", needed: true }
+        { id: 1, name: "Pizza Dough", category: "Bakery", metricValue: 1, metricUnit: "piece", needed: true },
+        { id: 2, name: "Mozzarella Cheese", category: "Dairy", metricValue: 200, metricUnit: "grams", needed: true },
+        { id: 3, name: "Pizza Sauce", category: "Condiments", metricValue: 120, metricUnit: "ml", needed: true },
+        { id: 4, name: "Toppings", category: "General", metricValue: null, metricUnit: null, needed: true }
       ];
     }
 
     // Default fallback
     return [
-      { id: 1, name: "Main Ingredient", category: "General", store: "Kroger", section: "General", needed: true },
-      { id: 2, name: "Seasonings", category: "Spices", store: "Kroger", section: "Spices", needed: true }
+      { id: 1, name: "Main Ingredient", category: "General", metricValue: null, metricUnit: null, needed: true },
+      { id: 2, name: "Seasonings", category: "Spices", metricValue: null, metricUnit: null, needed: true }
     ];
   };
 
@@ -971,7 +980,9 @@ const ChatBot = ({ onBack }) => {
                                         {ingredient.name}
                                       </div>
                                       <div className="text-xs text-gray-500">
-                                        {ingredient.store} - {ingredient.section}
+                                        {ingredient.metricValue && ingredient.metricUnit ? 
+                                          `${ingredient.metricValue} ${ingredient.metricUnit}` : 
+                                          ingredient.quantity || 'As needed'}
                                       </div>
                                     </div>
                                     {ingredient.needed && (
