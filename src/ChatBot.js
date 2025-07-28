@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, X, ShoppingCart } from 'lucide-react';
+import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, X, ShoppingCart, Ticket } from 'lucide-react';
 
 // Generate or retrieve session ID
 const getSessionId = () => {
@@ -11,7 +11,7 @@ const getSessionId = () => {
   return sessionId;
 };
 
-const ChatBot = ({ onBack }) => {
+const ChatBot = ({ onBack, onNavigate }) => {
   // Session management
   const [sessionId] = useState(getSessionId());
   
@@ -33,6 +33,13 @@ const ChatBot = ({ onBack }) => {
   const [loadingIngredients, setLoadingIngredients] = useState(false);
   const [collapsedMeals, setCollapsedMeals] = useState(new Set());
   const messagesEndRef = useRef(null);
+
+  // Navigation items
+  const navigation = [
+    { id: 'grocery', name: 'Weekly Grocery Selection', icon: ShoppingCart },
+    { id: 'chatbot', name: 'AI Meal Planner', icon: ChefHat },
+    { id: 'coupons', name: 'Coupons & Deals', icon: Ticket },
+  ];
 
   // Your n8n webhook URL for the chatbot - using the actual webhook from your n8n flow
   const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/call_grocery_agent';
@@ -848,6 +855,29 @@ const ChatBot = ({ onBack }) => {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Navigation Menu */}
+              <div className="flex items-center gap-1">
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = item.id === 'chatbot';
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onNavigate && onNavigate(item.id)}
+                      className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
+                        isActive 
+                          ? 'bg-white/30 text-white font-medium' 
+                          : 'hover:bg-white/20 text-white/80'
+                      }`}
+                      title={item.name}
+                    >
+                      <Icon size={14} />
+                      {item.name.split(' ')[0]}
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Session Info */}
               <div className="text-xs bg-white/20 px-2 py-1 rounded">
                 Session: {sessionId.split('_')[2]?.substr(0, 6)}...
