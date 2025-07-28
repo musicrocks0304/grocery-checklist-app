@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Ticket, AlertCircle, Wifi, ChevronDown, ChevronUp, Menu } from 'lucide-react';
+import { Ticket, AlertCircle, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
 
 const Coupons = ({ onNavigate, onToggleSidebar }) => {
   const [couponsData, setCouponsData] = useState([]);
