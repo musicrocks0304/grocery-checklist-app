@@ -838,19 +838,6 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
 
   return (
     <div className="max-w-7xl mx-auto flex gap-6">
-      {/* Mobile Header */}
-      <div className="lg:hidden bg-white shadow-sm border-b">
-        <div className="flex items-center justify-between px-4 h-16">
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 rounded-md text-gray-400 hover:text-gray-600"
-          >
-            <Menu size={20} />
-          </button>
-          <h1 className="text-lg font-semibold text-gray-800">AI Meal Planner</h1>
-          <div></div>
-        </div>
-      </div>
       {/* Main Chat Area */}
       <div className={`bg-white rounded-lg shadow-lg overflow-hidden transition-all ${showIngredientsPanel ? 'flex-1' : 'w-full max-w-4xl mx-auto'}`}>
         {/* Header */}

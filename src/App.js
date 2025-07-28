@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers, ChefHat, Menu, Home, Ticket } from 'lucide-react';
+import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers, ChefHat, Menu, Ticket } from 'lucide-react';
 import ChatBot from './ChatBot';
 import Coupons from './Coupons';
 
@@ -306,8 +306,6 @@ const GroceryChecklist = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState('');
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [showFinalList, setShowFinalList] = useState(false);
-  const [newItemText, setNewItemText] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newItemForm, setNewItemForm] = useState({
     itemName: '',

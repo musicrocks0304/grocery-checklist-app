@@ -147,20 +147,6 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      {/* Mobile Header */}
-      <div className="lg:hidden bg-white shadow-sm border-b">
-        <div className="flex items-center justify-between px-4 h-16">
-          <button
-            onClick={onToggleSidebar}
-            className="p-2 rounded-md text-gray-400 hover:text-gray-600"
-          >
-            <Menu size={20} />
-          </button>
-          <h1 className="text-lg font-semibold text-gray-800">Coupons & Deals</h1>
-          <div></div>
-        </div>
-      </div>
-
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Ticket className="text-purple-600" size={28} />
