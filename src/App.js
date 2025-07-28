@@ -15,19 +15,25 @@ const App = () => {
     return (
       <div className="flex min-h-screen bg-gray-50">
         {/* Sidebar for ChatBot */}
-        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
-          <div className="flex items-center justify-between h-16 px-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-800">Navigation</h2>
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+          <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                <Menu size={18} className="text-white" />
+              </div>
+              <h2 className="text-lg font-bold text-white">Navigation</h2>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
+              className="lg:hidden p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
             >
               <X size={20} />
             </button>
           </div>
-          <nav className="mt-4">
+          <nav className="mt-6 px-3 space-y-2">
             {navigation.map((item) => {
               const Icon = item.icon;
+              const isActive = currentScreen === item.id;
               return (
                 <button
                   key={item.id}
@@ -35,16 +41,38 @@ const App = () => {
                     setCurrentScreen(item.id);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                    currentScreen === item.id ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : 'text-gray-700'
+                  className={`w-full flex items-center gap-4 px-4 py-3.5 text-left rounded-xl font-medium transition-all duration-200 group relative overflow-hidden ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-[1.02]' 
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50 hover:transform hover:scale-[1.01]'
                   }`}
                 >
-                  <Icon size={20} />
-                  {item.name}
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-xl blur-sm"></div>
+                  )}
+                  <div className={`relative z-10 p-2 rounded-lg transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-white/20 backdrop-blur-sm' 
+                      : 'bg-slate-700/30 group-hover:bg-slate-600/50'
+                  }`}>
+                    <Icon size={20} />
+                  </div>
+                  <span className="relative z-10 text-sm font-semibold">{item.name}</span>
+                  {isActive && (
+                    <div className="relative z-10 ml-auto w-2 h-2 bg-white rounded-full shadow-lg"></div>
+                  )}
                 </button>
               );
             })}
           </nav>
+
+          {/* Decorative gradient at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
+
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3Ccircle cx='27' cy='7' r='1'/%3E%3Ccircle cx='47' cy='7' r='1'/%3E%3Ccircle cx='7' cy='27' r='1'/%3E%3Ccircle cx='27' cy='27' r='1'/%3E%3Ccircle cx='47' cy='27' r='1'/%3E%3Ccircle cx='7' cy='47' r='1'/%3E%3Ccircle cx='27' cy='47' r='1'/%3E%3Ccircle cx='47' cy='47' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }}></div>
         </div>
 
         {/* Overlay for mobile */}
@@ -168,24 +196,24 @@ const GroceryChecklist = ({ onNavigate }) => {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const showNextWeek = dayOfWeek >= 4;
-    
+
     const daysToSunday = dayOfWeek;
     const currentWeekSunday = new Date(today);
     currentWeekSunday.setDate(today.getDate() - daysToSunday);
-    
+
     const targetSunday = new Date(currentWeekSunday);
     if (showNextWeek) {
       targetSunday.setDate(targetSunday.getDate() + 7);
     }
-    
+
     const targetSaturday = new Date(targetSunday);
     targetSaturday.setDate(targetSunday.getDate() + 6);
-    
+
     // Format dates for SQL (YYYY-MM-DD)
     const formatDateForSQL = (date) => {
       return date.toISOString().split('T')[0];
     };
-    
+
     return {
       startDate: formatDateForSQL(targetSunday),
       endDate: formatDateForSQL(targetSaturday),
@@ -203,13 +231,13 @@ const GroceryChecklist = ({ onNavigate }) => {
   // Test basic connectivity
   const testConnectivity = async () => {
     addDebugLog('Testing basic connectivity...');
-    
+
     try {
       const testResponse = await fetch('https://api.github.com/zen', {
         method: 'GET',
         mode: 'cors'
       });
-      
+
       if (testResponse.ok) {
         addDebugLog('✅ External connectivity working');
       } else {
@@ -226,12 +254,12 @@ const GroceryChecklist = ({ onNavigate }) => {
       try {
         setError(null);
         setDebugInfo([]);
-        
+
         await testConnectivity();
-        
+
         addDebugLog('Fetching grocery data from n8n webhook...');
         addDebugLog('Webhook URL:', WEBHOOK_URL);
-        
+
         const fetchConfigs = [
           {
             name: 'Standard CORS',
@@ -264,10 +292,10 @@ const GroceryChecklist = ({ onNavigate }) => {
         ];
 
         let successfulResponse = null;
-        
+
         // Get week date information
         const weekData = getWeekDates();
-        
+
         // Add week parameters to the webhook URL
         const urlWithParams = new URL(WEBHOOK_URL);
         urlWithParams.searchParams.append('weekStartDate', weekData.startDate);
@@ -279,7 +307,7 @@ const GroceryChecklist = ({ onNavigate }) => {
           try {
             addDebugLog(`Trying fetch with ${config.name}...`);
             const response = await fetch(urlWithParams.toString(), config.options);
-            
+
             addDebugLog(`Response received:`, {
               status: response.status,
               statusText: response.statusText,
@@ -304,7 +332,7 @@ const GroceryChecklist = ({ onNavigate }) => {
 
         const responseText = await successfulResponse.text();
         addDebugLog('Raw response:', responseText);
-        
+
         let data;
         try {
           data = JSON.parse(responseText);
@@ -313,15 +341,15 @@ const GroceryChecklist = ({ onNavigate }) => {
           addDebugLog('❌ JSON parse error:', parseError.message);
           throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
         }
-        
+
         setGroceryData(data);
-        
+
         // Set the first group as active tab
         const groups = getGroups(data, groupBy);
         if (groups.length > 0) {
           setActiveTab(groups[0]);
         }
-        
+
         addDebugLog('✅ Successfully loaded data');
       } catch (error) {
         addDebugLog('❌ Error in fetchGroceryData:', error.message);
@@ -379,24 +407,24 @@ const GroceryChecklist = ({ onNavigate }) => {
 
   const confirmRemoveItem = async () => {
     if (!itemToRemove) return;
-    
+
     try {
       // This would send a request to your n8n webhook to deactivate the item
       const removalData = {
         action: "deactivate_item",
         itemId: itemToRemove.ItemID
       };
-      
+
       addDebugLog('Removing item from database:', removalData);
-      
+
       // For now, remove it from local state
       setGroceryData(groceryData.filter(item => item.ItemID !== itemToRemove.ItemID));
-      
+
       // Remove from selected items if it was selected
       const newSelected = new Set(selectedItems);
       newSelected.delete(itemToRemove.ItemID.toString());
       setSelectedItems(newSelected);
-      
+
       addDebugLog('✅ Item removed successfully');
     } catch (error) {
       addDebugLog('❌ Error removing item:', error.message);
@@ -411,13 +439,13 @@ const GroceryChecklist = ({ onNavigate }) => {
       alert('Please select at least one item for your grocery list.');
       return;
     }
-    
+
     try {
       const submissionData = {
         action: "submit_grocery_selections",
         selectedItems: Array.from(selectedItems)
       };
-      
+
       console.log('Selected items to submit:', submissionData);
       setShowFinalList(true);
     } catch (error) {
@@ -436,21 +464,21 @@ const GroceryChecklist = ({ onNavigate }) => {
         Store: newItemForm.store || 'Tom Thumb',
         GroceryStoreSection: newItemForm.groceryStoreSection || 'Pantry'
       };
-      
+
       // Here you would normally send this to your n8n webhook to save to database
       const weekData = getWeekDates();
-      
+
       try {
         addDebugLog('Would send new item to database:', newItem);
-        
+
         // TODO: Implement actual webhook call to save item
         // const response = await fetch('your-add-item-webhook-url', {
         //   method: 'POST',
         //   body: JSON.stringify({ ...newItem, ...weekData })
         // });
-        
+
         setGroceryData([...groceryData, newItem]);
-        
+
         // Reset form and close panel
         setNewItemForm({
           itemName: '',
@@ -460,9 +488,9 @@ const GroceryChecklist = ({ onNavigate }) => {
           groceryStoreSection: ''
         });
         setShowAddPanel(false);
-        
+
         addDebugLog('Added item locally:', newItem);
-        
+
       } catch (error) {
         addDebugLog('❌ Error adding item:', error.message);
         alert('Failed to add item. Please try again.');
@@ -484,33 +512,33 @@ const GroceryChecklist = ({ onNavigate }) => {
   const getWeekDateRange = () => {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
-    
+
     // If Thursday (4), Friday (5), or Saturday (6), show next week
     // Otherwise show current week
     const showNextWeek = dayOfWeek >= 4;
-    
+
     // Find the Sunday of the current week
     const daysToSunday = dayOfWeek;
     const currentWeekSunday = new Date(today);
     currentWeekSunday.setDate(today.getDate() - daysToSunday);
-    
+
     // Determine which Sunday to use as the start
     const targetSunday = new Date(currentWeekSunday);
     if (showNextWeek) {
       targetSunday.setDate(targetSunday.getDate() + 7);
     }
-    
+
     // Get the Saturday (6 days after Sunday)
     const targetSaturday = new Date(targetSunday);
     targetSaturday.setDate(targetSunday.getDate() + 6);
-    
+
     // Format the dates
     const formatDate = (date) => {
       const day = date.getDate();
       const month = date.toLocaleDateString('en-US', { month: 'long' });
       return `${month} ${day}${getOrdinalSuffix(day)}`;
     };
-    
+
     const getOrdinalSuffix = (day) => {
       if (day > 3 && day < 21) return 'th';
       switch (day % 10) {
@@ -520,7 +548,7 @@ const GroceryChecklist = ({ onNavigate }) => {
         default: return 'th';
       }
     };
-    
+
     const year = targetSunday.getFullYear();
     return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
@@ -530,7 +558,7 @@ const GroceryChecklist = ({ onNavigate }) => {
     const selectedGroceryItems = groceryData.filter(item => 
       selectedItemIds.includes(item.ItemID.toString())
     );
-    
+
     const groupedByCategory = {};
     selectedGroceryItems.forEach(item => {
       if (!groupedByCategory[item.Category]) {
@@ -538,7 +566,7 @@ const GroceryChecklist = ({ onNavigate }) => {
       }
       groupedByCategory[item.Category].push(item);
     });
-    
+
     return groupedByCategory;
   };
 
@@ -562,7 +590,7 @@ const GroceryChecklist = ({ onNavigate }) => {
           <ShoppingCart className="text-green-600" size={28} />
           <h1 className="text-2xl font-bold text-gray-800">Weekly Grocery List</h1>
         </div>
-        
+
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <p className="text-lg font-semibold text-gray-700">{getWeekDateRange()}</p>
           <p className="text-sm text-gray-600 mt-1">Items selected: {selectedItems.size}</p>
@@ -816,7 +844,7 @@ const GroceryChecklist = ({ onNavigate }) => {
             <Check className="text-blue-600" size={28} />
             <h1 className="text-2xl font-bold text-gray-800">Weekly Grocery Selection</h1>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {/* Debug Toggle */}
             <button
@@ -859,7 +887,7 @@ const GroceryChecklist = ({ onNavigate }) => {
             </div>
           </div>
         )}
-        
+
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-start gap-3">
@@ -939,9 +967,9 @@ const GroceryChecklist = ({ onNavigate }) => {
               Add Item
             </button>
           </div>
-          
-          
-          
+
+
+
           <div className="space-y-2">
             {currentGroupItems.map((item) => (
               <div
