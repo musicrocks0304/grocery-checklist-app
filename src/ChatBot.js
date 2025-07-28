@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, X, ShoppingCart, Ticket } from 'lucide-react';
+import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, X, ShoppingCart, Ticket, Menu } from 'lucide-react';
 
 // Generate or retrieve session ID
 const getSessionId = () => {
@@ -11,10 +11,10 @@ const getSessionId = () => {
   return sessionId;
 };
 
-const ChatBot = ({ onBack, onNavigate }) => {
+const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
   // Session management
   const [sessionId] = useState(getSessionId());
-  
+
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -167,11 +167,11 @@ const ChatBot = ({ onBack, onNavigate }) => {
             if (categoryGroup.items && Array.isArray(categoryGroup.items)) {
               categoryGroup.items.forEach(item => {
                 const quantity = item.quantity && item.unit ? `${item.quantity} ${item.unit}` : (item.quantity || '');
-                
+
                 // Extract metric value and unit from amount object if available
                 let metricValue = null;
                 let metricUnit = null;
-                
+
                 if (item.amount && item.amount.metric) {
                   metricValue = item.amount.metric.value;
                   metricUnit = item.amount.metric.unit;
@@ -303,7 +303,7 @@ const ChatBot = ({ onBack, onNavigate }) => {
   const removeMeal = async (mealId) => {
     // Find the meal to get its details for the webhook call
     const mealToRemove = selectedMeals.find(meal => meal.id === mealId);
-    
+
     if (!mealToRemove) {
       addDebugLog('❌ Meal not found for removal:', mealId);
       return;
@@ -314,7 +314,7 @@ const ChatBot = ({ onBack, onNavigate }) => {
     try {
       // Call the webhook with delete context
       const weekData = getWeekDates();
-      
+
       const queryParams = new URLSearchParams({
         message: `Delete meal: ${mealToRemove.name}`,
         context: 'delete_meal',
@@ -442,14 +442,14 @@ const ChatBot = ({ onBack, onNavigate }) => {
         } catch (e) {
           errorText = 'Could not read error response';
         }
-        
+
         addDebugLog('❌ Server error response:', { 
           status: response.status, 
           statusText: response.statusText, 
           body: errorText,
           url: fullURL 
         });
-        
+
         // For 500 errors, provide a helpful fallback message
         if (response.status === 500) {
           removeTypingIndicator(typingId);
@@ -463,7 +463,7 @@ const ChatBot = ({ onBack, onNavigate }) => {
           setIsLoading(false);
           return;
         }
-        
+
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -515,24 +515,24 @@ const ChatBot = ({ onBack, onNavigate }) => {
                   meal.name.toLowerCase().includes(responseData.output.recipeName.toLowerCase()) ||
                   responseData.output.recipeName.toLowerCase().includes(meal.name.toLowerCase())
                 );
-                
+
                 if (targetMeal) {
                   // Update the meal with recipe ID if it wasn't already set
                   if (responseData.output.recipeId && !targetMeal.recipeId) {
                     targetMeal.recipeId = responseData.output.recipeId;
                   }
-                  
+
                   // Convert structured ingredients to flat list
                   const ingredients = [];
                   let ingredientId = 1;
-                  
+
                   responseData.output.ingredients.forEach(category => {
                     const categoryName = category.category || 'General';
-                    
+
                     if (category.items && Array.isArray(category.items)) {
                       category.items.forEach(item => {
                         const quantity = item.quantity && item.unit ? `${item.quantity} ${item.unit}` : (item.quantity || '');
-                        
+
                         ingredients.push({
                           id: ingredientId++,
                           name: item.name,
@@ -546,14 +546,14 @@ const ChatBot = ({ onBack, onNavigate }) => {
                       });
                     }
                   });
-                  
+
                   // Update the meal with ingredients
                   setSelectedMeals(prev => prev.map(m => 
                     m.id === targetMeal.id 
                       ? { ...m, ingredients: ingredients, recipeId: responseData.output.recipeId || targetMeal.recipeId }
                       : m
                   ));
-                  
+
                   // Auto-select ingredients that are marked as needed
                   const neededIngredientIds = ingredients
                     .filter(ing => ing.needed)
@@ -564,13 +564,13 @@ const ChatBot = ({ onBack, onNavigate }) => {
                     neededIngredientIds.forEach(id => newSet.add(id));
                     return newSet;
                   });
-                  
+
                   addDebugLog('✅ Structured ingredients added to meal:', { 
                     meal: targetMeal.name, 
                     recipeId: responseData.output.recipeId || targetMeal.recipeId,
                     ingredientCount: ingredients.length 
                   });
-                  
+
                   botResponse = `Ingredients for ${responseData.output.recipeName} have been added to your meal plan.`;
                 } else {
                   botResponse = `Ingredients for ${responseData.output.recipeName}:\n${JSON.stringify(responseData.output.ingredients, null, 2)}`;
@@ -790,24 +790,24 @@ const ChatBot = ({ onBack, onNavigate }) => {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const showNextWeek = dayOfWeek >= 4;
-    
+
     const daysToSunday = dayOfWeek;
     const currentWeekSunday = new Date(today);
     currentWeekSunday.setDate(today.getDate() - daysToSunday);
-    
+
     const targetSunday = new Date(currentWeekSunday);
     if (showNextWeek) {
       targetSunday.setDate(targetSunday.getDate() + 7);
     }
-    
+
     const targetSaturday = new Date(targetSunday);
     targetSaturday.setDate(targetSunday.getDate() + 6);
-    
+
     // Format dates for SQL (YYYY-MM-DD)
     const formatDateForSQL = (date) => {
       return date.toISOString().split('T')[0];
     };
-    
+
     return {
       startDate: formatDateForSQL(targetSunday),
       endDate: formatDateForSQL(targetSaturday),
@@ -838,6 +838,19 @@ const ChatBot = ({ onBack, onNavigate }) => {
 
   return (
     <div className="max-w-7xl mx-auto flex gap-6">
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white shadow-sm border-b">
+        <div className="flex items-center justify-between px-4 h-16">
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+          >
+            <Menu size={20} />
+          </button>
+          <h1 className="text-lg font-semibold text-gray-800">AI Meal Planner</h1>
+          <div></div>
+        </div>
+      </div>
       {/* Main Chat Area */}
       <div className={`bg-white rounded-lg shadow-lg overflow-hidden transition-all ${showIngredientsPanel ? 'flex-1' : 'w-full max-w-4xl mx-auto'}`}>
         {/* Header */}

@@ -99,7 +99,11 @@ const App = () => {
               <div></div>
             </div>
           </div>
-          <ChatBot onBack={() => setCurrentScreen('grocery')} onNavigate={setCurrentScreen} />
+          <ChatBot 
+            onBack={() => setCurrentScreen('grocery')} 
+            onNavigate={setCurrentScreen}
+            onToggleSidebar={() => setSidebarOpen(true)}
+          />
         </div>
       </div>
     );
@@ -191,7 +195,10 @@ const App = () => {
               <div></div>
             </div>
           </div>
-          <Coupons onNavigate={setCurrentScreen} />
+          <Coupons 
+            onNavigate={setCurrentScreen}
+            onToggleSidebar={() => setSidebarOpen(true)}
+          />
         </div>
       </div>
     );
@@ -278,11 +285,7 @@ const App = () => {
             >
               <Menu size={20} />
             </button>
-            <h1 className="text-lg font-semibold text-gray-800">
-                {currentScreen === 'grocery' ? 'Weekly Grocery Selection' : 
-                 currentScreen === 'chatbot' ? 'AI Meal Planner' : 
-                 currentScreen === 'coupons' ? 'Coupons & Deals' : 'App'}
-              </h1>
+            <h1 className="text-lg font-semibold text-gray-800">Weekly Grocery Selection</h1>
             <div></div>
           </div>
         </div>

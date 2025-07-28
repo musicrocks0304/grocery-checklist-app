@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
-import { Ticket, AlertCircle, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
+import { Ticket, AlertCircle, Wifi, ChevronDown, ChevronUp, Menu } from 'lucide-react';
 
-const Coupons = ({ onNavigate }) => {
+const Coupons = ({ onNavigate, onToggleSidebar }) => {
   const [couponsData, setCouponsData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,7 +25,7 @@ const Coupons = ({ onNavigate }) => {
         setDebugInfo([]);
 
         addDebugLog('Fetching coupons data from web scraping API...');
-        
+
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -148,6 +147,20 @@ const Coupons = ({ onNavigate }) => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white shadow-sm border-b">
+        <div className="flex items-center justify-between px-4 h-16">
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+          >
+            <Menu size={20} />
+          </button>
+          <h1 className="text-lg font-semibold text-gray-800">Coupons & Deals</h1>
+          <div></div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Ticket className="text-purple-600" size={28} />
@@ -336,10 +349,10 @@ const Coupons = ({ onNavigate }) => {
               const selectedCouponsList = Array.from(selectedCoupons).map(id => 
                 couponsData.find(c => c.id === id)
               ).filter(Boolean);
-              
+
               addDebugLog('Selected coupons ready for use:', selectedCouponsList);
               console.log('Selected coupons:', selectedCouponsList);
-              
+
               alert(`${selectedCoupons.size} coupon${selectedCoupons.size !== 1 ? 's' : ''} ready to use!\n\nCheck the debug panel for details.`);
             }}
             className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
