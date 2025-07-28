@@ -1,15 +1,141 @@
 import React, { useState } from 'react';
-import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers, ChefHat } from 'lucide-react';
+import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers, ChefHat, Menu, Home } from 'lucide-react';
 import ChatBot from './ChatBot';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('grocery');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const navigation = [
+    { id: 'grocery', name: 'Weekly Grocery Selection', icon: ShoppingCart },
+    { id: 'chatbot', name: 'AI Meal Planner', icon: ChefHat },
+  ];
 
   if (currentScreen === 'chatbot') {
-    return <ChatBot onBack={() => setCurrentScreen('grocery')} />;
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        {/* Sidebar for ChatBot */}
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+          <div className="flex items-center justify-between h-16 px-4 border-b">
+            <h2 className="text-lg font-semibold text-gray-800">Navigation</h2>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <nav className="mt-4">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setCurrentScreen(item.id);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
+                    currentScreen === item.id ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : 'text-gray-700'
+                  }`}
+                >
+                  <Icon size={20} />
+                  {item.name}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Overlay for mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main content */}
+        <div className="flex-1 lg:ml-0">
+          <div className="lg:hidden bg-white shadow-sm border-b">
+            <div className="flex items-center justify-between px-4 h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+              >
+                <Menu size={20} />
+              </button>
+              <h1 className="text-lg font-semibold text-gray-800">AI Meal Planner</h1>
+              <div></div>
+            </div>
+          </div>
+          <ChatBot onBack={() => setCurrentScreen('grocery')} />
+        </div>
+      </div>
+    );
   }
 
-  return <GroceryChecklist onNavigate={setCurrentScreen} />;
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+        <div className="flex items-center justify-between h-16 px-4 border-b">
+          <h2 className="text-lg font-semibold text-gray-800">Navigation</h2>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <nav className="mt-4">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setCurrentScreen(item.id);
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
+                  currentScreen === item.id ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : 'text-gray-700'
+                }`}
+              >
+                <Icon size={20} />
+                {item.name}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 lg:ml-0">
+        <div className="lg:hidden bg-white shadow-sm border-b">
+          <div className="flex items-center justify-between px-4 h-16">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+            >
+              <Menu size={20} />
+            </button>
+            <h1 className="text-lg font-semibold text-gray-800">Weekly Grocery Selection</h1>
+            <div></div>
+          </div>
+        </div>
+        <GroceryChecklist onNavigate={setCurrentScreen} />
+      </div>
+    </div>
+  );
 };
 
 const GroceryChecklist = ({ onNavigate }) => {
@@ -692,15 +818,6 @@ const GroceryChecklist = ({ onNavigate }) => {
           </div>
           
           <div className="flex items-center gap-3">
-            {/* AI Meal Planner Button */}
-            <button
-              onClick={() => onNavigate('chatbot')}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all"
-            >
-              <ChefHat size={18} />
-              AI Meal Planner
-            </button>
-            
             {/* Debug Toggle */}
             <button
               onClick={() => setShowDebug(!showDebug)}
