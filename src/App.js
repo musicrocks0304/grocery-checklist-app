@@ -23,6 +23,14 @@ const GroceryChecklist = ({ onNavigate }) => {
   const [showFinalList, setShowFinalList] = useState(false);
   const [newItemText, setNewItemText] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [newItemForm, setNewItemForm] = useState({
+    itemName: '',
+    category: '',
+    type: 'Basic',
+    store: '',
+    groceryStoreSection: ''
+  });
   const [itemToRemove, setItemToRemove] = useState(null);
   const [groupBy, setGroupBy] = useState('Category'); // New state for grouping mode
 
@@ -293,22 +301,58 @@ const GroceryChecklist = ({ onNavigate }) => {
   };
 
   const handleAddItem = async () => {
-    if (newItemText.trim() && activeTab) {
-      // For new items, we need to determine default values for other grouping fields
+    if (newItemForm.itemName.trim()) {
       const newItem = {
         ItemID: Date.now(),
-        ItemName: newItemText.trim(),
-        Category: groupBy === 'Category' ? activeTab : 'General',
-        Store: groupBy === 'Store' ? activeTab : 'Tom Thumb',
-        GroceryStoreSection: groupBy === 'GroceryStoreSection' ? activeTab : 'Pantry'
+        ItemName: newItemForm.itemName.trim(),
+        Category: newItemForm.category || 'General',
+        Type: newItemForm.type,
+        Store: newItemForm.store || 'Tom Thumb',
+        GroceryStoreSection: newItemForm.groceryStoreSection || 'Pantry'
       };
       
-      setGroceryData([...groceryData, newItem]);
-      setNewItemText('');
-      setShowAddForm(false);
+      // Here you would normally send this to your n8n webhook to save to database
+      const weekData = getWeekDates();
       
-      addDebugLog('Added item locally:', newItem);
+      try {
+        addDebugLog('Would send new item to database:', newItem);
+        
+        // TODO: Implement actual webhook call to save item
+        // const response = await fetch('your-add-item-webhook-url', {
+        //   method: 'POST',
+        //   body: JSON.stringify({ ...newItem, ...weekData })
+        // });
+        
+        setGroceryData([...groceryData, newItem]);
+        
+        // Reset form and close panel
+        setNewItemForm({
+          itemName: '',
+          category: '',
+          type: 'Basic',
+          store: '',
+          groceryStoreSection: ''
+        });
+        setShowAddPanel(false);
+        
+        addDebugLog('Added item locally:', newItem);
+        
+      } catch (error) {
+        addDebugLog('❌ Error adding item:', error.message);
+        alert('Failed to add item. Please try again.');
+      }
     }
+  };
+
+  const handleCancelAdd = () => {
+    setNewItemForm({
+      itemName: '',
+      category: '',
+      type: 'Basic',
+      store: '',
+      groceryStoreSection: ''
+    });
+    setShowAddPanel(false);
   };
 
   const getWeekDateRange = () => {
@@ -443,6 +487,169 @@ const GroceryChecklist = ({ onNavigate }) => {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Add Item Side Panel */}
+      {showAddPanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
+          <div className="bg-white h-full w-96 shadow-xl overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Plus size={24} />
+                  <h2 className="text-xl font-bold">Add New Grocery Item</h2>
+                </div>
+                <button
+                  onClick={handleCancelAdd}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-sm opacity-90 mt-2">
+                Fill in all the details for your new grocery item
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Item Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Item Name *
+                </label>
+                <input
+                  type="text"
+                  value={newItemForm.itemName}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, itemName: e.target.value }))}
+                  placeholder="Enter item name..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category *
+                </label>
+                <select
+                  value={newItemForm.category}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select category...</option>
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="Snacks">Snacks</option>
+                  <option value="General">General</option>
+                  <option value="Beverages">Beverages</option>
+                  <option value="Pantry">Pantry</option>
+                </select>
+              </div>
+
+              {/* Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type *
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="Basic"
+                      checked={newItemForm.type === 'Basic'}
+                      onChange={(e) => setNewItemForm(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Basic</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="Periodic"
+                      checked={newItemForm.type === 'Periodic'}
+                      onChange={(e) => setNewItemForm(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Periodic</span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Basic: Items bought as needed | Periodic: Items bought regularly
+                </p>
+              </div>
+
+              {/* Store */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Store *
+                </label>
+                <select
+                  value={newItemForm.store}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, store: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select store...</option>
+                  <option value="Tom Thumb">Tom Thumb</option>
+                  <option value="Trader Joe's">Trader Joe's</option>
+                  <option value="Whole Foods">Whole Foods</option>
+                  <option value="Kroger">Kroger</option>
+                  <option value="Costco">Costco</option>
+                  <option value="Target">Target</option>
+                  <option value="Walmart">Walmart</option>
+                </select>
+              </div>
+
+              {/* Grocery Store Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Grocery Store Section *
+                </label>
+                <select
+                  value={newItemForm.groceryStoreSection}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, groceryStoreSection: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select section...</option>
+                  <option value="Produce">Produce</option>
+                  <option value="Dairy">Dairy</option>
+                  <option value="Meat">Meat & Seafood</option>
+                  <option value="Bakery">Bakery</option>
+                  <option value="Frozen">Frozen</option>
+                  <option value="Pantry">Pantry</option>
+                  <option value="Snacks">Snacks</option>
+                  <option value="Beverages">Beverages</option>
+                  <option value="Health & Beauty">Health & Beauty</option>
+                  <option value="Household">Household</option>
+                  <option value="Refrigerated">Refrigerated</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="border-t bg-gray-50 p-6 flex gap-3">
+              <button
+                onClick={handleCancelAdd}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddItem}
+                disabled={!newItemForm.itemName.trim() || !newItemForm.category || !newItemForm.store || !newItemForm.groceryStoreSection}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                Add Item
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {itemToRemove && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -607,7 +814,7 @@ const GroceryChecklist = ({ onNavigate }) => {
               {groupBy === 'GroceryStoreSection' ? 'Store Section' : groupBy}: {activeTab}
             </h2>
             <button
-              onClick={() => setShowAddForm(!showAddForm)}
+              onClick={() => setShowAddPanel(true)}
               className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
               title="Add new item"
             >
@@ -616,33 +823,7 @@ const GroceryChecklist = ({ onNavigate }) => {
             </button>
           </div>
           
-          {showAddForm && (
-            <div className="mb-4 flex gap-2">
-              <input
-                type="text"
-                value={newItemText}
-                onChange={(e) => setNewItemText(e.target.value)}
-                placeholder={`New item for ${activeTab}...`}
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
-              />
-              <button
-                onClick={handleAddItem}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Add
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setNewItemText('');
-                }}
-                className="px-3 py-2 text-gray-600 hover:text-gray-800"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          )}
+          
           
           <div className="space-y-2">
             {currentGroupItems.map((item) => (
