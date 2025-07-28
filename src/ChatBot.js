@@ -839,7 +839,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
   return (
     <div className="max-w-7xl mx-auto flex gap-6">
       {/* Mobile Header */}
-      <div className="lg:hidden bg-white shadow-sm border-b">
+      <div className="bg-white shadow-sm border-b">
         <div className="flex items-center justify-between px-4 h-16">
           <button
             onClick={onToggleSidebar}
