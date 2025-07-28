@@ -17,7 +17,7 @@ const App = () => {
     return (
       <div className="flex min-h-screen bg-gray-50">
         {/* Sidebar for ChatBot */}
-        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
           <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
@@ -27,7 +27,7 @@ const App = () => {
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
+              className="lg:hidden p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
             >
               <X size={20} />
             </button>
@@ -77,17 +77,17 @@ const App = () => {
           }}></div>
         </div>
 
-        {/* Overlay */}
+        {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
         {/* Main content */}
         <div className="flex-1 lg:ml-0">
-          <div className="bg-white shadow-sm border-b">
+          <div className="lg:hidden bg-white shadow-sm border-b">
             <div className="flex items-center justify-between px-4 h-16">
               <button
                 onClick={() => setSidebarOpen(true)}
@@ -113,7 +113,7 @@ const App = () => {
     return (
       <div className="flex min-h-screen bg-gray-50">
         {/* Sidebar for Coupons */}
-        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
           <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
@@ -123,7 +123,7 @@ const App = () => {
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
+              className="lg:hidden p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
             >
               <X size={20} />
             </button>
@@ -173,17 +173,17 @@ const App = () => {
           }}></div>
         </div>
 
-        {/* Overlay */}
+        {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
         {/* Main content */}
         <div className="flex-1 lg:ml-0">
-          <div className="bg-white shadow-sm border-b">
+          <div className="lg:hidden bg-white shadow-sm border-b">
             <div className="flex items-center justify-between px-4 h-16">
               <button
                 onClick={() => setSidebarOpen(true)}
@@ -207,7 +207,7 @@ const App = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
@@ -217,7 +217,7 @@ const App = () => {
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
+            className="lg:hidden p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
           >
             <X size={20} />
           </button>
@@ -267,17 +267,17 @@ const App = () => {
         }}></div>
       </div>
 
-      {/* Overlay */}
+      {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Main content */}
       <div className="flex-1 lg:ml-0">
-        <div className="bg-white shadow-sm border-b">
+        <div className="lg:hidden bg-white shadow-sm border-b">
           <div className="flex items-center justify-between px-4 h-16">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -632,7 +632,7 @@ const GroceryChecklist = ({ onNavigate }) => {
 
         if (response.ok) {
           addDebugLog('✅ Item successfully added to database');
-
+          
           // Add to local state for immediate UI update
           setGroceryData([...groceryData, newItem]);
 
@@ -653,7 +653,7 @@ const GroceryChecklist = ({ onNavigate }) => {
 
       } catch (error) {
         addDebugLog('❌ Error adding item to webhook:', error.message);
-
+        
         // Still add locally as fallback
         setGroceryData([...groceryData, newItem]);
         setNewItemForm({
@@ -727,7 +727,6 @@ const GroceryChecklist = ({ onNavigate }) => {
 
   const getFinalGroceryList = () => {
     const selectedItemIds = Array.from(selectedItems);
-    The changes aim to make the sidebar collapsible on all screen sizes and the header always visible with a toggle button.```text
     const selectedGroceryItems = groceryData.filter(item => 
       selectedItemIds.includes(item.ItemID.toString())
     );
