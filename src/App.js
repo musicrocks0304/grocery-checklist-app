@@ -20,9 +20,13 @@ const App = () => {
         <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
           <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
+                title="Toggle navigation"
+              >
                 <Menu size={18} className="text-white" />
-              </div>
+              </button>
               <h2 className="text-lg font-bold text-white">Navigation</h2>
             </div>
             <button
@@ -116,9 +120,13 @@ const App = () => {
         <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
           <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
+                title="Toggle navigation"
+              >
                 <Menu size={18} className="text-white" />
-              </div>
+              </button>
               <h2 className="text-lg font-bold text-white">Navigation</h2>
             </div>
             <button
@@ -210,9 +218,13 @@ const App = () => {
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
+              title="Toggle navigation"
+            >
               <Menu size={18} className="text-white" />
-            </div>
+            </button>
             <h2 className="text-lg font-bold text-white">Navigation</h2>
           </div>
           <button
@@ -630,7 +642,7 @@ const GroceryChecklist = ({ onNavigate }) => {
 
         if (response.ok) {
           addDebugLog('✅ Item successfully added to database');
-          
+
           // Add to local state for immediate UI update
           setGroceryData([...groceryData, newItem]);
 
@@ -651,7 +663,7 @@ const GroceryChecklist = ({ onNavigate }) => {
 
       } catch (error) {
         addDebugLog('❌ Error adding item to webhook:', error.message);
-        
+
         // Still add locally as fallback
         setGroceryData([...groceryData, newItem]);
         setNewItemForm({
