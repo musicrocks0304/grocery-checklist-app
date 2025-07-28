@@ -29,6 +29,36 @@ const GroceryChecklist = ({ onNavigate }) => {
   // Your n8n webhook URL - verified working in browser
   const WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/5eb40df4-7053-4166-9b7b-6893789ff943/fetch_grocery_items';
 
+  // Add this helper function to get the actual dates for database storage
+  const getWeekDates = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const showNextWeek = dayOfWeek >= 4;
+    
+    const daysToSunday = dayOfWeek;
+    const currentWeekSunday = new Date(today);
+    currentWeekSunday.setDate(today.getDate() - daysToSunday);
+    
+    const targetSunday = new Date(currentWeekSunday);
+    if (showNextWeek) {
+      targetSunday.setDate(targetSunday.getDate() + 7);
+    }
+    
+    const targetSaturday = new Date(targetSunday);
+    targetSaturday.setDate(targetSunday.getDate() + 6);
+    
+    // Format dates for SQL (YYYY-MM-DD)
+    const formatDateForSQL = (date) => {
+      return date.toISOString().split('T')[0];
+    };
+    
+    return {
+      startDate: formatDateForSQL(targetSunday),
+      endDate: formatDateForSQL(targetSaturday),
+      displayRange: getWeekDateRange() // Uses the existing function
+    };
+  };
+
   // Debug logging function
   const addDebugLog = (message, data = null) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -101,10 +131,20 @@ const GroceryChecklist = ({ onNavigate }) => {
 
         let successfulResponse = null;
         
+        // Get week date information
+        const weekData = getWeekDates();
+        
+        // Add week parameters to the webhook URL
+        const urlWithParams = new URL(WEBHOOK_URL);
+        urlWithParams.searchParams.append('weekStartDate', weekData.startDate);
+        urlWithParams.searchParams.append('weekEndDate', weekData.endDate);
+        urlWithParams.searchParams.append('weekDateRange', weekData.displayRange);
+        urlWithParams.searchParams.append('timestamp', new Date().toISOString());
+
         for (const config of fetchConfigs) {
           try {
             addDebugLog(`Trying fetch with ${config.name}...`);
-            const response = await fetch(WEBHOOK_URL, config.options);
+            const response = await fetch(urlWithParams.toString(), config.options);
             
             addDebugLog(`Response received:`, {
               status: response.status,
