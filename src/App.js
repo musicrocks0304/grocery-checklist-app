@@ -289,10 +289,10 @@ const App = () => {
 
       {/* Main content */}
       <div className="flex-1 lg:ml-0">
-        <div className="bg-white shadow-sm border-b">
+        <div className="lg:hidden bg-white shadow-sm border-b">
           <div className="flex items-center justify-between px-4 h-16">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              onClick={() => setSidebarOpen(true)}
               className="p-2 rounded-md text-gray-400 hover:text-gray-600"
             >
               <Menu size={20} />
@@ -300,7 +300,7 @@ const App = () => {
             <h1 className="text-lg font-semibold text-gray-800">Weekly Grocery Selection</h1>
             <div></div>
           </div>
-        </div>
+        </div></div>
         <GroceryChecklist onNavigate={setCurrentScreen} />
       </div>
     </div>
