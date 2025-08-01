@@ -17,7 +17,7 @@ const App = () => {
     return (
       <div className="flex min-h-screen bg-gray-50">
         {/* Sidebar for ChatBot */}
-        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:relative lg:z-auto`}>
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-auto`}>
           <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
             <div className="flex items-center gap-3">
               <button
@@ -117,7 +117,7 @@ const App = () => {
     return (
       <div className="flex min-h-screen bg-gray-50">
         {/* Sidebar for Coupons */}
-        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:relative lg:z-auto`}>
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-auto`}>
           <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
             <div className="flex items-center gap-3">
               <button
@@ -215,7 +215,7 @@ const App = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:relative lg:z-auto`}>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-auto`}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
           <div className="flex items-center gap-3">
             <button
