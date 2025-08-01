@@ -719,7 +719,6 @@ const GroceryChecklist = ({ onNavigate }) => {
       const day = date.getDate();
       const month = date.toLocaleDateString('en-US', { month: 'long' });
       return `${month} ${day}${getOrdinalSuffix(day)}`;
-```python
     };
 
     const getOrdinalSuffix = (day) => {
