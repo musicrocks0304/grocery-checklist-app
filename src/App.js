@@ -289,10 +289,10 @@ const App = () => {
 
       {/* Main content */}
       <div className="flex-1 lg:ml-0">
-        <div className="lg:hidden bg-white shadow-sm border-b">
+        <div className="bg-white shadow-sm border-b">
           <div className="flex items-center justify-between px-4 h-16">
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 rounded-md text-gray-400 hover:text-gray-600"
             >
               <Menu size={20} />
