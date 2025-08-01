@@ -300,7 +300,7 @@ const App = () => {
             <h1 className="text-lg font-semibold text-gray-800">Weekly Grocery Selection</h1>
             <div></div>
           </div>
-        </div></div>
+        </div>
         <GroceryChecklist onNavigate={setCurrentScreen} />
       </div>
     </div>
