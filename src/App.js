@@ -222,7 +222,7 @@ function App() {
   };
 
   const renderNavigation = () => (
-    <nav className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-0 z-30 w-64 bg-blue-800 text-white flex flex-col`}>
+    <nav className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition duration-200 ease-in-out z-30 w-64 bg-blue-800 text-white flex flex-col`}>
       <div className="p-4 bg-blue-900">
         <h1 className="text-xl font-bold">Grocery App</h1>
         <button
@@ -429,16 +429,16 @@ function App() {
 
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-20"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <div className="flex-1 lg:ml-0">
+      <div className={`flex-1 transition-all duration-200 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <div className="bg-white shadow-sm border-b">
           <div className="flex items-center justify-between px-4 h-16">
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 text-gray-600 hover:text-gray-800"
             >
               ☰
