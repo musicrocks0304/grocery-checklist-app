@@ -1,11 +1,315 @@
-
-import React, { useState, useEffect } from 'react';
-import './index.css';
+import React, { useState } from 'react';
+import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers, ChefHat, Menu, Ticket } from 'lucide-react';
 import ChatBot from './ChatBot';
 import Coupons from './Coupons';
-import { Check, ShoppingCart, Plus, AlertCircle, Wifi, ChevronDown, ChevronUp, Trash2, X, Layers } from 'lucide-react';
 
-const GroceryChecklist = () => {
+const App = () => {
+  const [currentScreen, setCurrentScreen] = useState('grocery');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const navigation = [
+    { id: 'grocery', name: 'Weekly Grocery Selection', icon: ShoppingCart },
+    { id: 'chatbot', name: 'AI Meal Planner', icon: ChefHat },
+    { id: 'coupons', name: 'Coupons & Deals', icon: Ticket },
+  ];
+
+  if (currentScreen === 'chatbot') {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        {/* Sidebar for ChatBot */}
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+          <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
+                title="Toggle navigation"
+              >
+                <Menu size={18} className="text-white" />
+              </button>
+              <h2 className="text-lg font-bold text-white">Navigation</h2>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <nav className="mt-6 px-3 space-y-2">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentScreen === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setCurrentScreen(item.id);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-4 px-4 py-3.5 text-left rounded-xl font-medium transition-all duration-200 group relative overflow-hidden ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-[1.02]' 
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50 hover:transform hover:scale-[1.01]'
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-xl blur-sm"></div>
+                  )}
+                  <div className={`relative z-10 p-2 rounded-lg transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-white/20 backdrop-blur-sm' 
+                      : 'bg-slate-700/30 group-hover:bg-slate-600/50'
+                  }`}>
+                    <Icon size={20} />
+                  </div>
+                  <span className="relative z-10 text-sm font-semibold">{item.name}</span>
+                  {isActive && (
+                    <div className="relative z-10 ml-auto w-2 h-2 bg-white rounded-full shadow-lg"></div>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Decorative gradient at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
+
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3Ccircle cx='27' cy='7' r='1'/%3E%3Ccircle cx='47' cy='7' r='1'/%3E%3Ccircle cx='7' cy='27' r='1'/%3E%3Ccircle cx='27' cy='27' r='1'/%3E%3Ccircle cx='47' cy='27' r='1'/%3E%3Ccircle cx='7' cy='47' r='1'/%3E%3Ccircle cx='27' cy='47' r='1'/%3E%3Ccircle cx='47' cy='47' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }}></div>
+        </div>
+
+        {/* Overlay for mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main content */}
+        <div className="flex-1 lg:ml-0">
+          <div className="lg:hidden bg-white shadow-sm border-b">
+            <div className="flex items-center justify-between px-4 h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+              >
+                <Menu size={20} />
+              </button>
+              <h1 className="text-lg font-semibold text-gray-800">AI Meal Planner</h1>
+              <div></div>
+            </div>
+          </div>
+          <ChatBot 
+            onBack={() => setCurrentScreen('grocery')} 
+            onNavigate={setCurrentScreen}
+            onToggleSidebar={() => setSidebarOpen(true)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentScreen === 'coupons') {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        {/* Sidebar for Coupons */}
+        <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+          <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
+                title="Toggle navigation"
+              >
+                <Menu size={18} className="text-white" />
+              </button>
+              <h2 className="text-lg font-bold text-white">Navigation</h2>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <nav className="mt-6 px-3 space-y-2">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentScreen === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setCurrentScreen(item.id);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-4 px-4 py-3.5 text-left rounded-xl font-medium transition-all duration-200 group relative overflow-hidden ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-[1.02]' 
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700/50 hover:transform hover:scale-[1.01]'
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-xl blur-sm"></div>
+                  )}
+                  <div className={`relative z-10 p-2 rounded-lg transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-white/20 backdrop-blur-sm' 
+                      : 'bg-slate-700/30 group-hover:bg-slate-600/50'
+                  }`}>
+                    <Icon size={20} />
+                  </div>
+                  <span className="relative z-10 text-sm font-semibold">{item.name}</span>
+                  {isActive && (
+                    <div className="relative z-10 ml-auto w-2 h-2 bg-white rounded-full shadow-lg"></div>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Decorative gradient at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
+
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3Ccircle cx='27' cy='7' r='1'/%3E%3Ccircle cx='47' cy='7' r='1'/%3E%3Ccircle cx='7' cy='27' r='1'/%3E%3Ccircle cx='27' cy='27' r='1'/%3E%3Ccircle cx='47' cy='27' r='1'/%3E%3Ccircle cx='7' cy='47' r='1'/%3E%3Ccircle cx='27' cy='47' r='1'/%3E%3Ccircle cx='47' cy='47' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }}></div>
+        </div>
+
+        {/* Overlay for mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main content */}
+        <div className="flex-1 lg:ml-0">
+          <div className="lg:hidden bg-white shadow-sm border-b">
+            <div className="flex items-center justify-between px-4 h-16">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+              >
+                <Menu size={20} />
+              </button>
+              <h1 className="text-lg font-semibold text-gray-800">Coupons & Deals</h1>
+              <div></div>
+            </div>
+          </div>
+          <Coupons 
+            onNavigate={setCurrentScreen}
+            onToggleSidebar={() => setSidebarOpen(true)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+        <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
+              title="Toggle navigation"
+            >
+              <Menu size={18} className="text-white" />
+            </button>
+            <h2 className="text-lg font-bold text-white">Navigation</h2>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <nav className="mt-6 px-3 space-y-2">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentScreen === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setCurrentScreen(item.id);
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-4 px-4 py-3.5 text-left rounded-xl font-medium transition-all duration-200 group relative overflow-hidden ${
+                  isActive 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-[1.02]' 
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50 hover:transform hover:scale-[1.01]'
+                }`}
+              >
+                {isActive && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-xl blur-sm"></div>
+                )}
+                <div className={`relative z-10 p-2 rounded-lg transition-all duration-200 ${
+                  isActive 
+                    ? 'bg-white/20 backdrop-blur-sm' 
+                    : 'bg-slate-700/30 group-hover:bg-slate-600/50'
+                }`}>
+                  <Icon size={20} />
+                </div>
+                <span className="relative z-10 text-sm font-semibold">{item.name}</span>
+                {isActive && (
+                  <div className="relative z-10 ml-auto w-2 h-2 bg-white rounded-full shadow-lg"></div>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Decorative gradient at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
+
+        {/* Subtle pattern overlay */}
+        <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3Ccircle cx='27' cy='7' r='1'/%3E%3Ccircle cx='47' cy='7' r='1'/%3E%3Ccircle cx='7' cy='27' r='1'/%3E%3Ccircle cx='27' cy='27' r='1'/%3E%3Ccircle cx='47' cy='27' r='1'/%3E%3Ccircle cx='7' cy='47' r='1'/%3E%3Ccircle cx='27' cy='47' r='1'/%3E%3Ccircle cx='47' cy='47' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+        }}></div>
+      </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main content */}
+      <div className="flex-1 lg:ml-0">
+        <div className="lg:hidden bg-white shadow-sm border-b">
+          <div className="flex items-center justify-between px-4 h-16">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+            >
+              <Menu size={20} />
+            </button>
+            <h1 className="text-lg font-semibold text-gray-800">Weekly Grocery Selection</h1>
+            <div></div>
+          </div>
+        </div>
+        <GroceryChecklist onNavigate={setCurrentScreen} />
+      </div>
+    </div>
+  );
+};
+
+
+
+const GroceryChecklist = ({ onNavigate }) => {
   const [groceryData, setGroceryData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,13 +318,49 @@ const GroceryChecklist = () => {
   const [activeTab, setActiveTab] = useState('');
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [showFinalList, setShowFinalList] = useState(false);
-  const [newItemText, setNewItemText] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [newItemForm, setNewItemForm] = useState({
+    itemName: '',
+    category: '',
+    type: 'Basic',
+    store: '',
+    groceryStoreSection: ''
+  });
   const [itemToRemove, setItemToRemove] = useState(null);
-  const [groupBy, setGroupBy] = useState('Category');
+  const [groupBy, setGroupBy] = useState('Category'); // New state for grouping mode
 
   // Your n8n webhook URL - verified working in browser
   const WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/5eb40df4-7053-4166-9b7b-6893789ff943/fetch_grocery_items';
+
+  // Add this helper function to get the actual dates for database storage
+  const getWeekDates = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const showNextWeek = dayOfWeek >= 4;
+
+    const daysToSunday = dayOfWeek;
+    const currentWeekSunday = new Date(today);
+    currentWeekSunday.setDate(today.getDate() - daysToSunday);
+
+    const targetSunday = new Date(currentWeekSunday);
+    if (showNextWeek) {
+      targetSunday.setDate(targetSunday.getDate() + 7);
+    }
+
+    const targetSaturday = new Date(targetSunday);
+    targetSaturday.setDate(targetSunday.getDate() + 6);
+
+    // Format dates for SQL (YYYY-MM-DD)
+    const formatDateForSQL = (date) => {
+      return date.toISOString().split('T')[0];
+    };
+
+    return {
+      startDate: formatDateForSQL(targetSunday),
+      endDate: formatDateForSQL(targetSaturday),
+      displayRange: getWeekDateRange() // Uses the existing function
+    };
+  };
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
@@ -32,13 +372,13 @@ const GroceryChecklist = () => {
   // Test basic connectivity
   const testConnectivity = async () => {
     addDebugLog('Testing basic connectivity...');
-    
+
     try {
       const testResponse = await fetch('https://api.github.com/zen', {
         method: 'GET',
         mode: 'cors'
       });
-      
+
       if (testResponse.ok) {
         addDebugLog('✅ External connectivity working');
       } else {
@@ -55,12 +395,12 @@ const GroceryChecklist = () => {
       try {
         setError(null);
         setDebugInfo([]);
-        
+
         await testConnectivity();
-        
+
         addDebugLog('Fetching grocery data from n8n webhook...');
         addDebugLog('Webhook URL:', WEBHOOK_URL);
-        
+
         const fetchConfigs = [
           {
             name: 'Standard CORS',
@@ -93,12 +433,22 @@ const GroceryChecklist = () => {
         ];
 
         let successfulResponse = null;
-        
+
+        // Get week date information
+        const weekData = getWeekDates();
+
+        // Add week parameters to the webhook URL
+        const urlWithParams = new URL(WEBHOOK_URL);
+        urlWithParams.searchParams.append('weekStartDate', weekData.startDate);
+        urlWithParams.searchParams.append('weekEndDate', weekData.endDate);
+        urlWithParams.searchParams.append('weekDateRange', weekData.displayRange);
+        urlWithParams.searchParams.append('timestamp', new Date().toISOString());
+
         for (const config of fetchConfigs) {
           try {
             addDebugLog(`Trying fetch with ${config.name}...`);
-            const response = await fetch(WEBHOOK_URL, config.options);
-            
+            const response = await fetch(urlWithParams.toString(), config.options);
+
             addDebugLog(`Response received:`, {
               status: response.status,
               statusText: response.statusText,
@@ -123,7 +473,7 @@ const GroceryChecklist = () => {
 
         const responseText = await successfulResponse.text();
         addDebugLog('Raw response:', responseText);
-        
+
         let data;
         try {
           data = JSON.parse(responseText);
@@ -132,15 +482,15 @@ const GroceryChecklist = () => {
           addDebugLog('❌ JSON parse error:', parseError.message);
           throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
         }
-        
+
         setGroceryData(data);
-        
+
         // Set the first group as active tab
         const groups = getGroups(data, groupBy);
         if (groups.length > 0) {
           setActiveTab(groups[0]);
         }
-        
+
         addDebugLog('✅ Successfully loaded data');
       } catch (error) {
         addDebugLog('❌ Error in fetchGroceryData:', error.message);
@@ -198,24 +548,24 @@ const GroceryChecklist = () => {
 
   const confirmRemoveItem = async () => {
     if (!itemToRemove) return;
-    
+
     try {
       // This would send a request to your n8n webhook to deactivate the item
       const removalData = {
         action: "deactivate_item",
         itemId: itemToRemove.ItemID
       };
-      
+
       addDebugLog('Removing item from database:', removalData);
-      
+
       // For now, remove it from local state
       setGroceryData(groceryData.filter(item => item.ItemID !== itemToRemove.ItemID));
-      
+
       // Remove from selected items if it was selected
       const newSelected = new Set(selectedItems);
       newSelected.delete(itemToRemove.ItemID.toString());
       setSelectedItems(newSelected);
-      
+
       addDebugLog('✅ Item removed successfully');
     } catch (error) {
       addDebugLog('❌ Error removing item:', error.message);
@@ -230,13 +580,13 @@ const GroceryChecklist = () => {
       alert('Please select at least one item for your grocery list.');
       return;
     }
-    
+
     try {
       const submissionData = {
         action: "submit_grocery_selections",
         selectedItems: Array.from(selectedItems)
       };
-      
+
       console.log('Selected items to submit:', submissionData);
       setShowFinalList(true);
     } catch (error) {
@@ -246,54 +596,131 @@ const GroceryChecklist = () => {
   };
 
   const handleAddItem = async () => {
-    if (newItemText.trim() && activeTab) {
-      // For new items, we need to determine default values for other grouping fields
+    if (newItemForm.itemName.trim()) {
       const newItem = {
         ItemID: Date.now(),
-        ItemName: newItemText.trim(),
-        Category: groupBy === 'Category' ? activeTab : 'General',
-        Store: groupBy === 'Store' ? activeTab : 'Tom Thumb',
-        GroceryStoreSection: groupBy === 'GroceryStoreSection' ? activeTab : 'Pantry'
+        ItemName: newItemForm.itemName.trim(),
+        Category: newItemForm.category || 'General',
+        Type: newItemForm.type,
+        Store: newItemForm.store || 'Tom Thumb',
+        GroceryStoreSection: newItemForm.groceryStoreSection || 'Pantry'
       };
-      
-      setGroceryData([...groceryData, newItem]);
-      setNewItemText('');
-      setShowAddForm(false);
-      
-      addDebugLog('Added item locally:', newItem);
+
+      const weekData = getWeekDates();
+
+      try {
+        addDebugLog('Sending new item to n8n webhook:', newItem);
+
+        // Call the n8n webhook to add the item
+        const queryParams = new URLSearchParams({
+          itemName: newItem.ItemName,
+          category: newItem.Category,
+          type: newItem.Type,
+          store: newItem.Store,
+          groceryStoreSection: newItem.GroceryStoreSection,
+          weekStartDate: weekData.startDate,
+          weekEndDate: weekData.endDate,
+          weekDateRange: weekData.displayRange,
+          timestamp: new Date().toISOString()
+        });
+
+        const webhookURL = `https://n8n-grocery.needexcelexpert.com/webhook/add_grocery_items?${queryParams.toString()}`;
+        addDebugLog('Webhook URL:', webhookURL);
+
+        const response = await fetch(webhookURL, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          mode: 'cors'
+        });
+
+        addDebugLog('Webhook response:', {
+          status: response.status,
+          statusText: response.statusText
+        });
+
+        if (response.ok) {
+          addDebugLog('✅ Item successfully added to database');
+
+          // Add to local state for immediate UI update
+          setGroceryData([...groceryData, newItem]);
+
+          // Reset form and close panel
+          setNewItemForm({
+            itemName: '',
+            category: '',
+            type: 'Basic',
+            store: '',
+            groceryStoreSection: ''
+          });
+          setShowAddPanel(false);
+
+          alert('Item successfully added to your grocery database!');
+        } else {
+          throw new Error(`Webhook returned status: ${response.status}`);
+        }
+
+      } catch (error) {
+        addDebugLog('❌ Error adding item to webhook:', error.message);
+
+        // Still add locally as fallback
+        setGroceryData([...groceryData, newItem]);
+        setNewItemForm({
+          itemName: '',
+          category: '',
+          type: 'Basic',
+          store: '',
+          groceryStoreSection: ''
+        });
+        setShowAddPanel(false);
+
+        alert('Item added locally, but there was an issue saving to the database. Check the debug panel for details.');
+      }
     }
+  };
+
+  const handleCancelAdd = () => {
+    setNewItemForm({
+      itemName: '',
+      category: '',
+      type: 'Basic',
+      store: '',
+      groceryStoreSection: ''
+    });
+    setShowAddPanel(false);
   };
 
   const getWeekDateRange = () => {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
-    
+
     // If Thursday (4), Friday (5), or Saturday (6), show next week
     // Otherwise show current week
     const showNextWeek = dayOfWeek >= 4;
-    
+
     // Find the Sunday of the current week
     const daysToSunday = dayOfWeek;
     const currentWeekSunday = new Date(today);
     currentWeekSunday.setDate(today.getDate() - daysToSunday);
-    
+
     // Determine which Sunday to use as the start
     const targetSunday = new Date(currentWeekSunday);
     if (showNextWeek) {
       targetSunday.setDate(targetSunday.getDate() + 7);
     }
-    
+
     // Get the Saturday (6 days after Sunday)
     const targetSaturday = new Date(targetSunday);
     targetSaturday.setDate(targetSunday.getDate() + 6);
-    
+
     // Format the dates
     const formatDate = (date) => {
       const day = date.getDate();
       const month = date.toLocaleDateString('en-US', { month: 'long' });
       return `${month} ${day}${getOrdinalSuffix(day)}`;
     };
-    
+
     const getOrdinalSuffix = (day) => {
       if (day > 3 && day < 21) return 'th';
       switch (day % 10) {
@@ -303,7 +730,7 @@ const GroceryChecklist = () => {
         default: return 'th';
       }
     };
-    
+
     const year = targetSunday.getFullYear();
     return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
@@ -313,7 +740,7 @@ const GroceryChecklist = () => {
     const selectedGroceryItems = groceryData.filter(item => 
       selectedItemIds.includes(item.ItemID.toString())
     );
-    
+
     const groupedByCategory = {};
     selectedGroceryItems.forEach(item => {
       if (!groupedByCategory[item.Category]) {
@@ -321,7 +748,7 @@ const GroceryChecklist = () => {
       }
       groupedByCategory[item.Category].push(item);
     });
-    
+
     return groupedByCategory;
   };
 
@@ -345,7 +772,7 @@ const GroceryChecklist = () => {
           <ShoppingCart className="text-green-600" size={28} />
           <h1 className="text-2xl font-bold text-gray-800">Weekly Grocery List</h1>
         </div>
-        
+
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <p className="text-lg font-semibold text-gray-700">{getWeekDateRange()}</p>
           <p className="text-sm text-gray-600 mt-1">Items selected: {selectedItems.size}</p>
@@ -396,6 +823,169 @@ const GroceryChecklist = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Add Item Side Panel */}
+      {showAddPanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
+          <div className="bg-white h-full w-96 shadow-xl overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Plus size={24} />
+                  <h2 className="text-xl font-bold">Add New Grocery Item</h2>
+                </div>
+                <button
+                  onClick={handleCancelAdd}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-sm opacity-90 mt-2">
+                Fill in all the details for your new grocery item
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Item Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Item Name *
+                </label>
+                <input
+                  type="text"
+                  value={newItemForm.itemName}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, itemName: e.target.value }))}
+                  placeholder="Enter item name..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category *
+                </label>
+                <select
+                  value={newItemForm.category}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select category...</option>
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="Snacks">Snacks</option>
+                  <option value="General">General</option>
+                  <option value="Beverages">Beverages</option>
+                  <option value="Pantry">Pantry</option>
+                </select>
+              </div>
+
+              {/* Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type *
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="Basic"
+                      checked={newItemForm.type === 'Basic'}
+                      onChange={(e) => setNewItemForm(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Basic</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="Periodic"
+                      checked={newItemForm.type === 'Periodic'}
+                      onChange={(e) => setNewItemForm(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Periodic</span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Basic: Items bought as needed | Periodic: Items bought regularly
+                </p>
+              </div>
+
+              {/* Store */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Store *
+                </label>
+                <select
+                  value={newItemForm.store}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, store: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select store...</option>
+                  <option value="Tom Thumb">Tom Thumb</option>
+                  <option value="Trader Joe's">Trader Joe's</option>
+                  <option value="Whole Foods">Whole Foods</option>
+                  <option value="Kroger">Kroger</option>
+                  <option value="Costco">Costco</option>
+                  <option value="Target">Target</option>
+                  <option value="Walmart">Walmart</option>
+                </select>
+              </div>
+
+              {/* Grocery Store Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Grocery Store Section *
+                </label>
+                <select
+                  value={newItemForm.groceryStoreSection}
+                  onChange={(e) => setNewItemForm(prev => ({ ...prev, groceryStoreSection: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select section...</option>
+                  <option value="Produce">Produce</option>
+                  <option value="Dairy">Dairy</option>
+                  <option value="Meat">Meat & Seafood</option>
+                  <option value="Bakery">Bakery</option>
+                  <option value="Frozen">Frozen</option>
+                  <option value="Pantry">Pantry</option>
+                  <option value="Snacks">Snacks</option>
+                  <option value="Beverages">Beverages</option>
+                  <option value="Health & Beauty">Health & Beauty</option>
+                  <option value="Household">Household</option>
+                  <option value="Refrigerated">Refrigerated</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="border-t bg-gray-50 p-6 flex gap-3">
+              <button
+                onClick={handleCancelAdd}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddItem}
+                disabled={!newItemForm.itemName.trim() || !newItemForm.category || !newItemForm.store || !newItemForm.groceryStoreSection}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                Add Item
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {itemToRemove && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -436,16 +1026,18 @@ const GroceryChecklist = () => {
             <Check className="text-blue-600" size={28} />
             <h1 className="text-2xl font-bold text-gray-800">Weekly Grocery Selection</h1>
           </div>
-          
-          {/* Debug Toggle */}
-          <button
-            onClick={() => setShowDebug(!showDebug)}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <Wifi size={16} />
-            Debug Info
-            {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
+
+          <div className="flex items-center gap-3">
+            {/* Debug Toggle */}
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <Wifi size={16} />
+              Debug Info
+              {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
         </div>
 
         {/* Debug Panel */}
@@ -477,7 +1069,7 @@ const GroceryChecklist = () => {
             </div>
           </div>
         )}
-        
+
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-start gap-3">
@@ -549,7 +1141,7 @@ const GroceryChecklist = () => {
               {groupBy === 'GroceryStoreSection' ? 'Store Section' : groupBy}: {activeTab}
             </h2>
             <button
-              onClick={() => setShowAddForm(!showAddForm)}
+              onClick={() => setShowAddPanel(true)}
               className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
               title="Add new item"
             >
@@ -557,35 +1149,9 @@ const GroceryChecklist = () => {
               Add Item
             </button>
           </div>
-          
-          {showAddForm && (
-            <div className="mb-4 flex gap-2">
-              <input
-                type="text"
-                value={newItemText}
-                onChange={(e) => setNewItemText(e.target.value)}
-                placeholder={`New item for ${activeTab}...`}
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
-              />
-              <button
-                onClick={handleAddItem}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Add
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setNewItemText('');
-                }}
-                className="px-3 py-2 text-gray-600 hover:text-gray-800"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          )}
-          
+
+
+
           <div className="space-y-2">
             {currentGroupItems.map((item) => (
               <div
@@ -646,102 +1212,5 @@ const GroceryChecklist = () => {
     </div>
   );
 };
-
-function App() {
-  const [currentPage, setCurrentPage] = useState('grocery');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const navigateToPage = (page) => {
-    setCurrentPage(page);
-    setSidebarOpen(false);
-  };
-
-  const renderNavigation = () => (
-    <nav className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition duration-200 ease-in-out z-30 w-64 bg-blue-800 text-white flex flex-col`}>
-      <div className="p-4 bg-blue-900">
-        <h1 className="text-xl font-bold">Grocery App</h1>
-        <button
-          onClick={() => setSidebarOpen(false)}
-          className="absolute top-4 right-4 text-white"
-        >
-          ✕
-        </button>
-      </div>
-      
-      <div className="flex-1 px-4 py-6">
-        <ul className="space-y-2">
-          <li>
-            <button
-              onClick={() => navigateToPage('grocery')}
-              className={`w-full text-left px-3 py-2 rounded transition-colors ${
-                currentPage === 'grocery' ? 'bg-blue-700' : 'hover:bg-blue-700'
-              }`}
-            >
-              📋 Weekly Grocery List
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => navigateToPage('chatbot')}
-              className={`w-full text-left px-3 py-2 rounded transition-colors ${
-                currentPage === 'chatbot' ? 'bg-blue-700' : 'hover:bg-blue-700'
-              }`}
-            >
-              🤖 AI Assistant
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => navigateToPage('coupons')}
-              className={`w-full text-left px-3 py-2 rounded transition-colors ${
-                currentPage === 'coupons' ? 'bg-blue-700' : 'hover:bg-blue-700'
-              }`}
-            >
-              🎫 Coupons & Deals
-            </button>
-          </li>
-        </ul>
-      </div>
-    </nav>
-  );
-
-  return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {renderNavigation()}
-
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <div className={`flex-1 transition-all duration-200 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        <div className="bg-white shadow-sm border-b">
-          <div className="flex items-center justify-between px-4 h-16">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 text-gray-600 hover:text-gray-800"
-            >
-              ☰
-            </button>
-            <h2 className="text-xl font-semibold text-gray-800">
-              {currentPage === 'grocery' && '📋 Weekly Grocery Selection'}
-              {currentPage === 'chatbot' && '🤖 AI Assistant'}
-              {currentPage === 'coupons' && '🎫 Coupons & Deals'}
-            </h2>
-            <div></div>
-          </div>
-        </div>
-
-        <div className="p-6">
-          {currentPage === 'grocery' && <GroceryChecklist />}
-          {currentPage === 'chatbot' && <ChatBot />}
-          {currentPage === 'coupons' && <Coupons />}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default App;
