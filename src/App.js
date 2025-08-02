@@ -550,15 +550,39 @@ const GroceryChecklist = ({ onNavigate }) => {
     if (!itemToRemove) return;
 
     try {
-      // This would send a request to your n8n webhook to deactivate the item
-      const removalData = {
-        action: "deactivate_item",
-        itemId: itemToRemove.ItemID
-      };
+      addDebugLog('Removing item from database:', itemToRemove);
 
-      addDebugLog('Removing item from database:', removalData);
+      // Call the deactivate webhook
+      const queryParams = new URLSearchParams({
+        itemId: itemToRemove.ItemID.toString(),
+        itemName: itemToRemove.ItemName,
+        category: itemToRemove.Category,
+        timestamp: new Date().toISOString()
+      });
 
-      // For now, remove it from local state
+      const webhookURL = `https://n8n-grocery.needexcelexpert.com/webhook/deactivate_grocery_item?${queryParams.toString()}`;
+      addDebugLog('Deactivate webhook URL:', webhookURL);
+
+      const response = await fetch(webhookURL, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors'
+      });
+
+      addDebugLog('Deactivate webhook response:', {
+        status: response.status,
+        statusText: response.statusText
+      });
+
+      if (response.ok) {
+        addDebugLog('✅ Item successfully deactivated in database');
+      } else {
+        addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
+      }
+
+      // Remove from local state regardless of webhook success
       setGroceryData(groceryData.filter(item => item.ItemID !== itemToRemove.ItemID));
 
       // Remove from selected items if it was selected
@@ -566,10 +590,17 @@ const GroceryChecklist = ({ onNavigate }) => {
       newSelected.delete(itemToRemove.ItemID.toString());
       setSelectedItems(newSelected);
 
-      addDebugLog('✅ Item removed successfully');
+      addDebugLog('✅ Item removed from local state');
     } catch (error) {
       addDebugLog('❌ Error removing item:', error.message);
-      alert('Failed to remove item. Please try again.');
+      
+      // Still remove from local state even if webhook fails
+      setGroceryData(groceryData.filter(item => item.ItemID !== itemToRemove.ItemID));
+      const newSelected = new Set(selectedItems);
+      newSelected.delete(itemToRemove.ItemID.toString());
+      setSelectedItems(newSelected);
+      
+      alert('Item removed locally, but there was an issue with the database. Check debug logs for details.');
     } finally {
       setItemToRemove(null);
     }
