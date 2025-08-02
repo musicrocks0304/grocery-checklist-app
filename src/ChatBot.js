@@ -837,12 +837,12 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto flex gap-6">
+    <div className="h-screen flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4">
       {/* Main Chat Area */}
-      <div className={`bg-white rounded-lg shadow-lg overflow-hidden transition-all ${showIngredientsPanel ? 'flex-1' : 'w-full max-w-4xl mx-auto'}`}>
+      <div className={`bg-white lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showIngredientsPanel ? 'flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'}`}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <button
                 onClick={onBack}
@@ -850,55 +850,27 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
               >
                 <ArrowLeft size={20} />
               </button>
-              <ChefHat size={28} />
-              <h1 className="text-2xl font-bold">AI Meal Planner</h1>
+              <ChefHat size={24} />
+              <h1 className="text-xl font-bold">AI Meal Planner</h1>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Navigation Menu */}
-              <div className="flex items-center gap-1">
-                {navigation.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = item.id === 'chatbot';
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => onNavigate && onNavigate(item.id)}
-                      className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
-                        isActive 
-                          ? 'bg-white/30 text-white font-medium' 
-                          : 'hover:bg-white/20 text-white/80'
-                      }`}
-                      title={item.name}
-                    >
-                      <Icon size={14} />
-                      {item.name.split(' ')[0]}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Session Info */}
-              <div className="text-xs bg-white/20 px-2 py-1 rounded">
-                Session: {sessionId.split('_')[2]?.substr(0, 6)}...
-              </div>
-
               {/* Ingredients Panel Toggle */}
               <button
                 onClick={() => setShowIngredientsPanel(!showIngredientsPanel)}
-                className="flex items-center gap-2 text-sm hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
               >
                 <ShoppingCart size={16} />
-                Meal Plans ({selectedMeals.length})
+                <span className="hidden sm:inline">Meal Plans</span> ({selectedMeals.length})
               </button>
 
               {/* Debug Toggle */}
               <button
                 onClick={() => setShowDebug(!showDebug)}
-                className="flex items-center gap-2 text-sm hover:bg-white/20 px-3 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
               >
                 <Wifi size={16} />
-                Debug Info
+                <span className="hidden sm:inline">Debug</span>
                 {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
 
@@ -911,9 +883,14 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
                 className="text-xs hover:bg-white/20 px-2 py-1 rounded transition-colors"
                 title="Start new session"
               >
-                New Session
+                New
               </button>
             </div>
+          </div>
+
+          {/* Session Info on separate line */}
+          <div className="text-xs bg-white/20 px-2 py-1 rounded mb-3 inline-block">
+            Session: {sessionId.split('_')[2]?.substr(0, 8)}...
           </div>
 
           <div className="bg-white/20 rounded-lg p-3">
@@ -953,7 +930,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
         )}
 
         {/* Chat Messages */}
-        <div className="h-96 overflow-y-auto p-6 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-gray-50">
           <div className="space-y-4">
             {messages.map((message) => (
               <div
@@ -1023,7 +1000,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
         </div>
 
         {/* Input Area */}
-        <div className="p-6 bg-white border-t border-gray-200">
+        <div className="p-4 lg:p-6 bg-white border-t border-gray-200">
           <div className="flex gap-3">
             <div className="flex-1 relative">
               <textarea
@@ -1062,7 +1039,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
 
       {/* Ingredients Panel */}
       {showIngredientsPanel && (
-        <div className="w-96 bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="w-full lg:w-96 bg-white lg:rounded-lg lg:shadow-lg overflow-hidden flex flex-col">
           <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1081,7 +1058,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
             </p>
           </div>
 
-          <div className="h-96 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4">
             {selectedMeals.length === 0 ? (
               <div className="text-center text-gray-500 mt-8">
                 <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
