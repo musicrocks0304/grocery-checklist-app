@@ -1,0 +1,58 @@
+4:36:07 PM: Netlify Build                                                 
+4:36:07 PM: ────────────────────────────────────────────────────────────────
+4:36:07 PM: ​
+4:36:07 PM: ❯ Version
+4:36:07 PM:   @netlify/build 35.0.0
+4:36:07 PM: ​
+4:36:07 PM: ❯ Flags
+4:36:07 PM:   accountId: 687e900776a884ac202742fb
+4:36:07 PM:   baseRelDir: true
+4:36:07 PM:   buildId: 688e84b7275ce900082af1e3
+4:36:07 PM:   deployId: 688e84b7275ce900082af1e5
+4:36:07 PM: ​
+4:36:07 PM: ❯ Current directory
+4:36:07 PM:   /opt/build/repo
+4:36:07 PM: ​
+4:36:07 PM: ❯ Config file
+4:36:07 PM:   No config file was defined: using default values.
+4:36:07 PM: ​
+4:36:07 PM: ❯ Context
+4:36:07 PM:   production
+4:36:07 PM: ​
+4:36:07 PM: Build command from Netlify app                                
+4:36:07 PM: ────────────────────────────────────────────────────────────────
+4:36:07 PM: ​
+4:36:07 PM: $ npm run build
+4:36:07 PM: > grocery-checklist-app@0.1.0 build
+4:36:07 PM: > react-scripts build
+4:36:08 PM: Creating an optimized production build...
+4:36:15 PM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
+4:36:15 PM: 
+4:36:15 PM: Treating warnings as errors because process.env.CI = true.
+4:36:15 PM: Most CI servers set it automatically.
+4:36:15 PM: 
+4:36:15 PM: Failed to compile.
+4:36:15 PM: 
+4:36:15 PM: [eslint]
+4:36:15 PM: src/ChatBot.js
+4:36:15 PM:   Line 2:99:  'Ticket' is defined but never used  no-unused-vars
+4:36:15 PM: ​
+4:36:15 PM: "build.command" failed                                        
+4:36:15 PM: ────────────────────────────────────────────────────────────────
+4:36:15 PM: ​
+4:36:15 PM:   Error message
+4:36:15 PM:   Command failed with exit code 1: npm run build (https://ntl.fyi/exit-code-1)
+4:36:15 PM: ​
+4:36:15 PM:   Error location
+4:36:15 PM:   In Build command from Netlify app:
+4:36:15 PM:   npm run build
+4:36:15 PM: ​
+4:36:15 PM:   Resolved config
+4:36:15 PM:   build:
+4:36:15 PM:     command: npm run build
+4:36:15 PM:     commandOrigin: ui
+4:36:15 PM:     publish: /opt/build/repo/build
+4:36:15 PM:     publishOrigin: ui
+4:36:15 PM: Build failed due to a user error: Build script returned non-zero exit code: 2
+4:36:15 PM: Failing build: Failed to build site
+4:36:16 PM: Finished processing build request in 23.379s
