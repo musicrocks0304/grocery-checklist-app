@@ -317,6 +317,7 @@ const GroceryChecklist = ({ onNavigate }) => {
   const [showDebug, setShowDebug] = useState(false);
   const [activeTab, setActiveTab] = useState('');
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const [itemQuantities, setItemQuantities] = useState(new Map());
   const [showFinalList, setShowFinalList] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newItemForm, setNewItemForm] = useState({
@@ -541,12 +542,24 @@ const GroceryChecklist = ({ onNavigate }) => {
 
   const handleItemToggle = (itemId) => {
     const newSelected = new Set(selectedItems);
+    const newQuantities = new Map(itemQuantities);
+    
     if (newSelected.has(itemId)) {
       newSelected.delete(itemId);
+      newQuantities.delete(itemId);
     } else {
       newSelected.add(itemId);
+      newQuantities.set(itemId, 1); // Default quantity of 1
     }
+    
     setSelectedItems(newSelected);
+    setItemQuantities(newQuantities);
+  };
+
+  const handleQuantityChange = (itemId, quantity) => {
+    const newQuantities = new Map(itemQuantities);
+    newQuantities.set(itemId, parseInt(quantity));
+    setItemQuantities(newQuantities);
   };
 
   const handleRemoveItem = async (item) => {
@@ -601,8 +614,11 @@ const GroceryChecklist = ({ onNavigate }) => {
 
       // Remove from selected items if it was selected
       const newSelected = new Set(selectedItems);
+      const newQuantities = new Map(itemQuantities);
       newSelected.delete(itemToRemove.ItemID.toString());
+      newQuantities.delete(itemToRemove.ItemID.toString());
       setSelectedItems(newSelected);
+      setItemQuantities(newQuantities);
 
       addDebugLog('✅ Item removed from local state');
 
@@ -615,8 +631,11 @@ const GroceryChecklist = ({ onNavigate }) => {
       // Still remove from local state even if webhook fails
       setGroceryData(groceryData.filter(item => item.ItemID !== itemToRemove.ItemID));
       const newSelected = new Set(selectedItems);
+      const newQuantities = new Map(itemQuantities);
       newSelected.delete(itemToRemove.ItemID.toString());
+      newQuantities.delete(itemToRemove.ItemID.toString());
       setSelectedItems(newSelected);
+      setItemQuantities(newQuantities);
 
       const cleanItemName = itemToRemove.ItemName.replace(/\t/g, '').trim();
       alert(`"${cleanItemName}" has been removed from this week's list. There was a connection issue with the database - check debug logs for details.`);
@@ -779,7 +798,10 @@ const GroceryChecklist = ({ onNavigate }) => {
     const selectedItemIds = Array.from(selectedItems);
     const selectedGroceryItems = groceryData.filter(item => 
       selectedItemIds.includes(item.ItemID.toString())
-    );
+    ).map(item => ({
+      ...item,
+      quantity: itemQuantities.get(item.ItemID.toString()) || 1
+    }));
 
     const groupedByCategory = {};
     selectedGroceryItems.forEach(item => {
@@ -827,7 +849,10 @@ const GroceryChecklist = ({ onNavigate }) => {
               {items.map(item => (
                 <li key={item.ItemID} className="flex items-center gap-2 text-gray-700">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span>{item.ItemName}</span>
+                  <span className="flex-1">{item.ItemName}</span>
+                  <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    Qty: {item.quantity}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -844,10 +869,13 @@ const GroceryChecklist = ({ onNavigate }) => {
           <button 
             onClick={async () => {
               try {
-                // Get full metadata of all selected items
+                // Get full metadata of all selected items with quantities
                 const selectedGroceryItems = groceryData.filter(item => 
                   selectedItems.has(item.ItemID.toString())
-                );
+                ).map(item => ({
+                  ...item,
+                  quantity: itemQuantities.get(item.ItemID.toString()) || 1
+                }));
 
                 addDebugLog('Sending selected items to create_grocery_list webhook:', selectedGroceryItems);
 
@@ -872,6 +900,7 @@ const GroceryChecklist = ({ onNavigate }) => {
                   queryParams.append(`item_${index}_store`, item.Store);
                   queryParams.append(`item_${index}_section`, item.GroceryStoreSection);
                   queryParams.append(`item_${index}_type`, item.Type || 'Basic');
+                  queryParams.append(`item_${index}_quantity`, item.quantity.toString());
                 });
 
                 const webhookURL = `https://n8n-grocery.needexcelexpert.com/webhook/create_grocery_list?${queryParams.toString()}`;
@@ -1267,6 +1296,25 @@ const GroceryChecklist = ({ onNavigate }) => {
                 >
                   <span className="text-gray-700">{item.ItemName}</span>
                 </label>
+                
+                {/* Quantity Dropdown */}
+                {selectedItems.has(item.ItemID.toString()) && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Qty:</label>
+                    <select
+                      value={itemQuantities.get(item.ItemID.toString()) || 1}
+                      onChange={(e) => handleQuantityChange(item.ItemID.toString(), e.target.value)}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      {[...Array(10)].map((_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          {i + 1}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
                 <button
                   onClick={() => handleRemoveItem(item)}
                   className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-800 transition-all"
