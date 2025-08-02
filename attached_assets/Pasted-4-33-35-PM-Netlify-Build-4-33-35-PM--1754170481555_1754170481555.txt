@@ -1,0 +1,59 @@
+4:33:35 PM: Netlify Build                                                 
+4:33:35 PM: ────────────────────────────────────────────────────────────────
+4:33:35 PM: ​
+4:33:35 PM: ❯ Version
+4:33:35 PM:   @netlify/build 35.0.0
+4:33:35 PM: ​
+4:33:35 PM: ❯ Flags
+4:33:35 PM:   accountId: 687e900776a884ac202742fb
+4:33:35 PM:   baseRelDir: true
+4:33:35 PM:   buildId: 688e8418e7ac450008fbd87a
+4:33:35 PM:   deployId: 688e8418e7ac450008fbd87c
+4:33:35 PM: ​
+4:33:35 PM: ❯ Current directory
+4:33:35 PM:   /opt/build/repo
+4:33:35 PM: ​
+4:33:35 PM: ❯ Config file
+4:33:35 PM:   No config file was defined: using default values.
+4:33:35 PM: ​
+4:33:35 PM: ❯ Context
+4:33:35 PM:   production
+4:33:35 PM: ​
+4:33:35 PM: Build command from Netlify app                                
+4:33:35 PM: ────────────────────────────────────────────────────────────────
+4:33:35 PM: ​
+4:33:35 PM: $ npm run build
+4:33:35 PM: > grocery-checklist-app@0.1.0 build
+4:33:35 PM: > react-scripts build
+4:33:36 PM: Creating an optimized production build...
+4:33:42 PM: Failed to compile.
+4:33:42 PM: 
+4:33:42 PM: SyntaxError: /opt/build/repo/src/ChatBot.js: Unexpected token, expected "," (935:28)
+4:33:42 PM:   933 |               <div
+4:33:42 PM:   934 |                 key={message.id}
+4:33:42 PM: > 935 |                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+4:33:42 PM:       |                             ^
+4:33:42 PM:   936 |               >
+4:33:42 PM:   937 |                 <div
+4:33:42 PM:   938 |                   className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+4:33:42 PM: ​
+4:33:42 PM: "build.command" failed                                        
+4:33:42 PM: ────────────────────────────────────────────────────────────────
+4:33:42 PM: ​
+4:33:42 PM:   Error message
+4:33:42 PM:   Command failed with exit code 1: npm run build (https://ntl.fyi/exit-code-1)
+4:33:42 PM: ​
+4:33:42 PM:   Error location
+4:33:42 PM:   In Build command from Netlify app:
+4:33:42 PM:   npm run build
+4:33:42 PM: ​
+4:33:42 PM:   Resolved config
+4:33:42 PM:   build:
+4:33:42 PM:     command: npm run build
+4:33:42 PM:     commandOrigin: ui
+4:33:42 PM:     publish: /opt/build/repo/build
+4:33:42 PM:     publishOrigin: ui
+4:33:43 PM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
+4:33:43 PM: Build failed due to a user error: Build script returned non-zero exit code: 2
+4:33:43 PM: Failing build: Failed to build site
+4:33:43 PM: Finished processing build request in 28.82s
