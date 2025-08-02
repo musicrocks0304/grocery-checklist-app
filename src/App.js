@@ -605,19 +605,19 @@ const GroceryChecklist = ({ onNavigate }) => {
       setSelectedItems(newSelected);
 
       addDebugLog('✅ Item removed from local state');
-      
+
       // Show success message to user
       alert(successMessage);
-      
+
     } catch (error) {
       addDebugLog('❌ Error removing item:', error.message);
-      
+
       // Still remove from local state even if webhook fails
       setGroceryData(groceryData.filter(item => item.ItemID !== itemToRemove.ItemID));
       const newSelected = new Set(selectedItems);
       newSelected.delete(itemToRemove.ItemID.toString());
       setSelectedItems(newSelected);
-      
+
       const cleanItemName = itemToRemove.ItemName.replace(/\t/g, '').trim();
       alert(`"${cleanItemName}" has been removed from this week's list. There was a connection issue with the database - check debug logs for details.`);
     } finally {
@@ -632,15 +632,65 @@ const GroceryChecklist = ({ onNavigate }) => {
     }
 
     try {
-      const submissionData = {
-        action: "submit_grocery_selections",
-        selectedItems: Array.from(selectedItems)
-      };
+      // Get full metadata of all selected items
+      const selectedGroceryItems = groceryData.filter(item => 
+        selectedItems.has(item.ItemID.toString())
+      );
 
-      console.log('Selected items to submit:', submissionData);
+      addDebugLog('Sending selected items to create_grocery_list webhook:', selectedGroceryItems);
+
+      // Get week data for the webhook
+      const weekData = getWeekDates();
+
+      // Create query parameters with all selected items metadata
+      const queryParams = new URLSearchParams({
+        action: "create_grocery_list",
+        selectedItemsCount: selectedGroceryItems.length.toString(),
+        weekStartDate: weekData.startDate,
+        weekEndDate: weekData.endDate,
+        weekDateRange: weekData.displayRange,
+        timestamp: new Date().toISOString()
+      });
+
+      // Add each selected item's metadata as separate parameters
+      selectedGroceryItems.forEach((item, index) => {
+        queryParams.append(`item_${index}_id`, item.ItemID.toString());
+        queryParams.append(`item_${index}_name`, item.ItemName);
+        queryParams.append(`item_${index}_category`, item.Category);
+        queryParams.append(`item_${index}_store`, item.Store);
+        queryParams.append(`item_${index}_section`, item.GroceryStoreSection);
+        queryParams.append(`item_${index}_type`, item.Type || 'Basic');
+      });
+
+      const webhookURL = `https://n8n-grocery.needexcelexpert.com/webhook/create_grocery_list?${queryParams.toString()}`;
+      addDebugLog('Create grocery list webhook URL:', webhookURL);
+
+      const response = await fetch(webhookURL, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        mode: 'cors'
+      });
+
+      addDebugLog('Create grocery list webhook response:', {
+        status: response.status,
+        statusText: response.statusText
+      });
+
+      if (response.ok) {
+        addDebugLog('✅ Grocery list successfully sent to webhook');
+      } else {
+        addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
+      }
+
+      // Show the final list regardless of webhook success
       setShowFinalList(true);
+
     } catch (error) {
-      console.error('Error submitting to n8n:', error);
+      addDebugLog('❌ Error submitting to create_grocery_list webhook:', error.message);
+
+      // Fallback to show the final list even if webhook fails
       setShowFinalList(true);
     }
   };
