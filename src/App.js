@@ -417,7 +417,7 @@ const GroceryChecklist = ({ onNavigate }) => {
             name: 'With Content-Type',
             options: {
               method: 'GET',
-              headers: {
+            headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
               },
@@ -543,7 +543,7 @@ const GroceryChecklist = ({ onNavigate }) => {
   const handleItemToggle = (itemId) => {
     const newSelected = new Set(selectedItems);
     const newQuantities = new Map(itemQuantities);
-    
+
     if (newSelected.has(itemId)) {
       newSelected.delete(itemId);
       newQuantities.delete(itemId);
@@ -551,7 +551,7 @@ const GroceryChecklist = ({ onNavigate }) => {
       newSelected.add(itemId);
       newQuantities.set(itemId, 1); // Default quantity of 1
     }
-    
+
     setSelectedItems(newSelected);
     setItemQuantities(newQuantities);
   };
@@ -687,7 +687,7 @@ const GroceryChecklist = ({ onNavigate }) => {
         addDebugLog('Webhook URL:', webhookURL);
 
         const response = await fetch(webhookURL, {
-          method: 'GET',
+                  method: 'GET',
           headers: {
             'Accept': 'application/json',
           },
@@ -1296,7 +1296,7 @@ const GroceryChecklist = ({ onNavigate }) => {
                 >
                   <span className="text-gray-700">{item.ItemName}</span>
                 </label>
-                
+
                 {/* Quantity Dropdown */}
                 {selectedItems.has(item.ItemID.toString()) && (
                   <div className="flex items-center gap-2">
@@ -1314,7 +1314,7 @@ const GroceryChecklist = ({ onNavigate }) => {
                     </select>
                   </div>
                 )}
-                
+
                 <button
                   onClick={() => handleRemoveItem(item)}
                   className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-800 transition-all"
