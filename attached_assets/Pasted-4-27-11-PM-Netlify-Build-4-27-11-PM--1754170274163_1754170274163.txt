@@ -1,0 +1,58 @@
+4:27:11 PM: Netlify Build                                                 
+4:27:11 PM: ────────────────────────────────────────────────────────────────
+4:27:11 PM: ​
+4:27:11 PM: ❯ Version
+4:27:11 PM:   @netlify/build 35.0.0
+4:27:11 PM: ​
+4:27:11 PM: ❯ Flags
+4:27:11 PM:   accountId: 687e900776a884ac202742fb
+4:27:11 PM:   baseRelDir: true
+4:27:11 PM:   buildId: 688e8288a7469b0008000d2d
+4:27:11 PM:   deployId: 688e8288a7469b0008000d2f
+4:27:12 PM: ​
+4:27:12 PM: ❯ Current directory
+4:27:12 PM:   /opt/build/repo
+4:27:12 PM: ​
+4:27:12 PM: ❯ Config file
+4:27:12 PM:   No config file was defined: using default values.
+4:27:12 PM: ​
+4:27:12 PM: ❯ Context
+4:27:12 PM:   production
+4:27:12 PM: ​
+4:27:12 PM: Build command from Netlify app                                
+4:27:12 PM: ────────────────────────────────────────────────────────────────
+4:27:12 PM: ​
+4:27:12 PM: $ npm run build
+4:27:12 PM: > grocery-checklist-app@0.1.0 build
+4:27:12 PM: > react-scripts build
+4:27:13 PM: Creating an optimized production build...
+4:27:20 PM: Failed during stage 'building site': Build script returned non-zero exit code: 2 (https://ntl.fyi/exit-code-2)
+4:27:20 PM: 
+4:27:20 PM: Treating warnings as errors because process.env.CI = true.
+4:27:20 PM: Most CI servers set it automatically.
+4:27:20 PM: 
+4:27:20 PM: Failed to compile.
+4:27:20 PM: 
+4:27:20 PM: [eslint]
+4:27:20 PM: src/ChatBot.js
+4:27:20 PM:   Line 38:9:  'navigation' is assigned a value but never used  no-unused-vars
+4:27:20 PM: ​
+4:27:20 PM: "build.command" failed                                        
+4:27:20 PM: ────────────────────────────────────────────────────────────────
+4:27:20 PM: ​
+4:27:20 PM:   Error message
+4:27:20 PM:   Command failed with exit code 1: npm run build (https://ntl.fyi/exit-code-1)
+4:27:20 PM: ​
+4:27:20 PM:   Error location
+4:27:20 PM:   In Build command from Netlify app:
+4:27:20 PM:   npm run build
+4:27:20 PM: ​
+4:27:20 PM:   Resolved config
+4:27:20 PM:   build:
+4:27:20 PM:     command: npm run build
+4:27:20 PM:     commandOrigin: ui
+4:27:20 PM:     publish: /opt/build/repo/build
+4:27:20 PM:     publishOrigin: ui
+4:27:20 PM: Build failed due to a user error: Build script returned non-zero exit code: 2
+4:27:20 PM: Failing build: Failed to build site
+4:27:21 PM: Finished processing build request in 25.803s
