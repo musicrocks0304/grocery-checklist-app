@@ -828,9 +828,6 @@ const GroceryChecklist = ({ onNavigate }) => {
                 <li key={item.ItemID} className="flex items-center gap-2 text-gray-700">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <span>{item.ItemName}</span>
-                  <span className="text-sm text-gray-500 ml-2">
-                    ({item.Store} - {item.GroceryStoreSection})
-                  </span>
                 </li>
               ))}
             </ul>
