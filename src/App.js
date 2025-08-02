@@ -483,10 +483,17 @@ const GroceryChecklist = ({ onNavigate }) => {
           throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
         }
 
-        setGroceryData(data);
+        // Clean up the data by removing any tab characters from item names and categories
+        const cleanedData = data.map(item => ({
+          ...item,
+          ItemName: item.ItemName ? item.ItemName.replace(/\t/g, '').trim() : item.ItemName,
+          Category: item.Category ? item.Category.replace(/\t/g, '').trim() : item.Category
+        }));
+
+        setGroceryData(cleanedData);
 
         // Set the first group as active tab
-        const groups = getGroups(data, groupBy);
+        const groups = getGroups(cleanedData, groupBy);
         if (groups.length > 0) {
           setActiveTab(groups[0]);
         }
@@ -552,11 +559,15 @@ const GroceryChecklist = ({ onNavigate }) => {
     try {
       addDebugLog('Removing item from database:', itemToRemove);
 
+      // Clean up item name and category by removing any tab characters
+      const cleanItemName = itemToRemove.ItemName.replace(/\t/g, '').trim();
+      const cleanCategory = itemToRemove.Category.replace(/\t/g, '').trim();
+
       // Call the deactivate webhook
       const queryParams = new URLSearchParams({
         itemId: itemToRemove.ItemID.toString(),
-        itemName: itemToRemove.ItemName,
-        category: itemToRemove.Category,
+        itemName: cleanItemName,
+        category: cleanCategory,
         timestamp: new Date().toISOString()
       });
 
@@ -576,10 +587,13 @@ const GroceryChecklist = ({ onNavigate }) => {
         statusText: response.statusText
       });
 
+      let successMessage = '';
       if (response.ok) {
         addDebugLog('✅ Item successfully deactivated in database');
+        successMessage = `✅ "${cleanItemName}" has been successfully removed from your grocery database and won't appear in future lists.`;
       } else {
         addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
+        successMessage = `"${cleanItemName}" has been removed from this week's list. Database update status: ${response.status}`;
       }
 
       // Remove from local state regardless of webhook success
@@ -591,6 +605,10 @@ const GroceryChecklist = ({ onNavigate }) => {
       setSelectedItems(newSelected);
 
       addDebugLog('✅ Item removed from local state');
+      
+      // Show success message to user
+      alert(successMessage);
+      
     } catch (error) {
       addDebugLog('❌ Error removing item:', error.message);
       
@@ -600,7 +618,8 @@ const GroceryChecklist = ({ onNavigate }) => {
       newSelected.delete(itemToRemove.ItemID.toString());
       setSelectedItems(newSelected);
       
-      alert('Item removed locally, but there was an issue with the database. Check debug logs for details.');
+      const cleanItemName = itemToRemove.ItemName.replace(/\t/g, '').trim();
+      alert(`"${cleanItemName}" has been removed from this week's list. There was a connection issue with the database - check debug logs for details.`);
     } finally {
       setItemToRemove(null);
     }
