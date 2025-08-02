@@ -904,7 +904,6 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
             </h3>
             <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
               {debugInfo.map((log, index) => (
-                ```text
                 <div key={index} className="flex gap-2">
                   <span className="text-gray-400">[{log.timestamp}]</span>
                   <span className={
