@@ -631,68 +631,8 @@ const GroceryChecklist = ({ onNavigate }) => {
       return;
     }
 
-    try {
-      // Get full metadata of all selected items
-      const selectedGroceryItems = groceryData.filter(item => 
-        selectedItems.has(item.ItemID.toString())
-      );
-
-      addDebugLog('Sending selected items to create_grocery_list webhook:', selectedGroceryItems);
-
-      // Get week data for the webhook
-      const weekData = getWeekDates();
-
-      // Create query parameters with all selected items metadata
-      const queryParams = new URLSearchParams({
-        action: "create_grocery_list",
-        selectedItemsCount: selectedGroceryItems.length.toString(),
-        weekStartDate: weekData.startDate,
-        weekEndDate: weekData.endDate,
-        weekDateRange: weekData.displayRange,
-        timestamp: new Date().toISOString()
-      });
-
-      // Add each selected item's metadata as separate parameters
-      selectedGroceryItems.forEach((item, index) => {
-        queryParams.append(`item_${index}_id`, item.ItemID.toString());
-        queryParams.append(`item_${index}_name`, item.ItemName);
-        queryParams.append(`item_${index}_category`, item.Category);
-        queryParams.append(`item_${index}_store`, item.Store);
-        queryParams.append(`item_${index}_section`, item.GroceryStoreSection);
-        queryParams.append(`item_${index}_type`, item.Type || 'Basic');
-      });
-
-      const webhookURL = `https://n8n-grocery.needexcelexpert.com/webhook/create_grocery_list?${queryParams.toString()}`;
-      addDebugLog('Create grocery list webhook URL:', webhookURL);
-
-      const response = await fetch(webhookURL, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-        mode: 'cors'
-      });
-
-      addDebugLog('Create grocery list webhook response:', {
-        status: response.status,
-        statusText: response.statusText
-      });
-
-      if (response.ok) {
-        addDebugLog('✅ Grocery list successfully sent to webhook');
-      } else {
-        addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
-      }
-
-      // Show the final list regardless of webhook success
-      setShowFinalList(true);
-
-    } catch (error) {
-      addDebugLog('❌ Error submitting to create_grocery_list webhook:', error.message);
-
-      // Fallback to show the final list even if webhook fails
-      setShowFinalList(true);
-    }
+    // Simply show the final list
+    setShowFinalList(true);
   };
 
   const handleAddItem = async () => {
@@ -905,13 +845,70 @@ const GroceryChecklist = ({ onNavigate }) => {
             Modify Selection
           </button>
           <button 
-            onClick={() => {
-              console.log('Saving list and sending to n8n for storage/email');
-              alert('Grocery list saved! (This would integrate with your n8n workflow)');
+            onClick={async () => {
+              try {
+                // Get full metadata of all selected items
+                const selectedGroceryItems = groceryData.filter(item => 
+                  selectedItems.has(item.ItemID.toString())
+                );
+
+                addDebugLog('Sending selected items to create_grocery_list webhook:', selectedGroceryItems);
+
+                // Get week data for the webhook
+                const weekData = getWeekDates();
+
+                // Create query parameters with all selected items metadata
+                const queryParams = new URLSearchParams({
+                  action: "create_grocery_list",
+                  selectedItemsCount: selectedGroceryItems.length.toString(),
+                  weekStartDate: weekData.startDate,
+                  weekEndDate: weekData.endDate,
+                  weekDateRange: weekData.displayRange,
+                  timestamp: new Date().toISOString()
+                });
+
+                // Add each selected item's metadata as separate parameters
+                selectedGroceryItems.forEach((item, index) => {
+                  queryParams.append(`item_${index}_id`, item.ItemID.toString());
+                  queryParams.append(`item_${index}_name`, item.ItemName);
+                  queryParams.append(`item_${index}_category`, item.Category);
+                  queryParams.append(`item_${index}_store`, item.Store);
+                  queryParams.append(`item_${index}_section`, item.GroceryStoreSection);
+                  queryParams.append(`item_${index}_type`, item.Type || 'Basic');
+                });
+
+                const webhookURL = `https://n8n-grocery.needexcelexpert.com/webhook/create_grocery_list?${queryParams.toString()}`;
+                addDebugLog('Create grocery list webhook URL:', webhookURL);
+
+                const response = await fetch(webhookURL, {
+                  method: 'GET',
+                  headers: {
+                    'Accept': 'application/json',
+                  },
+                  mode: 'cors'
+                });
+
+                addDebugLog('Create grocery list webhook response:', {
+                  status: response.status,
+                  statusText: response.statusText
+                });
+
+                if (response.ok) {
+                  addDebugLog('✅ Grocery list successfully sent to webhook');
+                  alert('Grocery list saved successfully!');
+                } else {
+                  addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
+                  alert('Grocery list saved locally, but there was an issue with the webhook. Check debug logs for details.');
+                }
+
+              } catch (error) {
+                addDebugLog('❌ Error submitting to create_grocery_list webhook:', error.message);
+                alert('Grocery list saved locally, but there was a connection issue. Check debug logs for details.');
+              }
             }}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
-            Save & Email List
+            Save List
           </button>
         </div>
       </div>
