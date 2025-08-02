@@ -35,11 +35,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
   const messagesEndRef = useRef(null);
 
   // Navigation items
-  const navigation = [
-    { id: 'grocery', name: 'Weekly Grocery Selection', icon: ShoppingCart },
-    { id: 'chatbot', name: 'AI Meal Planner', icon: ChefHat },
-    { id: 'coupons', name: 'Coupons & Deals', icon: Ticket },
-  ];
+
 
   // Your n8n webhook URL for the chatbot - using the actual webhook from your n8n flow
   const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/call_grocery_agent';
@@ -908,6 +904,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
             </h3>
             <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
               {debugInfo.map((log, index) => (
+                ```text
                 <div key={index} className="flex gap-2">
                   <span className="text-gray-400">[{log.timestamp}]</span>
                   <span className={
