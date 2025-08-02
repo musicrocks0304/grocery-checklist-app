@@ -1222,17 +1222,6 @@ const GroceryChecklist = ({ onNavigate }) => {
                   }`}
                 >
                   <span className="text-gray-700">{item.ItemName}</span>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {groupBy !== 'Category' && (
-                      <span className="mr-3">Category: {item.Category}</span>
-                    )}
-                    {groupBy !== 'Store' && (
-                      <span className="mr-3">Store: {item.Store}</span>
-                    )}
-                    {groupBy !== 'GroceryStoreSection' && (
-                      <span>Section: {item.GroceryStoreSection}</span>
-                    )}
-                  </div>
                 </label>
                 <button
                   onClick={() => handleRemoveItem(item)}
