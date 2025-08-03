@@ -1055,10 +1055,8 @@ const GroceryChecklist = ({ onNavigate }) => {
                   <option value="Tom Thumb">Tom Thumb</option>
                   <option value="Trader Joe's">Trader Joe's</option>
                   <option value="Whole Foods">Whole Foods</option>
-                  <option value="Kroger">Kroger</option>
-                  <option value="Costco">Costco</option>
-                  <option value="Target">Target</option>
-                  <option value="Walmart">Walmart</option>
+                  <option value="HEB">HEB</option>
+                  <option value="Sprouts">Sprouts</option>
                 </select>
               </div>
 
