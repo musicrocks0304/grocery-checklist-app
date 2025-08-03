@@ -226,7 +226,7 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
         >
           <option value="all">All Stores</option>
-          {getUniqueStores().map(store => (
+          {getUniqueStores().sort().map(store => (
             <option key={store} value={store}>{store}</option>
           ))}
         </select>

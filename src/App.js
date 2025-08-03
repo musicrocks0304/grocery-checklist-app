@@ -523,12 +523,12 @@ const GroceryChecklist = ({ onNavigate }) => {
 
   // Get unique groups based on the grouping mode
   const getGroups = (data = groceryData, groupingKey = groupBy) => {
-    return [...new Set(data.map(item => item[groupingKey]))].filter(Boolean);
+    return [...new Set(data.map(item => item[groupingKey]))].filter(Boolean).sort();
   };
 
   // Get items by group
   const getItemsByGroup = (group, groupingKey = groupBy) => {
-    return groceryData.filter(item => item[groupingKey] === group);
+    return groceryData.filter(item => item[groupingKey] === group).sort((a, b) => a.ItemName.localeCompare(b.ItemName));
   };
 
   // Handle grouping mode change
@@ -811,6 +811,11 @@ const GroceryChecklist = ({ onNavigate }) => {
       groupedByCategory[item.Category].push(item);
     });
 
+    // Sort items within each category alphabetically
+    Object.keys(groupedByCategory).forEach(category => {
+      groupedByCategory[category].sort((a, b) => a.ItemName.localeCompare(b.ItemName));
+    });
+
     return groupedByCategory;
   };
 
@@ -840,7 +845,7 @@ const GroceryChecklist = ({ onNavigate }) => {
           <p className="text-sm text-gray-600 mt-1">Items selected: {selectedItems.size}</p>
         </div>
 
-        {Object.entries(finalList).map(([categoryName, items]) => (
+        {Object.entries(finalList).sort(([a], [b]) => a.localeCompare(b)).map(([categoryName, items]) => (
           <div key={categoryName} className="mb-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-3 border-b-2 border-blue-200 pb-1">
               {categoryName}
@@ -996,13 +1001,13 @@ const GroceryChecklist = ({ onNavigate }) => {
                   required
                 >
                   <option value="">Select category...</option>
-                  <option value="Breakfast">Breakfast</option>
-                  <option value="Lunch">Lunch</option>
-                  <option value="Dinner">Dinner</option>
-                  <option value="Snacks">Snacks</option>
-                  <option value="General">General</option>
                   <option value="Beverages">Beverages</option>
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="General">General</option>
+                  <option value="Lunch">Lunch</option>
                   <option value="Pantry">Pantry</option>
+                  <option value="Snacks">Snacks</option>
                 </select>
               </div>
 
@@ -1052,11 +1057,11 @@ const GroceryChecklist = ({ onNavigate }) => {
                   required
                 >
                   <option value="">Select store...</option>
+                  <option value="HEB">HEB</option>
+                  <option value="Sprouts">Sprouts</option>
                   <option value="Tom Thumb">Tom Thumb</option>
                   <option value="Trader Joe's">Trader Joe's</option>
                   <option value="Whole Foods">Whole Foods</option>
-                  <option value="HEB">HEB</option>
-                  <option value="Sprouts">Sprouts</option>
                 </select>
               </div>
 
@@ -1072,17 +1077,17 @@ const GroceryChecklist = ({ onNavigate }) => {
                   required
                 >
                   <option value="">Select section...</option>
-                  <option value="Produce">Produce</option>
-                  <option value="Dairy">Dairy</option>
-                  <option value="Meat">Meat & Seafood</option>
                   <option value="Bakery">Bakery</option>
-                  <option value="Frozen">Frozen</option>
-                  <option value="Pantry">Pantry</option>
-                  <option value="Snacks">Snacks</option>
                   <option value="Beverages">Beverages</option>
+                  <option value="Dairy">Dairy</option>
+                  <option value="Frozen">Frozen</option>
                   <option value="Health & Beauty">Health & Beauty</option>
                   <option value="Household">Household</option>
+                  <option value="Meat">Meat & Seafood</option>
+                  <option value="Pantry">Pantry</option>
+                  <option value="Produce">Produce</option>
                   <option value="Refrigerated">Refrigerated</option>
+                  <option value="Snacks">Snacks</option>
                 </select>
               </div>
             </div>
