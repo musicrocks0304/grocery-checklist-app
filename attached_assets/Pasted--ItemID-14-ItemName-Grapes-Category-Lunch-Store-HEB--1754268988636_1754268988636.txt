@@ -1,0 +1,418 @@
+[
+  {
+    "ItemID": 14,
+    "ItemName": "Grapes",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Produce",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 15,
+    "ItemName": "Pastry Pups",
+    "Category": "Lunch",
+    "Store": "Trader Joes",
+    "GroceryStoreSection": "Frozen",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 16,
+    "ItemName": "Popchips or popcorn",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 17,
+    "ItemName": "Chips",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 18,
+    "ItemName": "Cheese cubes",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Dairy",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 19,
+    "ItemName": "Salami or pepperoni",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Meat & Seafood",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 20,
+    "ItemName": "Gummies",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 21,
+    "ItemName": "Hummus",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 22,
+    "ItemName": "Carrots",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Produce",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 23,
+    "ItemName": "Bread",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Bakery",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 24,
+    "ItemName": "H-E-B Organics Kids' Whole-Milk Yogurt – Strawberry Banana",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Dairy",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 25,
+    "ItemName": "H-E-B Reserve Italian-Style Snack Tray – Uncured Pepperoni & Gouda",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 26,
+    "ItemName": "Lunchables Lunch Combos – Turkey & Cheddar with Crackers",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 27,
+    "ItemName": "Lunchables Snack Kit Tray – Chicken Dunks with Chocolate-Crème Cookies",
+    "Category": "Lunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 28,
+    "ItemName": "Almond Milk",
+    "Category": "General",
+    "Store": "HEB",
+    "GroceryStoreSection": "Dairy",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 29,
+    "ItemName": "Apple-cinnamon Cheerios",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 30,
+    "ItemName": "Blueberries",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Produce",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 31,
+    "ItemName": "Strawberries",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Produce",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 32,
+    "ItemName": "Frozen waffles",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Frozen",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 33,
+    "ItemName": "Apples",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Produce",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 34,
+    "ItemName": "Bananas",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Produce",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 35,
+    "ItemName": "Granola",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 36,
+    "ItemName": "Cinnamon Toast Crunch",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 37,
+    "ItemName": "Pomegranate arils",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Produce",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 38,
+    "ItemName": "Seven Sundays cereal",
+    "Category": "Breakfast",
+    "Store": "Sprouts",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 39,
+    "ItemName": "Chobani 16 g Protein Non-Fat Plain Greek Yogurt",
+    "Category": "Breakfast",
+    "Store": "HEB",
+    "GroceryStoreSection": "Dairy",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 40,
+    "ItemName": "Popcorn",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 41,
+    "ItemName": "BelVita Breakfast biscuits",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 42,
+    "ItemName": "Raisins",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 43,
+    "ItemName": "Hippeas",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 44,
+    "ItemName": "Fruit leather",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 45,
+    "ItemName": "Kodiak 13 g Protein Balls – Oatmeal Chocolate Chip",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 46,
+    "ItemName": "Perfect Bar Snack-Size Protein Bars – Dark Chocolate Chip PB",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 47,
+    "ItemName": "Chomps 10 g Protein Original Beef Jerky Meat Sticks",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 48,
+    "ItemName": "Koia Plant-Based 18 g Protein Shake – Chocolate Banana",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 49,
+    "ItemName": "Koia Plant-Based 18 g Protein Shake – Cacao Bean",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 50,
+    "ItemName": "Honey",
+    "Category": "General",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 51,
+    "ItemName": "Kale",
+    "Category": "General",
+    "Store": "HEB",
+    "GroceryStoreSection": "Produce",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 52,
+    "ItemName": "Almond butter",
+    "Category": "General",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 53,
+    "ItemName": "Peanut Butter",
+    "Category": "General",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 54,
+    "ItemName": "Kind bars",
+    "Category": "Snacks",
+    "Store": "HEB",
+    "GroceryStoreSection": "Snacks",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 55,
+    "ItemName": "Spices",
+    "Category": "General",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 56,
+    "ItemName": "Beer",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Beverages",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 57,
+    "ItemName": "Seltzer water",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Beverages",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 58,
+    "ItemName": "Cold-brew coffee",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 59,
+    "ItemName": "Hill Country Fare Distilled Water",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Beverages",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 60,
+    "ItemName": "Hill Country Fare Natural Texas Spring Water (32-pk)",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Beverages",
+    "IsSelected": 1
+  },
+  {
+    "ItemID": 61,
+    "ItemName": "K-cups",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 62,
+    "ItemName": "Protein powder",
+    "Category": "General",
+    "Store": "HEB",
+    "GroceryStoreSection": "Health & Beauty",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 63,
+    "ItemName": "Gatorade",
+    "Category": "Beverages",
+    "Store": "HEB",
+    "GroceryStoreSection": "Beverages",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 64,
+    "ItemName": "\tRanch",
+    "Category": "\tGeneral",
+    "Store": "HEB",
+    "GroceryStoreSection": "Pantry",
+    "IsSelected": 0
+  },
+  {
+    "ItemID": 65,
+    "ItemName": "\tNaan dippers",
+    "Category": "\tLunch",
+    "Store": "HEB",
+    "GroceryStoreSection": "Refrigerated",
+    "IsSelected": 0
+  }
+]
