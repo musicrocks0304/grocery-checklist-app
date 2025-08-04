@@ -493,6 +493,21 @@ const GroceryChecklist = ({ onNavigate }) => {
 
         setGroceryData(cleanedData);
 
+        // Initialize selected items and quantities based on IsSelected field
+        const preSelectedItems = new Set();
+        const preSelectedQuantities = new Map();
+        
+        cleanedData.forEach(item => {
+          if (item.IsSelected === 1) {
+            preSelectedItems.add(item.ItemID.toString());
+            // Set default quantity to 1 for pre-selected items
+            preSelectedQuantities.set(item.ItemID.toString(), 1);
+          }
+        });
+        
+        setSelectedItems(preSelectedItems);
+        setItemQuantities(preSelectedQuantities);
+
         // Set the first group as active tab
         const groups = getGroups(cleanedData, groupBy);
         if (groups.length > 0) {
