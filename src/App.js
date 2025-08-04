@@ -500,8 +500,9 @@ const GroceryChecklist = ({ onNavigate }) => {
         cleanedData.forEach(item => {
           if (item.IsSelected === 1) {
             preSelectedItems.add(item.ItemID.toString());
-            // Set default quantity to 1 for pre-selected items
-            preSelectedQuantities.set(item.ItemID.toString(), 1);
+            // Use QuantitySelected from payload, fallback to 1 if not present
+            const quantity = item.QuantitySelected || 1;
+            preSelectedQuantities.set(item.ItemID.toString(), quantity);
           }
         });
         
