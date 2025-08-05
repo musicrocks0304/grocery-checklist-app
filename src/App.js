@@ -1249,10 +1249,9 @@ const GroceryChecklist = ({ onNavigate }) => {
 
         <p className="text-gray-600 mb-6">Please select items for this week's grocery list:</p>
 
-        {/* Grouping Mode and Type Filter Selector */}
-        <div className="mb-6 flex flex-col lg:flex-row items-start lg:items-center gap-4 p-4 bg-gray-50 rounded-lg">
-          {/* Group By Section */}
-          <div className="flex items-center gap-4">
+        {/* Grouping and Filtering Controls */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 mb-4">
             <div className="flex items-center gap-2 text-gray-700">
               <Layers size={20} />
               <span className="font-medium">Group by:</span>
@@ -1272,27 +1271,27 @@ const GroceryChecklist = ({ onNavigate }) => {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Item Type Filter Section */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-gray-700">
-              <span className="font-medium">Item Type:</span>
-            </div>
-            <div className="flex gap-2">
-              {['All', 'Basic', 'Periodic'].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleTypeFilterChange(type)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    typeFilter === type
-                      ? 'bg-green-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
+            
+            {/* Item Type Filter Section - moved to same line */}
+            <div className="flex items-center gap-4 ml-auto">
+              <div className="flex items-center gap-2 text-gray-700">
+                <span className="font-medium">Item Type:</span>
+              </div>
+              <div className="flex gap-2">
+                {['All', 'Basic', 'Periodic'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => handleTypeFilterChange(type)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      typeFilter === type
+                        ? 'bg-green-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
