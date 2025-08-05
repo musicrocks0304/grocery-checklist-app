@@ -329,6 +329,7 @@ const GroceryChecklist = ({ onNavigate }) => {
   });
   const [itemToRemove, setItemToRemove] = useState(null);
   const [groupBy, setGroupBy] = useState('Category'); // New state for grouping mode
+  const [typeFilter, setTypeFilter] = useState('All'); // New state for type filtering
 
   // Your n8n webhook URL - verified working in browser
   const WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/5eb40df4-7053-4166-9b7b-6893789ff943/fetch_grocery_items';
@@ -537,20 +538,37 @@ const GroceryChecklist = ({ onNavigate }) => {
     fetchGroceryData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Get unique groups based on the grouping mode
-  const getGroups = (data = groceryData, groupingKey = groupBy) => {
-    return [...new Set(data.map(item => item[groupingKey]))].filter(Boolean).sort();
+  // Get filtered data based on type filter
+  const getFilteredData = (data = groceryData) => {
+    if (typeFilter === 'All') return data;
+    return data.filter(item => item.Type === typeFilter);
   };
 
-  // Get items by group
+  // Get unique groups based on the grouping mode and type filter
+  const getGroups = (data = groceryData, groupingKey = groupBy) => {
+    const filteredData = getFilteredData(data);
+    return [...new Set(filteredData.map(item => item[groupingKey]))].filter(Boolean).sort();
+  };
+
+  // Get items by group with type filter applied
   const getItemsByGroup = (group, groupingKey = groupBy) => {
-    return groceryData.filter(item => item[groupingKey] === group).sort((a, b) => a.ItemName.localeCompare(b.ItemName));
+    const filteredData = getFilteredData(groceryData);
+    return filteredData.filter(item => item[groupingKey] === group).sort((a, b) => a.ItemName.localeCompare(b.ItemName));
   };
 
   // Handle grouping mode change
   const handleGroupByChange = (newGroupBy) => {
     setGroupBy(newGroupBy);
     const groups = getGroups(groceryData, newGroupBy);
+    if (groups.length > 0) {
+      setActiveTab(groups[0]);
+    }
+  };
+
+  // Handle type filter change
+  const handleTypeFilterChange = (newTypeFilter) => {
+    setTypeFilter(newTypeFilter);
+    const groups = getGroups(groceryData, groupBy);
     if (groups.length > 0) {
       setActiveTab(groups[0]);
     }
@@ -1231,26 +1249,51 @@ const GroceryChecklist = ({ onNavigate }) => {
 
         <p className="text-gray-600 mb-6">Please select items for this week's grocery list:</p>
 
-        {/* Grouping Mode Selector */}
-        <div className="mb-6 flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-2 text-gray-700">
-            <Layers size={20} />
-            <span className="font-medium">Group by:</span>
+        {/* Grouping Mode and Type Filter Selector */}
+        <div className="mb-6 flex flex-col lg:flex-row items-start lg:items-center gap-4 p-4 bg-gray-50 rounded-lg">
+          {/* Group By Section */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-gray-700">
+              <Layers size={20} />
+              <span className="font-medium">Group by:</span>
+            </div>
+            <div className="flex gap-2">
+              {['Category', 'Store', 'GroceryStoreSection'].map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => handleGroupByChange(mode)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    groupBy === mode
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  {mode === 'GroceryStoreSection' ? 'Store Section' : mode}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-2">
-            {['Category', 'Store', 'GroceryStoreSection'].map((mode) => (
-              <button
-                key={mode}
-                onClick={() => handleGroupByChange(mode)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  groupBy === mode
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
-                }`}
-              >
-                {mode === 'GroceryStoreSection' ? 'Store Section' : mode}
-              </button>
-            ))}
+
+          {/* Item Type Filter Section */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-gray-700">
+              <span className="font-medium">Item Type:</span>
+            </div>
+            <div className="flex gap-2">
+              {['All', 'Basic', 'Periodic'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleTypeFilterChange(type)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    typeFilter === type
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
