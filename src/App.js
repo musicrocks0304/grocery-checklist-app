@@ -17,6 +17,71 @@ import {
 import ChatBot from "./ChatBot";
 import Coupons from "./Coupons";
 
+// Memoized grocery item component to prevent unnecessary re-renders
+const GroceryItem = React.memo(({
+  item,
+  isSelected,
+  quantity,
+  onToggle,
+  onQuantityChange,
+  onRemove
+}) => {
+  const itemId = item.ItemID.toString();
+
+  return (
+    <div className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group min-h-[52px] relative">
+      <input
+        type="checkbox"
+        id={`item-${item.ItemID}`}
+        checked={isSelected}
+        onChange={() => onToggle(itemId)}
+        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 flex-shrink-0"
+      />
+      <label
+        htmlFor={`item-${item.ItemID}`}
+        className={`flex-1 cursor-pointer ${isSelected ? "font-medium" : ""}`}
+      >
+        <span className="text-gray-700">{item.ItemName}</span>
+      </label>
+
+      {/* Always reserve space for quantity dropdown to prevent layout shifts */}
+      <div className="flex items-center gap-2 w-20 flex-shrink-0">
+        {isSelected ? (
+          <>
+            <label className="text-sm text-gray-600">Qty:</label>
+            <select
+              value={quantity || 1}
+              onChange={(e) => onQuantityChange(itemId, e.target.value)}
+              className="w-16 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              {[...Array(10)].map((_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {i + 1}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          // Reserve space when not selected to prevent layout shifts
+          <div className="w-16 h-8"></div>
+        )}
+      </div>
+
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRemove(item);
+        }}
+        className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-800 transition-opacity w-6 h-6 flex items-center justify-center flex-shrink-0"
+        title="Remove item from database"
+      >
+        <Trash2 size={18} />
+      </button>
+    </div>
+  );
+});
+
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState("grocery");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -673,7 +738,7 @@ const GroceryChecklist = ({ onNavigate }) => {
     }
   };
 
-  const handleItemToggle = (itemId) => {
+  const handleItemToggle = React.useCallback((itemId) => {
     const newSelected = new Set(selectedItems);
     const newQuantities = new Map(itemQuantities);
 
@@ -687,13 +752,13 @@ const GroceryChecklist = ({ onNavigate }) => {
 
     setSelectedItems(newSelected);
     setItemQuantities(newQuantities);
-  };
+  }, [selectedItems, itemQuantities]);
 
-  const handleQuantityChange = (itemId, quantity) => {
+  const handleQuantityChange = React.useCallback((itemId, quantity) => {
     const newQuantities = new Map(itemQuantities);
     newQuantities.set(itemId, parseInt(quantity));
     setItemQuantities(newQuantities);
-  };
+  }, [itemQuantities]);
 
   const handleRemoveItem = async (item) => {
     setItemToRemove(item);
@@ -1545,62 +1610,20 @@ const GroceryChecklist = ({ onNavigate }) => {
             </button>
           </div>
 
-          <div className="space-y-2">
-            {currentGroupItems.map((item) => (
-              <div
-                key={item.ItemID}
-                className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group"
-              >
-                <input
-                  type="checkbox"
-                  id={`item-${item.ItemID}`}
-                  checked={selectedItems.has(item.ItemID.toString())}
-                  onChange={() => handleItemToggle(item.ItemID.toString())}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+          <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+            <div className="space-y-1 p-2">
+              {currentGroupItems.map((item) => (
+                <GroceryItem
+                  key={item.ItemID}
+                  item={item}
+                  isSelected={selectedItems.has(item.ItemID.toString())}
+                  quantity={itemQuantities.get(item.ItemID.toString())}
+                  onToggle={handleItemToggle}
+                  onQuantityChange={handleQuantityChange}
+                  onRemove={handleRemoveItem}
                 />
-                <label
-                  htmlFor={`item-${item.ItemID}`}
-                  className={`flex-1 cursor-pointer ${
-                    selectedItems.has(item.ItemID.toString())
-                      ? "font-medium"
-                      : ""
-                  }`}
-                >
-                  <span className="text-gray-700">{item.ItemName}</span>
-                </label>
-
-                {/* Quantity Dropdown */}
-                {selectedItems.has(item.ItemID.toString()) && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-gray-600">Qty:</label>
-                    <select
-                      value={itemQuantities.get(item.ItemID.toString()) || 1}
-                      onChange={(e) =>
-                        handleQuantityChange(
-                          item.ItemID.toString(),
-                          e.target.value,
-                        )
-                      }
-                      className="w-16 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    >
-                      {[...Array(10)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          {i + 1}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => handleRemoveItem(item)}
-                  className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-800 transition-all"
-                  title="Remove item from database"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
