@@ -51,79 +51,78 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
     addDebugLog("🚀 Starting recipe ingredient processing...");
 
     try {
-      // Here you would call your n8n webhook to get consolidated ingredients
-      // For now, we'll simulate the processing
+      // Call your n8n webhook to get consolidated ingredients from selected meals
       addDebugLog('Processing ingredients for meals:', selectedMeals.map(m => m.name));
 
-      // Simulate API call delay
+      // TODO: Replace this with actual n8n webhook call
+      // For now, we'll simulate the n8n structured output format
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Mock consolidated ingredients (this would come from your n8n webhook)
-      const mockIngredients = [
+      // Simulate n8n structured output format (matching your Spoonacular API Agent)
+      const mockN8nResponse = [
         {
-          ItemID: 1,
-          ItemName: 'Salmon Fillet',
-          Category: 'Protein',
-          Store: 'HEB',
-          GroceryStoreSection: 'Seafood',
-          Type: 'Basic',
-          IsActive: 1,
-          IsSelected: 1,
-          QuantitySelected: 2,
-          FromMeals: ['Herb-Crusted Salmon', 'Grilled Salmon']
-        },
-        {
-          ItemID: 2,
-          ItemName: 'Fresh Herbs',
-          Category: 'Produce',
-          Store: 'HEB',
-          GroceryStoreSection: 'Produce',
-          Type: 'Basic',
-          IsActive: 1,
-          IsSelected: 1,
-          QuantitySelected: 1,
-          FromMeals: ['Herb-Crusted Salmon']
-        },
-        {
-          ItemID: 3,
-          ItemName: 'Olive Oil',
-          Category: 'Pantry',
-          Store: 'HEB',
-          GroceryStoreSection: 'Oils & Vinegars',
-          Type: 'Basic',
-          IsActive: 1,
-          IsSelected: 1,
-          QuantitySelected: 1,
-          FromMeals: ['Herb-Crusted Salmon', 'Mediterranean Chicken']
-        },
-        {
-          ItemID: 4,
-          ItemName: 'Chicken Breast',
-          Category: 'Protein',
-          Store: 'HEB',
-          GroceryStoreSection: 'Meat',
-          Type: 'Basic',
-          IsActive: 1,
-          IsSelected: 0,
-          QuantitySelected: 1,
-          FromMeals: ['Mediterranean Chicken']
-        },
-        {
-          ItemID: 5,
-          ItemName: 'Bell Peppers',
-          Category: 'Produce',
-          Store: 'HEB',
-          GroceryStoreSection: 'Produce',
-          Type: 'Basic',
-          IsActive: 1,
-          IsSelected: 1,
-          QuantitySelected: 3,
-          FromMeals: ['Mediterranean Chicken', 'Stuffed Peppers']
+          output: {
+            responseType: "ingredients_detail",
+            recipeName: "Mixed Recipe Ingredients",
+            recipeId: "consolidated",
+            ingredients: [
+              {
+                category: "Proteins",
+                items: [
+                  { name: "Salmon Fillet", quantity: "2", unit: "lbs" },
+                  { name: "Chicken Breast", quantity: "1", unit: "lb" }
+                ]
+              },
+              {
+                category: "Vegetables",
+                items: [
+                  { name: "Bell Peppers", quantity: "3", unit: "pieces" },
+                  { name: "Fresh Herbs", quantity: "1", unit: "bunch" }
+                ]
+              },
+              {
+                category: "Pantry",
+                items: [
+                  { name: "Olive Oil", quantity: "1", unit: "bottle" },
+                  { name: "Salt", quantity: "1", unit: "container" }
+                ]
+              }
+            ],
+            message: "Here are the consolidated ingredients from your selected meals"
+          }
         }
       ];
 
+      // Transform n8n structured output to our expected format
+      const transformedIngredients = [];
+      let itemId = 1;
+
+      if (mockN8nResponse[0]?.output?.ingredients) {
+        mockN8nResponse[0].output.ingredients.forEach(categoryGroup => {
+          const categoryName = categoryGroup.category || 'General';
+
+          if (categoryGroup.items && Array.isArray(categoryGroup.items)) {
+            categoryGroup.items.forEach(item => {
+              transformedIngredients.push({
+                ItemID: itemId++,
+                ItemName: item.name,
+                Category: categoryName,
+                Store: 'HEB', // Default store
+                GroceryStoreSection: getCategorySection(categoryName),
+                Type: 'Basic',
+                IsActive: 1,
+                IsSelected: 1, // Pre-select all items from recipes
+                QuantitySelected: parseFloat(item.quantity) || 1,
+                Unit: item.unit || '',
+                FromMeals: selectedMeals.map(m => m.name) // Associate with all selected meals
+              });
+            });
+          }
+        });
+      }
+
       // Clean up the data by removing any tab characters from item names and categories
-      const cleanedData = mockIngredients.map((item) => ({
+      const cleanedData = transformedIngredients.map((item) => ({
         ...item,
         ItemName: item.ItemName
           ? item.ItemName.replace(/\t/g, "").trim()
@@ -134,7 +133,8 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
       }));
 
       setIngredientsList(cleanedData);
-      addDebugLog("✅ Successfully loaded recipe ingredients");
+      addDebugLog("✅ Successfully loaded and transformed recipe ingredients");
+      addDebugLog("Transformed ingredients:", cleanedData);
 
       // Initialize selected items and quantities based on IsSelected field
       const preSelectedItems = new Set();
@@ -167,6 +167,22 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Helper function to map categories to store sections
+  const getCategorySection = (category) => {
+    const sectionMap = {
+      'Proteins': 'Meat & Seafood',
+      'Vegetables': 'Produce',
+      'Fruits': 'Produce',
+      'Dairy': 'Dairy',
+      'Pantry': 'Pantry',
+      'Spices': 'Spices & Seasonings',
+      'Grains': 'Pantry',
+      'Condiments': 'Condiments',
+      'Beverages': 'Beverages'
+    };
+    return sectionMap[category] || 'General';
   };
 
   // Helper functions matching main screen pattern
