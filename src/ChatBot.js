@@ -11,7 +11,7 @@ const getSessionId = () => {
   return sessionId;
 };
 
-const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
+const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals }) => {
   // Session management
   const [sessionId] = useState(getSessionId());
 
@@ -27,11 +27,11 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
-  const [selectedMeals, setSelectedMeals] = useState([]);
-  const [showIngredientsPanel, setShowIngredientsPanel] = useState(false);
-  const [selectedIngredients, setSelectedIngredients] = useState(new Set());
-  const [loadingIngredients, setLoadingIngredients] = useState(false);
-  const [collapsedMeals, setCollapsedMeals] = useState(new Set());
+  // Use parent's selectedMeals state if provided, otherwise use local state
+  const [localSelectedMeals, setLocalSelectedMeals] = useState([]);
+  const selectedMeals = parentSelectedMeals || localSelectedMeals;
+  const setSelectedMeals = setParentSelectedMeals || setLocalSelectedMeals;
+  const [showMealsPanel, setShowMealsPanel] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Navigation items
@@ -91,209 +91,12 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
 
     setSelectedMeals(prev => [...prev, newMeal]);
 
-    // Automatically fetch ingredients for this meal
-    fetchIngredientsForMeal(newMeal);
+    // Removed automatic ingredient fetching since we're not showing ingredients in side panel
 
     addDebugLog('Added meal to planning list:', newMeal);
   };
 
-  // Fetch ingredients for a specific meal
-  const fetchIngredientsForMeal = async (meal) => {
-    setLoadingIngredients(true);
-    addDebugLog('Fetching ingredients for meal:', meal.name);
-
-    try {
-      // Include recipe ID in the query if available
-      let ingredientQuery = `What are the ingredients for ${meal.name}?`;
-      if (meal.recipeId) {
-        ingredientQuery = `What are the ingredients for ${meal.name} (Recipe ID: ${meal.recipeId})?`;
-      }
-
-      addDebugLog('Sending ingredient query to chatbot:', ingredientQuery);
-      addDebugLog('Recipe ID being sent:', meal.recipeId || 'None');
-
-      const weekData = getWeekDates();
-
-      const queryParams = new URLSearchParams({
-        message: ingredientQuery,
-        context: 'get_ingredients',
-        recipeId: meal.recipeId || '',
-        recipeName: meal.name,
-        timestamp: new Date().toISOString(),
-        sessionId: sessionId,
-        weekStartDate: weekData.startDate,
-        weekEndDate: weekData.endDate,
-        weekDateRange: weekData.displayRange
-      });
-
-      const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
-
-      const response = await fetch(fullURL, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-        mode: 'cors'
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const responseText = await response.text();
-      const data = JSON.parse(responseText);
-
-      let ingredients = [];
-
-      if (Array.isArray(data) && data.length > 0) {
-        let responseData = data[0];
-
-        // Handle nested webhook response structure
-        if (responseData.response && responseData.response.body && Array.isArray(responseData.response.body)) {
-          responseData = responseData.response.body[0];
-        }
-
-        // Check if it's the new structured format with ingredients_detail
-        if (responseData.output && responseData.output.responseType === 'ingredients_detail' && responseData.output.ingredients) {
-          let ingredientId = 1;
-
-          responseData.output.ingredients.forEach(categoryGroup => {
-            const categoryName = categoryGroup.category || 'General';
-
-            if (categoryGroup.items && Array.isArray(categoryGroup.items)) {
-              categoryGroup.items.forEach(item => {
-                const quantity = item.quantity && item.unit ? `${item.quantity} ${item.unit}` : (item.quantity || '');
-
-                // Extract metric value and unit from amount object if available
-                let metricValue = null;
-                let metricUnit = null;
-
-                if (item.amount && item.amount.metric) {
-                  metricValue = item.amount.metric.value;
-                  metricUnit = item.amount.metric.unit;
-                }
-
-                ingredients.push({
-                  id: ingredientId++,
-                  name: item.name,
-                  quantity: quantity,
-                  metricValue: metricValue,
-                  metricUnit: metricUnit,
-                  category: categoryName,
-                  needed: true
-                });
-              });
-            }
-          });
-        }
-        // Fallback to legacy string parsing
-        else if (responseData.output && typeof responseData.output === 'string') {
-          const botResponse = responseData.output;
-          let ingredientId = 1;
-          const sections = botResponse.split(/\n(?=[A-Z][^:]+:)/);
-
-          sections.forEach(section => {
-            const lines = section.split('\n');
-            let currentCategory = 'General';
-
-            lines.forEach(line => {
-              if (line.includes(':') && !line.startsWith('-')) {
-                currentCategory = line.replace(':', '').trim();
-              }
-              else if (line.startsWith('-') || line.match(/^\s*\d+/)) {
-                const ingredientMatch = line.match(/[-\d.]+\s*(.+)/);
-                if (ingredientMatch) {
-                  const fullIngredient = ingredientMatch[1].trim();
-
-                  // Parse quantity and name
-                  const quantityMatch = fullIngredient.match(/^([\d./]+\s*\w+)?\s*(.+)/);
-                  const quantity = quantityMatch[1] || '';
-                  const name = quantityMatch[2] || fullIngredient;
-
-                  ingredients.push({
-                    id: ingredientId++,
-                    name: name,
-                    quantity: quantity,
-                    metricValue: null,
-                    metricUnit: null,
-                    category: currentCategory,
-                    needed: true
-                  });
-                }
-              }
-            });
-          });
-        }
-      }
-
-      // If no ingredients were parsed, use fallback
-      if (ingredients.length === 0) {
-        addDebugLog('No ingredients parsed, using generic list');
-        ingredients = getFallbackIngredients(meal.name);
-      }
-
-      // Update the meal with ingredients
-      setSelectedMeals(prev => prev.map(m => 
-        m.id === meal.id 
-          ? { ...m, ingredients: ingredients }
-          : m
-      ));
-
-      // Auto-select ingredients that are marked as needed
-      const neededIngredientIds = ingredients
-        .filter(ing => ing.needed)
-        .map(ing => `${meal.id}-${ing.id}`);
-
-      setSelectedIngredients(prev => {
-        const newSet = new Set(prev);
-        neededIngredientIds.forEach(id => newSet.add(id));
-        return newSet;
-      });
-
-      addDebugLog('✅ Ingredients fetched successfully:', ingredients);
-
-    } catch (error) {
-      addDebugLog('❌ Error fetching ingredients:', error.message);
-
-      // Fallback to local ingredients based on meal name
-      const fallbackIngredients = getFallbackIngredients(meal.name);
-
-      setSelectedMeals(prev => prev.map(m => 
-        m.id === meal.id 
-          ? { ...m, ingredients: fallbackIngredients }
-          : m
-      ));
-    } finally {
-      setLoadingIngredients(false);
-    }
-  };
-
-  // Toggle ingredient selection
-  const toggleIngredient = (mealId, ingredientId) => {
-    const key = `${mealId}-${ingredientId}`;
-    setSelectedIngredients(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(key)) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
-      }
-      return newSet;
-    });
-  };
-
-  // Toggle meal collapse/expand
-  const toggleMealCollapse = (mealId) => {
-    setCollapsedMeals(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(mealId)) {
-        newSet.delete(mealId);
-      } else {
-        newSet.add(mealId);
-      }
-      return newSet;
-    });
-  };
+  // Removed ingredient fetching since we're not showing ingredients in side panel
 
   // Remove meal from planning list
   const removeMeal = async (mealId) => {
@@ -346,24 +149,6 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
 
     // Remove meal from local state regardless of webhook success
     setSelectedMeals(prev => prev.filter(m => m.id !== mealId));
-
-    // Remove all ingredients for this meal from selected ingredients
-    setSelectedIngredients(prev => {
-      const newSet = new Set();
-      prev.forEach(key => {
-        if (!key.startsWith(`${mealId}-`)) {
-          newSet.add(key);
-        }
-      });
-      return newSet;
-    });
-
-    // Remove from collapsed meals if it exists
-    setCollapsedMeals(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(mealId);
-      return newSet;
-    });
 
     addDebugLog('Removed meal from planning list:', mealId);
   };
@@ -550,16 +335,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
                       : m
                   ));
 
-                  // Auto-select ingredients that are marked as needed
-                  const neededIngredientIds = ingredients
-                    .filter(ing => ing.needed)
-                    .map(ing => `${targetMeal.id}-${ing.id}`);
-
-                  setSelectedIngredients(prev => {
-                    const newSet = new Set(prev);
-                    neededIngredientIds.forEach(id => newSet.add(id));
-                    return newSet;
-                  });
+                  // Removed ingredient selection since we're not showing ingredients in side panel
 
                   addDebugLog('✅ Structured ingredients added to meal:', { 
                     meal: targetMeal.name, 
@@ -691,13 +467,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
                   : m
               ));
 
-              // Auto-select all ingredients
-              const newSelectedIngredients = ingredients.map(ing => `${mealToUpdate.id}-${ing.id}`);
-              setSelectedIngredients(prev => {
-                const newSet = new Set(prev);
-                newSelectedIngredients.forEach(id => newSet.add(id));
-                return newSet;
-              });
+              // Removed ingredient selection since we're not showing ingredients in side panel
 
               addDebugLog('✅ Ingredients parsed and added to meal:', { meal: mealToUpdate.name, ingredients });
             }
@@ -811,31 +581,12 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
     };
   };
 
-  // Add this helper function for fallback ingredients
-  const getFallbackIngredients = (mealName) => {
-    const mealLower = mealName.toLowerCase();
-
-    // Return appropriate fallback ingredients based on meal type
-    if (mealLower.includes('pizza')) {
-      return [
-        { id: 1, name: "Pizza Dough", category: "Bakery", metricValue: 1, metricUnit: "piece", needed: true },
-        { id: 2, name: "Mozzarella Cheese", category: "Dairy", metricValue: 200, metricUnit: "grams", needed: true },
-        { id: 3, name: "Pizza Sauce", category: "Condiments", metricValue: 120, metricUnit: "ml", needed: true },
-        { id: 4, name: "Toppings", category: "General", metricValue: null, metricUnit: null, needed: true }
-      ];
-    }
-
-    // Default fallback
-    return [
-      { id: 1, name: "Main Ingredient", category: "General", metricValue: null, metricUnit: null, needed: true },
-      { id: 2, name: "Seasonings", category: "Spices", metricValue: null, metricUnit: null, needed: true }
-    ];
-  };
+  // Removed getFallbackIngredients function since we're not using it anymore
 
   return (
     <div className="h-screen flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4">
       {/* Main Chat Area */}
-      <div className={`bg-white lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showIngredientsPanel ? 'flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'}`}>
+      <div className={`bg-white lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showMealsPanel ? 'flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'}`}>
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4">
           <div className="flex items-center justify-between mb-3">
@@ -851,9 +602,9 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Ingredients Panel Toggle */}
+              {/* Meals Panel Toggle */}
               <button
-                onClick={() => setShowIngredientsPanel(!showIngredientsPanel)}
+                onClick={() => setShowMealsPanel(!showMealsPanel)}
                 className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
               >
                 <ShoppingCart size={16} />
@@ -966,7 +717,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
                                 <button
                                   onClick={() => {
                                     addMealToList(meal.name, meal.description, meal.recipeId);
-                                    setShowIngredientsPanel(true);
+                                    setShowMealsPanel(true);
                                   }}
                                   className="ml-3 flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
                                 >
@@ -1033,115 +784,61 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
         </div>
       </div>
 
-      {/* Ingredients Panel */}
-      {showIngredientsPanel && (
+      {/* Meals Panel */}
+      {showMealsPanel && (
         <div className="w-full lg:w-96 bg-white lg:rounded-lg lg:shadow-lg overflow-hidden flex flex-col">
           <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShoppingCart size={20} />
-                <h2 className="text-lg font-semibold">Meal Plans & Ingredients</h2>
+                <ChefHat size={20} />
+                <h2 className="text-lg font-semibold">Selected Meals</h2>
               </div>
               <button
-                onClick={() => setShowIngredientsPanel(false)}
+                onClick={() => setShowMealsPanel(false)}
                 className="p-1 hover:bg-white/20 rounded transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
             <p className="text-sm opacity-90 mt-1">
-              {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} planned
+              {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
             </p>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4">
             {selectedMeals.length === 0 ? (
               <div className="text-center text-gray-500 mt-8">
-                <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
-                <p>No meals planned yet</p>
-                <p className="text-sm mt-1">Add meals from chat suggestions to see ingredients here</p>
+                <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
+                <p>No meals selected yet</p>
+                <p className="text-sm mt-1">Add meals from chat suggestions to start planning</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {selectedMeals.map((meal) => {
-                  const isCollapsed = collapsedMeals.has(meal.id);
-
-                  return (
-                    <div key={meal.id} className="border rounded-lg">
-                      <div className="bg-gray-50 p-3 border-b">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-800">{meal.name}</h3>
-                            <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => toggleMealCollapse(meal.id)}
-                              className="text-gray-600 hover:text-gray-800 transition-colors"
-                              title={isCollapsed ? "Expand meal" : "Collapse meal"}
-                            >
-                              {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                            </button>
-                            <button
-                              onClick={() => removeMeal(meal.id)}
-                              className="text-red-600 hover:text-red-800 transition-colors"
-                              title="Remove meal"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                    {!isCollapsed && (
-                        <div className="p-3">
-                          {loadingIngredients && meal.ingredients.length === 0 ? (
-                            <div className="flex items-center gap-2 text-gray-500">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                              <span className="text-sm">Loading ingredients...</span>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <div className="text-sm font-medium text-gray-700 mb-2">
-                                Ingredients ({meal.ingredients.length}):
-                              </div>
-                              {meal.ingredients.map((ingredient) => {
-                                const ingredientKey = `${meal.id}-${ingredient.id}`;
-                                const isSelected = selectedIngredients.has(ingredientKey);
-
-                                return (
-                                  <div key={ingredient.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={() => toggleIngredient(meal.id, ingredient.id)}
-                                      className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
-                                    />
-                                    <div className="flex-1">
-                                      <div className={`text-sm ${isSelected ? 'font-medium' : ''}`}>
-                                        {ingredient.name}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        {ingredient.metricValue && ingredient.metricUnit ? 
-                                          `${ingredient.metricValue} ${ingredient.metricUnit}` : 
-                                          ingredient.quantity || 'As needed'}
-                                      </div>
-                                    </div>
-                                    {ingredient.needed && (
-                                      <div className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                                        Recommended
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+              <div className="space-y-3">
+                {selectedMeals.map((meal) => (
+                  <div key={meal.id} className="border rounded-lg bg-white">
+                    <div className="p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-800">{meal.name}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
+                          {meal.servings && (
+                            <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                              <span>Serves {meal.servings}</span>
+                              {meal.prepTime && <span>• {meal.prepTime} min</span>}
                             </div>
                           )}
                         </div>
-                      )}
+                        <button
+                          onClick={() => removeMeal(meal.id)}
+                          className="text-red-600 hover:text-red-800 transition-colors ml-2"
+                          title="Remove meal"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1149,36 +846,18 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar }) => {
           {selectedMeals.length > 0 && (
             <div className="border-t p-4 bg-gray-50">
               <div className="text-sm text-gray-600 mb-3">
-                Selected: {selectedIngredients.size} ingredient{selectedIngredients.size !== 1 ? 's' : ''}
+                {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
               </div>
               <button
                 onClick={() => {
-                  const selectedIngredientsList = [];
-                  selectedMeals.forEach(meal => {
-                    meal.ingredients.forEach(ingredient => {
-                      const key = `${meal.id}-${ingredient.id}`;
-                      if (selectedIngredients.has(key)) {
-                        selectedIngredientsList.push({
-                          meal: meal.name,
-                          ingredient: ingredient.name,
-                          category: ingredient.category,
-                          store: ingredient.store,
-                          section: ingredient.section
-                        });
-                      }
-                    });
-                  });
-
-                  addDebugLog('Selected ingredients ready for main grocery list:', selectedIngredientsList);
-                  console.log('Selected ingredients to add to main grocery list:', selectedIngredientsList);
-
-                  // This would integrate with your main grocery list
-                  alert(`Ready to add ${selectedIngredients.size} ingredients to your main grocery list!\n\nCheck the debug panel for details.`);
+                  addDebugLog('Navigating to recipe ingredients page with meals:', selectedMeals);
+                  // Navigate to the new Recipe Ingredients page
+                  onNavigate('recipe-ingredients');
                 }}
-                disabled={selectedIngredients.size === 0}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
               >
-                Add to Grocery List ({selectedIngredients.size})
+                <ShoppingCart size={16} />
+                Generate Grocery List
               </button>
             </div>
           )}

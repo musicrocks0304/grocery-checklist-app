@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import ChatBot from "./ChatBot";
 import Coupons from "./Coupons";
+import RecipeIngredients from "./RecipeIngredients";
 
 // Memoized grocery item component to prevent unnecessary re-renders
 const GroceryItem = React.memo(({
@@ -85,6 +86,7 @@ const GroceryItem = React.memo(({
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState("grocery");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedMeals, setSelectedMeals] = useState([]);
 
   const navigation = [
     { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
@@ -197,6 +199,8 @@ const App = () => {
             onBack={() => setCurrentScreen("grocery")}
             onNavigate={setCurrentScreen}
             onToggleSidebar={() => setSidebarOpen(true)}
+            selectedMeals={selectedMeals}
+            setSelectedMeals={setSelectedMeals}
           />
         </div>
       </div>
@@ -309,6 +313,18 @@ const App = () => {
             onToggleSidebar={() => setSidebarOpen(true)}
           />
         </div>
+      </div>
+    );
+  }
+
+  if (currentScreen === "recipe-ingredients") {
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <RecipeIngredients
+          selectedMeals={selectedMeals}
+          onBack={() => setCurrentScreen("chatbot")}
+          onNavigate={setCurrentScreen}
+        />
       </div>
     );
   }
