@@ -676,15 +676,6 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                       <h4 className="font-medium text-gray-900 truncate">
                         {item.ItemName}
                       </h4>
-                      <div className="text-sm text-gray-600 mt-1">
-                        <p>{item.Store}</p>
-                        {item.GroceryStoreSection && (
-                          <p className="text-xs text-gray-500">{item.GroceryStoreSection}</p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          Type: {item.Type || 'Basic'}
-                        </p>
-                      </div>
 
                       {item.FromMeals && item.FromMeals.length > 0 && (
                         <div className="mt-2">
