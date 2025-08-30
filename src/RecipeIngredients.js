@@ -1,17 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ChefHat, ShoppingCart, Clock, Users, Utensils } from 'lucide-react';
+import {
+  ChefHat,
+  ShoppingCart,
+  Clock,
+  Users,
+  Utensils,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Wifi,
+  AlertCircle,
+  Layers
+} from 'lucide-react';
 
-const RecipeIngredients = ({ selectedMeals = [], onBack, onNavigate }) => {
+const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
   const [ingredientsList, setIngredientsList] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState([]);
+  const [showDebug, setShowDebug] = useState(false);
+  const [activeTab, setActiveTab] = useState("");
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [itemQuantities, setItemQuantities] = useState(new Map());
+  const [showFinalList, setShowFinalList] = useState(false);
+  const [groupBy, setGroupBy] = useState("Category");
+  const [typeFilter, setTypeFilter] = useState("All");
+
+  // Debug logging function
+  const addDebugLog = (message, data = null) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugInfo((prev) => [...prev, { timestamp, message, data }]);
+    console.log(`[${timestamp}] ${message}`, data || "");
+  };
 
   // Process meals and aggregate ingredients
   useEffect(() => {
     if (selectedMeals.length > 0) {
       processRecipeIngredients();
+    } else {
+      // If no meals selected, show empty state
+      setIsLoading(false);
+      setIngredientsList([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMeals]);
@@ -19,11 +48,12 @@ const RecipeIngredients = ({ selectedMeals = [], onBack, onNavigate }) => {
   const processRecipeIngredients = async () => {
     setIsLoading(true);
     setError(null);
+    addDebugLog("🚀 Starting recipe ingredient processing...");
 
     try {
       // Here you would call your n8n webhook to get consolidated ingredients
       // For now, we'll simulate the processing
-      console.log('Processing ingredients for meals:', selectedMeals);
+      addDebugLog('Processing ingredients for meals:', selectedMeals.map(m => m.name));
 
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -36,8 +66,10 @@ const RecipeIngredients = ({ selectedMeals = [], onBack, onNavigate }) => {
           Category: 'Protein',
           Store: 'HEB',
           GroceryStoreSection: 'Seafood',
-          Quantity: 2,
-          Unit: 'lbs',
+          Type: 'Basic',
+          IsActive: 1,
+          IsSelected: 1,
+          QuantitySelected: 2,
           FromMeals: ['Herb-Crusted Salmon', 'Grilled Salmon']
         },
         {
@@ -46,8 +78,10 @@ const RecipeIngredients = ({ selectedMeals = [], onBack, onNavigate }) => {
           Category: 'Produce',
           Store: 'HEB',
           GroceryStoreSection: 'Produce',
-          Quantity: 1,
-          Unit: 'bunch',
+          Type: 'Basic',
+          IsActive: 1,
+          IsSelected: 1,
+          QuantitySelected: 1,
           FromMeals: ['Herb-Crusted Salmon']
         },
         {
@@ -56,31 +90,117 @@ const RecipeIngredients = ({ selectedMeals = [], onBack, onNavigate }) => {
           Category: 'Pantry',
           Store: 'HEB',
           GroceryStoreSection: 'Oils & Vinegars',
-          Quantity: 1,
-          Unit: 'bottle',
+          Type: 'Basic',
+          IsActive: 1,
+          IsSelected: 1,
+          QuantitySelected: 1,
           FromMeals: ['Herb-Crusted Salmon', 'Mediterranean Chicken']
+        },
+        {
+          ItemID: 4,
+          ItemName: 'Chicken Breast',
+          Category: 'Protein',
+          Store: 'HEB',
+          GroceryStoreSection: 'Meat',
+          Type: 'Basic',
+          IsActive: 1,
+          IsSelected: 0,
+          QuantitySelected: 1,
+          FromMeals: ['Mediterranean Chicken']
+        },
+        {
+          ItemID: 5,
+          ItemName: 'Bell Peppers',
+          Category: 'Produce',
+          Store: 'HEB',
+          GroceryStoreSection: 'Produce',
+          Type: 'Basic',
+          IsActive: 1,
+          IsSelected: 1,
+          QuantitySelected: 3,
+          FromMeals: ['Mediterranean Chicken', 'Stuffed Peppers']
         }
       ];
 
-      setIngredientsList(mockIngredients);
+      // Clean up the data by removing any tab characters from item names and categories
+      const cleanedData = mockIngredients.map((item) => ({
+        ...item,
+        ItemName: item.ItemName
+          ? item.ItemName.replace(/\t/g, "").trim()
+          : item.ItemName,
+        Category: item.Category
+          ? item.Category.replace(/\t/g, "").trim()
+          : item.Category,
+      }));
 
-      // Pre-select all items and set default quantities
+      setIngredientsList(cleanedData);
+      addDebugLog("✅ Successfully loaded recipe ingredients");
+
+      // Initialize selected items and quantities based on IsSelected field
       const preSelectedItems = new Set();
       const preSelectedQuantities = new Map();
 
-      mockIngredients.forEach((item) => {
-        preSelectedItems.add(item.ItemID.toString());
-        preSelectedQuantities.set(item.ItemID.toString(), item.Quantity);
+      cleanedData.forEach((item) => {
+        if (item.IsSelected === 1) {
+          preSelectedItems.add(item.ItemID.toString());
+          // Use QuantitySelected from payload, fallback to 1 if not present
+          const quantity = item.QuantitySelected || 1;
+          preSelectedQuantities.set(item.ItemID.toString(), quantity);
+        }
       });
 
       setSelectedItems(preSelectedItems);
       setItemQuantities(preSelectedQuantities);
 
+      // Set the first group as active tab
+      const groups = getGroups(cleanedData, groupBy);
+      if (groups.length > 0) {
+        setActiveTab(groups[0]);
+      }
+
+      addDebugLog(`✅ Processed ${cleanedData.length} ingredients from ${selectedMeals.length} meals`);
+
     } catch (err) {
       console.error('Error processing recipe ingredients:', err);
+      addDebugLog('❌ Error processing recipe ingredients:', err.message);
       setError('Failed to process recipe ingredients. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper functions matching main screen pattern
+  const getGroups = (data = ingredientsList, groupByField = groupBy) => {
+    const groups = new Set();
+    data.forEach((item) => {
+      if (typeFilter === "All" || item.Type === typeFilter) {
+        groups.add(item[groupByField] || "Other");
+      }
+    });
+    return Array.from(groups).sort();
+  };
+
+  const getItemsByGroup = (group) => {
+    return ingredientsList.filter((item) => {
+      const matchesGroup = (item[groupBy] || "Other") === group;
+      const matchesType = typeFilter === "All" || item.Type === typeFilter;
+      return matchesGroup && matchesType;
+    });
+  };
+
+  const handleGroupByChange = (newGroupBy) => {
+    setGroupBy(newGroupBy);
+    const groups = getGroups(ingredientsList, newGroupBy);
+    if (groups.length > 0) {
+      setActiveTab(groups[0]);
+    }
+  };
+
+  const handleTypeFilterChange = (newTypeFilter) => {
+    setTypeFilter(newTypeFilter);
+    const groups = getGroups();
+    if (groups.length > 0) {
+      setActiveTab(groups[0]);
     }
   };
 
@@ -103,7 +223,7 @@ const RecipeIngredients = ({ selectedMeals = [], onBack, onNavigate }) => {
         if (item) {
           setItemQuantities(prevQuantities => {
             const newQuantities = new Map(prevQuantities);
-            newQuantities.set(itemIdStr, item.Quantity || 1);
+            newQuantities.set(itemIdStr, item.QuantitySelected || 1);
             return newQuantities;
           });
         }
@@ -122,98 +242,375 @@ const RecipeIngredients = ({ selectedMeals = [], onBack, onNavigate }) => {
     });
   };
 
-  const getSelectedItemsCount = () => selectedItems.size;
+  const getWeekDateRange = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const showNextWeek = dayOfWeek >= 4;
 
-  const getTotalMealsCount = () => selectedMeals.length;
+    const daysToSunday = dayOfWeek;
+    const currentWeekSunday = new Date(today);
+    currentWeekSunday.setDate(today.getDate() - daysToSunday);
 
-  // Group ingredients by category
-  const groupedIngredients = ingredientsList.reduce((groups, item) => {
-    const category = item.Category || 'Other';
-    if (!groups[category]) {
-      groups[category] = [];
+    const targetSunday = new Date(currentWeekSunday);
+    if (showNextWeek) {
+      targetSunday.setDate(targetSunday.getDate() + 7);
     }
-    groups[category].push(item);
-    return groups;
-  }, {});
 
-  const categories = Object.keys(groupedIngredients).sort();
+    const targetSaturday = new Date(targetSunday);
+    targetSaturday.setDate(targetSunday.getDate() + 6);
+
+    const formatDate = (date) => {
+      const month = date.toLocaleDateString("en-US", { month: "long" });
+      const day = date.getDate();
+      return `${month} ${day}${getOrdinalSuffix(day)}`;
+    };
+
+    const getOrdinalSuffix = (day) => {
+      if (day > 3 && day < 21) return "th";
+      switch (day % 10) {
+        case 1:
+          return "st";
+        case 2:
+          return "nd";
+        case 3:
+          return "rd";
+        default:
+          return "th";
+      }
+    };
+
+    const year = targetSunday.getFullYear();
+    return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
+  };
+
+  const getFinalGroceryList = () => {
+    const selectedItemIds = Array.from(selectedItems);
+    const selectedGroceryItems = ingredientsList
+      .filter((item) => selectedItemIds.includes(item.ItemID.toString()))
+      .map((item) => ({
+        ...item,
+        quantity: itemQuantities.get(item.ItemID.toString()) || 1,
+      }));
+
+    const groupedByCategory = {};
+    selectedGroceryItems.forEach((item) => {
+      if (!groupedByCategory[item.Category]) {
+        groupedByCategory[item.Category] = [];
+      }
+      groupedByCategory[item.Category].push(item);
+    });
+
+    // Sort items within each category alphabetically
+    Object.keys(groupedByCategory).forEach((category) => {
+      groupedByCategory[category].sort((a, b) =>
+        a.ItemName.localeCompare(b.ItemName),
+      );
+    });
+
+    return groupedByCategory;
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Processing recipe ingredients...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">
+            Processing recipe ingredients from your selected meals...
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            Aggregating ingredients from n8n webhook...
+          </p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={onBack}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft size={20} />
-                <span>Back to Meal Planner</span>
-              </button>
-              <div className="h-6 w-px bg-gray-300"></div>
-              <div className="flex items-center gap-2">
-                <ChefHat className="text-purple-600" size={24} />
-                <h1 className="text-xl font-semibold text-gray-900">Recipe Ingredients</h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                {getTotalMealsCount()} meals • {getSelectedItemsCount()} ingredients selected
-              </div>
-            </div>
-          </div>
+  if (showFinalList) {
+    const finalList = getFinalGroceryList();
+    return (
+      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+        <div className="flex items-center gap-3 mb-6">
+          <ShoppingCart className="text-green-600" size={28} />
+          <h1 className="text-2xl font-bold text-gray-800">
+            Recipe Grocery List
+          </h1>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
+        <div className="bg-gray-50 p-4 rounded-lg mb-6">
+          <p className="text-lg font-semibold text-gray-700">
+            {getWeekDateRange()}
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            Items selected: {selectedItems.size} • From {selectedMeals.length} meals
+          </p>
+        </div>
 
-        {/* Meal Summary */}
-        <div className="mb-6 bg-white rounded-lg shadow-sm border p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <Utensils size={20} className="text-purple-600" />
-            Selected Meals ({getTotalMealsCount()})
+        {/* Selected Meals Summary */}
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h2 className="text-lg font-semibold text-blue-900 mb-3 flex items-center gap-2">
+            <ChefHat size={20} />
+            Selected Meals ({selectedMeals.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {selectedMeals.map((meal, index) => (
-              <div key={meal.id || index} className="bg-gray-50 rounded-lg p-3">
+              <div key={meal.id || index} className="bg-white rounded-lg p-3 border border-blue-200">
                 <h3 className="font-medium text-gray-900">{meal.name}</h3>
                 {meal.description && (
                   <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
                 )}
-                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                  {meal.servings && (
-                    <span className="flex items-center gap-1">
-                      <Users size={12} />
-                      {meal.servings} servings
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {Object.entries(finalList)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([categoryName, items]) => (
+            <div key={categoryName} className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-3 border-b-2 border-blue-200 pb-1">
+                {categoryName}
+              </h2>
+              <ul className="space-y-2">
+                {items.map((item) => (
+                  <li
+                    key={item.ItemID}
+                    className="flex items-center gap-2 text-gray-700"
+                  >
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="flex-1">{item.ItemName}</span>
+                    <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      Qty: {item.quantity}
                     </span>
-                  )}
-                  {meal.prepTime && (
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} />
-                      {meal.prepTime} min
+                    {item.FromMeals && (
+                      <span className="text-xs text-gray-500">
+                        ({item.FromMeals.join(', ')})
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
+        <div className="flex gap-4 pt-6 border-t">
+          <button
+            onClick={() => setShowFinalList(false)}
+            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Back to Selection
+          </button>
+          <button
+            onClick={async () => {
+              // Here you would implement the logic to create the grocery list
+              addDebugLog('Creating grocery list with selected items:', {
+                selectedItems: Array.from(selectedItems),
+                quantities: Object.fromEntries(itemQuantities),
+                meals: selectedMeals
+              });
+
+              // For now, navigate back to main grocery list
+              alert("Recipe ingredients would be added to your main grocery list!");
+              onNavigate('grocery');
+            }}
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Add to Main Grocery List
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const groups = getGroups();
+  const currentGroupItems = getItemsByGroup(activeTab);
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="p-6 bg-white rounded-lg shadow-lg">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <ChefHat className="text-purple-600" size={28} />
+            <h1 className="text-2xl font-bold text-gray-800">
+              Recipe Ingredients
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Debug Toggle */}
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <Wifi size={16} />
+              Debug Info
+              {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Debug Panel */}
+        {showDebug && (
+          <div className="mb-6 p-4 bg-gray-900 text-white rounded-lg shadow-lg">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
+              <Wifi size={20} />
+              Debug Information
+            </h3>
+            <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
+              {debugInfo.map((log, index) => (
+                <div key={index} className="flex gap-2">
+                  <span className="text-gray-400">[{log.timestamp}]</span>
+                  <span
+                    className={
+                      log.message.includes("✅")
+                        ? "text-green-400"
+                        : log.message.includes("❌")
+                          ? "text-red-400"
+                          : log.message.includes("⚠️")
+                            ? "text-yellow-400"
+                            : "text-gray-200"
+                    }
+                  >
+                    {log.message}
+                  </span>
+                  {log.data && (
+                    <span className="text-gray-500">
+                      {typeof log.data === "object"
+                        ? JSON.stringify(log.data, null, 2)
+                        : log.data}
                     </span>
                   )}
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="text-red-600 mt-0.5" size={20} />
+              <div>
+                <p className="font-semibold text-red-800">Processing Error</p>
+                <p className="text-red-700 text-sm mt-1">{error}</p>
+                <p className="text-red-600 text-sm mt-1">
+                  Using sample data instead.
+                </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+          <p className="text-lg font-medium text-purple-900">
+            {getWeekDateRange()}
+          </p>
+          <p className="text-sm text-purple-700 mt-1">
+            Ingredients from {selectedMeals.length} selected meal{selectedMeals.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        {/* Selected Meals Summary */}
+        {selectedMeals.length > 0 && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h2 className="text-lg font-semibold text-blue-900 mb-3 flex items-center gap-2">
+              <Utensils size={20} />
+              Selected Meals ({selectedMeals.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {selectedMeals.map((meal, index) => (
+                <div key={meal.id || index} className="bg-white rounded-lg p-3 border border-blue-200">
+                  <h3 className="font-medium text-gray-900">{meal.name}</h3>
+                  {meal.description && (
+                    <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
+                  )}
+                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                    {meal.servings && (
+                      <span className="flex items-center gap-1">
+                        <Users size={12} />
+                        {meal.servings} servings
+                      </span>
+                    )}
+                    {meal.prepTime && (
+                      <span className="flex items-center gap-1">
+                        <Clock size={12} />
+                        {meal.prepTime} min
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-gray-600 mb-6">
+          Please select ingredients for this week's recipe-based grocery list:
+        </p>
+
+        {/* Grouping and Filtering Controls */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          {/* Item Type Filter Section */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-2 text-gray-700">
+              <span className="font-medium">Item Type:</span>
+            </div>
+            <div className="flex gap-2">
+              {["All", "Basic", "Periodic"].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleTypeFilterChange(type)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    typeFilter === type
+                      ? "bg-green-600 text-white"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Group By Section */}
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+            <div className="flex items-center gap-2 text-gray-700">
+              <Layers size={20} />
+              <span className="font-medium">Group by:</span>
+            </div>
+            <div className="flex gap-2">
+              {["Category", "Store", "GroceryStoreSection"].map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => handleGroupByChange(mode)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    groupBy === mode
+                      ? "bg-purple-600 text-white"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                  }`}
+                >
+                  {mode === "GroceryStoreSection" ? "Store Section" : mode}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Group Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex flex-wrap gap-2">
+            {groups.map((group) => (
+              <button
+                key={group}
+                onClick={() => setActiveTab(group)}
+                className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
+                  activeTab === group
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {group}
+              </button>
             ))}
           </div>
         </div>
@@ -221,111 +618,127 @@ const RecipeIngredients = ({ selectedMeals = [], onBack, onNavigate }) => {
         {/* Ingredients List */}
         {ingredientsList.length === 0 ? (
           <div className="text-center py-12">
-            <ShoppingCart size={48} className="mx-auto text-gray-400 mb-4" />
+            <ChefHat size={48} className="mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No ingredients to display</h3>
             <p className="text-gray-600">Select some meals in the meal planner to see ingredients here.</p>
+            <button
+              onClick={() => onNavigate('chatbot')}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Go to Meal Planner
+            </button>
+          </div>
+        ) : currentGroupItems.length === 0 ? (
+          <div className="text-center py-12">
+            <AlertCircle size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No items in this group</h3>
+            <p className="text-gray-600">Try selecting a different group or filter.</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {categories.map(category => (
-              <div key={category} className="bg-white rounded-lg shadow-sm border">
-                <div className="bg-gray-50 px-4 py-3 border-b">
-                  <h3 className="text-lg font-semibold text-gray-900">{category}</h3>
-                  <p className="text-sm text-gray-600">
-                    {groupedIngredients[category].length} items
-                  </p>
-                </div>
-                <div className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {groupedIngredients[category].map(item => {
-                      const isSelected = selectedItems.has(item.ItemID.toString());
-                      const quantity = itemQuantities.get(item.ItemID.toString()) || item.Quantity || 1;
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {currentGroupItems.map((item) => {
+              const isSelected = selectedItems.has(item.ItemID.toString());
+              const quantity = itemQuantities.get(item.ItemID.toString()) || item.QuantitySelected || 1;
 
-                      return (
-                        <div
-                          key={item.ItemID}
-                          className={`border rounded-lg p-3 transition-all ${
-                            isSelected 
-                              ? 'border-purple-300 bg-purple-50' 
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleItemSelection(item.ItemID)}
-                              className="mt-1 w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-gray-900 truncate">
-                                {item.ItemName}
-                              </h4>
-                              <p className="text-sm text-gray-600">{item.Store}</p>
-                              {item.GroceryStoreSection && (
-                                <p className="text-xs text-gray-500">{item.GroceryStoreSection}</p>
-                              )}
-                              {item.FromMeals && item.FromMeals.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-xs text-gray-500 mb-1">Used in:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {item.FromMeals.map((mealName, idx) => (
-                                      <span
-                                        key={idx}
-                                        className="inline-block px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full"
-                                      >
-                                        {mealName}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              {isSelected && (
-                                <div className="mt-2 flex items-center gap-2">
-                                  <label className="text-sm text-gray-600">Qty:</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={quantity}
-                                    onChange={(e) => updateQuantity(item.ItemID, e.target.value)}
-                                    className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-purple-500 focus:border-purple-500"
-                                  />
-                                  {item.Unit && (
-                                    <span className="text-sm text-gray-500">{item.Unit}</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+              return (
+                <div
+                  key={item.ItemID}
+                  className={`border rounded-lg p-4 transition-all ${
+                    isSelected
+                      ? 'border-purple-300 bg-purple-50 shadow-md'
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleItemSelection(item.ItemID)}
+                      className="mt-1 w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 truncate">
+                        {item.ItemName}
+                      </h4>
+                      <div className="text-sm text-gray-600 mt-1">
+                        <p>{item.Store}</p>
+                        {item.GroceryStoreSection && (
+                          <p className="text-xs text-gray-500">{item.GroceryStoreSection}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Type: {item.Type || 'Basic'}
+                        </p>
+                      </div>
+
+                      {item.FromMeals && item.FromMeals.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-500 mb-1">Used in:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {item.FromMeals.map((mealName, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-block px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full"
+                              >
+                                {mealName}
+                              </span>
+                            ))}
                           </div>
                         </div>
-                      );
-                    })}
+                      )}
+
+                      {isSelected && (
+                        <div className="mt-3 flex items-center gap-2">
+                          <label className="text-sm text-gray-600 font-medium">Qty:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={quantity}
+                            onChange={(e) => updateQuantity(item.ItemID, e.target.value)}
+                            className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-purple-500 focus:border-purple-500"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {/* Action Buttons */}
         {ingredientsList.length > 0 && (
-          <div className="mt-8 flex justify-center gap-4">
-            <button
-              onClick={() => {
-                // Here you would implement the logic to create the grocery list
-                console.log('Creating grocery list with selected items:', {
-                  selectedItems: Array.from(selectedItems),
-                  quantities: Object.fromEntries(itemQuantities),
-                  meals: selectedMeals
-                });
-                // For now, navigate back to main grocery list
-                onNavigate('grocery');
-              }}
-              className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <ShoppingCart size={20} />
-              Add to Grocery List ({getSelectedItemsCount()} items)
-            </button>
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="text-center text-gray-600 mb-4 sm:mb-0 sm:self-center">
+              Selected: {selectedItems.size} ingredient{selectedItems.size !== 1 ? 's' : ''} from {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
+            </div>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => setShowFinalList(true)}
+                disabled={selectedItems.size === 0}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                <Check size={20} />
+                Review List ({selectedItems.size})
+              </button>
+              <button
+                onClick={() => {
+                  addDebugLog('Creating grocery list with selected items:', {
+                    selectedItems: Array.from(selectedItems),
+                    quantities: Object.fromEntries(itemQuantities),
+                    meals: selectedMeals
+                  });
+                  // For now, navigate back to main grocery list
+                  alert("Recipe ingredients would be added to your main grocery list!");
+                  onNavigate('grocery');
+                }}
+                disabled={selectedItems.size === 0}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                <ShoppingCart size={20} />
+                Add to Main List ({selectedItems.size})
+              </button>
+            </div>
           </div>
         )}
       </div>
