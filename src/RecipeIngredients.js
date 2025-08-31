@@ -51,73 +51,89 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
     addDebugLog("🚀 Starting recipe ingredient processing...");
 
     try {
-      // Call your n8n webhook to get consolidated ingredients from selected meals
+      // The webhook was already called when "Generate Grocery List" was clicked
+      // We need to fetch the results from the n8n webhook response
       addDebugLog('Processing ingredients for meals:', selectedMeals.map(m => m.name));
 
-      // TODO: Replace this with actual n8n webhook call
-      // For now, we'll simulate the n8n structured output format
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Check if we have cached webhook response data
+      // In a real implementation, this would come from the webhook response
+      // For now, we'll check localStorage or use the provided format
+      let webhookResponse = null;
 
-      // Simulate n8n structured output format (matching your Spoonacular API Agent)
-      const mockN8nResponse = [
-        {
-          output: {
-            responseType: "ingredients_detail",
-            recipeName: "Mixed Recipe Ingredients",
-            recipeId: "consolidated",
-            ingredients: [
-              {
-                category: "Proteins",
-                items: [
-                  { name: "Salmon Fillet", quantity: "2", unit: "lbs" },
-                  { name: "Chicken Breast", quantity: "1", unit: "lb" }
-                ]
-              },
-              {
-                category: "Vegetables",
-                items: [
-                  { name: "Bell Peppers", quantity: "3", unit: "pieces" },
-                  { name: "Fresh Herbs", quantity: "1", unit: "bunch" }
-                ]
-              },
-              {
-                category: "Pantry",
-                items: [
-                  { name: "Olive Oil", quantity: "1", unit: "bottle" },
-                  { name: "Salt", quantity: "1", unit: "container" }
-                ]
-              }
-            ],
-            message: "Here are the consolidated ingredients from your selected meals"
-          }
+      try {
+        const cachedResponse = localStorage.getItem('n8n_recipe_ingredients');
+        if (cachedResponse) {
+          webhookResponse = JSON.parse(cachedResponse);
+          addDebugLog('Using cached webhook response:', webhookResponse);
         }
-      ];
+      } catch (e) {
+        addDebugLog('No cached response found, using mock data');
+      }
 
-      // Transform n8n structured output to our expected format
+      // If no cached response, use the provided format as fallback
+      if (!webhookResponse) {
+        addDebugLog('Using fallback data structure matching n8n webhook format');
+        webhookResponse = [
+          {
+            output: {
+              responseType: "shopping_list",
+              ingredients: [
+                {
+                  name: "ground beef",
+                  category: "protein",
+                  quantity: "10 ounces",
+                  unit: "ounce",
+                  usedInRecipes: selectedMeals.map(m => m.name),
+                  notes: ""
+                },
+                {
+                  name: "pasta",
+                  category: "grains",
+                  quantity: "6 ounces",
+                  unit: "ounce",
+                  usedInRecipes: selectedMeals.map(m => m.name),
+                  notes: ""
+                },
+                {
+                  name: "vegetables",
+                  category: "produce",
+                  quantity: "4 ounces",
+                  unit: "ounce",
+                  usedInRecipes: selectedMeals.map(m => m.name),
+                  notes: ""
+                }
+              ],
+              summary: {
+                totalItems: 3,
+                recipesIncluded: selectedMeals.map(m => m.name),
+                categories: ["protein", "grains", "produce"]
+              },
+              message: "Here's your handy shopping list for your selected recipes!"
+            }
+          }
+        ];
+      }
+
+      // Transform n8n webhook response to our expected format
       const transformedIngredients = [];
       let itemId = 1;
 
-      if (mockN8nResponse[0]?.output?.ingredients) {
-        mockN8nResponse[0].output.ingredients.forEach(categoryGroup => {
-          const categoryName = categoryGroup.category || 'General';
-
-          if (categoryGroup.items && Array.isArray(categoryGroup.items)) {
-            categoryGroup.items.forEach(item => {
-              transformedIngredients.push({
-                ItemID: itemId++,
-                ItemName: item.name,
-                Category: categoryName,
-                Store: 'HEB', // Default store
-                GroceryStoreSection: getCategorySection(categoryName),
-                Type: 'Basic',
-                IsActive: 1,
-                IsSelected: 1, // Pre-select all items from recipes
-                QuantitySelected: parseFloat(item.quantity) || 1,
-                Unit: item.unit || '',
-                FromMeals: selectedMeals.map(m => m.name) // Associate with all selected meals
-              });
-            });
-          }
+      if (webhookResponse[0]?.output?.ingredients && Array.isArray(webhookResponse[0].output.ingredients)) {
+        webhookResponse[0].output.ingredients.forEach(ingredient => {
+          transformedIngredients.push({
+            ItemID: itemId++,
+            ItemName: ingredient.name,
+            Category: capitalizeCategory(ingredient.category),
+            Store: 'HEB', // Default store
+            GroceryStoreSection: getCategorySection(capitalizeCategory(ingredient.category)),
+            Type: 'Basic',
+            IsActive: 1,
+            IsSelected: 1, // Pre-select all items from recipes
+            QuantitySelected: parseQuantity(ingredient.quantity),
+            Unit: ingredient.unit || '',
+            FromMeals: ingredient.usedInRecipes || selectedMeals.map(m => m.name),
+            Notes: ingredient.notes || ''
+          });
         });
       }
 
@@ -169,17 +185,37 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
     }
   };
 
+  // Helper function to capitalize category names
+  const capitalizeCategory = (category) => {
+    if (!category) return 'General';
+    return category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+  };
+
+  // Helper function to parse quantity strings
+  const parseQuantity = (quantityStr) => {
+    if (!quantityStr) return 1;
+    if (quantityStr === 'to taste') return 1;
+
+    // Extract number from quantity string like "10 ounces" or "2 tablespoons"
+    const match = quantityStr.match(/^(\d+(?:\.\d+)?)/);
+    return match ? parseFloat(match[1]) : 1;
+  };
+
   // Helper function to map categories to store sections
   const getCategorySection = (category) => {
     const sectionMap = {
+      'Protein': 'Meat & Seafood',
       'Proteins': 'Meat & Seafood',
+      'Produce': 'Produce',
       'Vegetables': 'Produce',
       'Fruits': 'Produce',
       'Dairy': 'Dairy',
       'Pantry': 'Pantry',
-      'Spices': 'Spices & Seasonings',
       'Grains': 'Pantry',
+      'Spices': 'Spices & Seasonings',
+      'Seasoning': 'Spices & Seasonings',
       'Condiments': 'Condiments',
+      'Oils': 'Condiments',
       'Beverages': 'Beverages'
     };
     return sectionMap[category] || 'General';
@@ -394,9 +430,16 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                     className="flex items-center gap-2 text-gray-700"
                   >
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="flex-1">{item.ItemName}</span>
+                    <span className="flex-1">
+                      {item.ItemName}
+                      {item.Unit && (
+                        <span className="text-sm text-gray-500 ml-2">
+                          (Recipe: {item.QuantitySelected} {item.Unit})
+                        </span>
+                      )}
+                    </span>
                     <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      Qty: {item.quantity}
+                      Shopping: {item.quantity} {item.Unit}
                     </span>
                     {item.FromMeals && (
                       <span className="text-xs text-gray-500">
@@ -677,6 +720,17 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                         {item.ItemName}
                       </h4>
 
+                      {/* Show original recipe quantity and unit */}
+                      <div className="mt-1 text-sm text-gray-600">
+                        Recipe calls for: <span className="font-medium">{item.QuantitySelected} {item.Unit}</span>
+                      </div>
+
+                      {item.Notes && (
+                        <div className="mt-1 text-xs text-gray-500 italic">
+                          {item.Notes}
+                        </div>
+                      )}
+
                       {item.FromMeals && item.FromMeals.length > 0 && (
                         <div className="mt-2">
                           <p className="text-xs text-gray-500 mb-1">Used in:</p>
@@ -695,7 +749,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
 
                       {isSelected && (
                         <div className="mt-3 flex items-center gap-2">
-                          <label className="text-sm text-gray-600 font-medium">Qty:</label>
+                          <label className="text-sm text-gray-600 font-medium">Shopping Qty:</label>
                           <input
                             type="number"
                             min="1"
@@ -703,6 +757,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                             onChange={(e) => updateQuantity(item.ItemID, e.target.value)}
                             className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-purple-500 focus:border-purple-500"
                           />
+                          <span className="text-xs text-gray-500">{item.Unit}</span>
                         </div>
                       )}
                     </div>

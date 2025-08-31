@@ -912,6 +912,17 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                       addDebugLog('✅ Successfully called get_recipe_items webhook');
                       addDebugLog('Response data:', responseData);
 
+                      // Try to parse and store the response for the Recipe Ingredients page
+                      try {
+                        const parsedResponse = JSON.parse(responseData);
+                        localStorage.setItem('n8n_recipe_ingredients', JSON.stringify(parsedResponse));
+                        addDebugLog('✅ Stored webhook response in localStorage');
+                      } catch (parseError) {
+                        addDebugLog('⚠️ Could not parse webhook response as JSON:', parseError.message);
+                        // Store raw response as fallback
+                        localStorage.setItem('n8n_recipe_ingredients_raw', responseData);
+                      }
+
                       // Navigate to the Recipe Ingredients page
                       onNavigate('recipe-ingredients');
                     } else {
