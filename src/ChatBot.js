@@ -874,32 +874,34 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                   }
 
                   try {
-                    // Call your new webhook with the recipe IDs
-                    const webhookURL = 'https://n8n-grocery.needexcelexpert.com/webhook/get_recipe_items';
+                    // Call your new webhook with the recipe IDs using GET method like other webhooks
+                    const baseWebhookURL = 'https://n8n-grocery.needexcelexpert.com/webhook/get_recipe_items';
 
-                    const payload = {
-                      recipe_ids: recipeIds,
+                    // Convert payload to query parameters to match other webhooks
+                    const queryParams = new URLSearchParams({
+                      recipe_ids: JSON.stringify(recipeIds),
                       session_id: sessionId,
                       timestamp: new Date().toISOString(),
-                      meal_count: selectedMeals.length,
-                      meals: selectedMeals.map(meal => ({
+                      meal_count: selectedMeals.length.toString(),
+                      meals: JSON.stringify(selectedMeals.map(meal => ({
                         id: meal.recipeId,
                         name: meal.name,
                         description: meal.description
-                      }))
-                    };
+                      })))
+                    });
 
-                    addDebugLog('Sending payload to get_recipe_items webhook:', payload);
+                    const webhookURL = `${baseWebhookURL}?${queryParams.toString()}`;
+
+                    addDebugLog('Sending GET request to get_recipe_items webhook');
+                    addDebugLog('Recipe IDs:', recipeIds);
                     addDebugLog('Webhook URL:', webhookURL);
 
                     const response = await fetch(webhookURL, {
-                      method: 'POST',
+                      method: 'GET',
                       headers: {
-                        'Content-Type': 'application/json',
                         'Accept': 'application/json',
                       },
-                      mode: 'cors',
-                      body: JSON.stringify(payload)
+                      mode: 'cors'
                     });
 
                     addDebugLog('Webhook response status:', response.status);
