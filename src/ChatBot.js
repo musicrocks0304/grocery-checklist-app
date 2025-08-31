@@ -849,10 +849,70 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                 {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
               </div>
               <button
-                onClick={() => {
-                  addDebugLog('Navigating to recipe ingredients page with meals:', selectedMeals);
-                  // Navigate to the new Recipe Ingredients page
-                  onNavigate('recipe-ingredients');
+                onClick={async () => {
+                  addDebugLog('Generating grocery list for meals:', selectedMeals);
+
+                  // Extract recipe IDs from selected meals
+                  const recipeIds = selectedMeals
+                    .map(meal => meal.recipeId)
+                    .filter(id => id); // Remove any undefined/null IDs
+
+                  addDebugLog('Recipe IDs to send:', recipeIds);
+
+                  if (recipeIds.length === 0) {
+                    addDebugLog('❌ No recipe IDs found in selected meals');
+                    alert('No recipe IDs found. Please make sure meals were added properly.');
+                    return;
+                  }
+
+                  try {
+                    // Call your new webhook with the recipe IDs
+                    const webhookURL = 'http://localhost:5679/webhook/get_recipe_items';
+
+                    const payload = {
+                      recipe_ids: recipeIds,
+                      session_id: sessionId,
+                      timestamp: new Date().toISOString(),
+                      meal_count: selectedMeals.length,
+                      meals: selectedMeals.map(meal => ({
+                        id: meal.recipeId,
+                        name: meal.name,
+                        description: meal.description
+                      }))
+                    };
+
+                    addDebugLog('Sending payload to get_recipe_items webhook:', payload);
+
+                    const response = await fetch(webhookURL, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                      },
+                      mode: 'cors',
+                      body: JSON.stringify(payload)
+                    });
+
+                    addDebugLog('Webhook response status:', response.status);
+
+                    if (response.ok) {
+                      const responseData = await response.text();
+                      addDebugLog('✅ Successfully called get_recipe_items webhook');
+                      addDebugLog('Response data:', responseData);
+
+                      // Navigate to the Recipe Ingredients page
+                      onNavigate('recipe-ingredients');
+                    } else {
+                      addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
+                      // Still navigate to the page, but show a warning
+                      alert('Warning: There was an issue calling the recipe items webhook, but proceeding anyway.');
+                      onNavigate('recipe-ingredients');
+                    }
+
+                  } catch (error) {
+                    addDebugLog('❌ Error calling get_recipe_items webhook:', error.message);
+                    alert('Error calling recipe items webhook. Check debug logs for details.');
+                  }
                 }}
                 className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
               >
