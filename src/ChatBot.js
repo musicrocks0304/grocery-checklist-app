@@ -80,12 +80,13 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   };
 
   // Add a meal to the selected meals list
-  const addMealToList = (mealName, mealDescription, recipeId = null) => {
+  const addMealToList = (mealName, mealDescription, recipeId = null, totalTime = null) => {
     const newMeal = {
       id: Date.now(),
       name: mealName,
       description: mealDescription,
       recipeId: recipeId,
+      totalTime: totalTime,
       ingredients: []
     };
 
@@ -285,7 +286,8 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                   name: recipe.name,
                   description: recipe.description,
                   recipeId: recipe.id,
-                  servings: recipe.servings || 4
+                  servings: recipe.servings || 4,
+                  totalTime: recipe.totalTime || null
                 }));
               }
               break;
@@ -713,10 +715,15 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                                 <div className="flex-1">
                                   <h4 className="font-semibold text-gray-800">{meal.name}</h4>
                                   <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
+                                  {meal.totalTime && (
+                                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                      <span>{meal.totalTime} min cook time</span>
+                                    </div>
+                                  )}
                                 </div>
                                 <button
                                   onClick={() => {
-                                    addMealToList(meal.name, meal.description, meal.recipeId);
+                                    addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
                                     setShowMealsPanel(true);
                                   }}
                                   className="ml-3 flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
@@ -821,9 +828,10 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-800">{meal.name}</h3>
                           <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
-                          {meal.servings && (
+                          {(meal.servings || meal.totalTime) && (
                             <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                              <span>Serves {meal.servings}</span>
+                              {meal.servings && <span>Serves {meal.servings}</span>}
+                              {meal.totalTime && <span>{meal.servings ? '• ' : ''}{meal.totalTime} min cook time</span>}
                               {meal.prepTime && <span>• {meal.prepTime} min</span>}
                             </div>
                           )}
