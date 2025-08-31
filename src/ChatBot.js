@@ -32,6 +32,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   const selectedMeals = parentSelectedMeals || localSelectedMeals;
   const setSelectedMeals = setParentSelectedMeals || setLocalSelectedMeals;
   const [showMealsPanel, setShowMealsPanel] = useState(false);
+  const [isGeneratingGroceryList, setIsGeneratingGroceryList] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Navigation items
@@ -586,7 +587,28 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   // Removed getFallbackIngredients function since we're not using it anymore
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4">
+    <div className="h-screen flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative">
+      {/* Loading Overlay */}
+      {isGeneratingGroceryList && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
+          <div className="bg-white rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">Creating Your Grocery List</h3>
+            <p className="text-gray-600 mb-4">
+              Our AI is analyzing your selected meals and aggregating all the ingredients...
+            </p>
+            <div className="flex items-center justify-center space-x-1">
+              <div className="animate-bounce h-2 w-2 bg-purple-600 rounded-full" style={{animationDelay: '0ms'}}></div>
+              <div className="animate-bounce h-2 w-2 bg-purple-600 rounded-full" style={{animationDelay: '150ms'}}></div>
+              <div className="animate-bounce h-2 w-2 bg-purple-600 rounded-full" style={{animationDelay: '300ms'}}></div>
+            </div>
+            <p className="text-sm text-gray-500 mt-4">This usually takes 10-15 seconds</p>
+          </div>
+        </div>
+      )}
+
       {/* Main Chat Area */}
       <div className={`bg-white lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showMealsPanel ? 'flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'}`}>
         {/* Header */}
@@ -858,6 +880,9 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
               </div>
               <button
                 onClick={async () => {
+                  // Set loading state
+                  setIsGeneratingGroceryList(true);
+
                   addDebugLog('Generating grocery list for meals:', selectedMeals);
 
                   // Extract recipe IDs from selected meals
@@ -870,6 +895,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                   if (recipeIds.length === 0) {
                     addDebugLog('❌ No recipe IDs found in selected meals');
                     alert('No recipe IDs found. Please make sure meals were added properly.');
+                    setIsGeneratingGroceryList(false);
                     return;
                   }
 
@@ -948,12 +974,29 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
 
                     // Still navigate to show the page with mock data
                     onNavigate('recipe-ingredients');
+                  } finally {
+                    // Always reset loading state
+                    setIsGeneratingGroceryList(false);
                   }
                 }}
-                className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                disabled={isGeneratingGroceryList}
+                className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  isGeneratingGroceryList
+                    ? 'bg-purple-400 cursor-not-allowed'
+                    : 'bg-purple-600 hover:bg-purple-700'
+                } text-white`}
               >
-                <ShoppingCart size={16} />
-                Generate Grocery List
+                {isGeneratingGroceryList ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Creating Your Grocery List...
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart size={16} />
+                    Generate Grocery List
+                  </>
+                )}
               </button>
             </div>
           )}
