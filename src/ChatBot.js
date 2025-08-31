@@ -867,7 +867,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
 
                   try {
                     // Call your new webhook with the recipe IDs
-                    const webhookURL = 'http://localhost:5679/webhook/get_recipe_items';
+                    const webhookURL = 'https://n8n-grocery.needexcelexpert.com/webhook/get_recipe_items';
 
                     const payload = {
                       recipe_ids: recipeIds,
@@ -882,6 +882,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     };
 
                     addDebugLog('Sending payload to get_recipe_items webhook:', payload);
+                    addDebugLog('Webhook URL:', webhookURL);
 
                     const response = await fetch(webhookURL, {
                       method: 'POST',
@@ -894,6 +895,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     });
 
                     addDebugLog('Webhook response status:', response.status);
+                    addDebugLog('Webhook response headers:', Object.fromEntries(response.headers.entries()));
 
                     if (response.ok) {
                       const responseData = await response.text();
@@ -903,7 +905,9 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                       // Navigate to the Recipe Ingredients page
                       onNavigate('recipe-ingredients');
                     } else {
+                      const errorText = await response.text();
                       addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
+                      addDebugLog('Error response:', errorText);
                       // Still navigate to the page, but show a warning
                       alert('Warning: There was an issue calling the recipe items webhook, but proceeding anyway.');
                       onNavigate('recipe-ingredients');
@@ -911,7 +915,18 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
 
                   } catch (error) {
                     addDebugLog('❌ Error calling get_recipe_items webhook:', error.message);
-                    alert('Error calling recipe items webhook. Check debug logs for details.');
+                    addDebugLog('Error details:', error);
+
+                    // Check if it's a CORS error
+                    if (error.message === 'Failed to fetch') {
+                      addDebugLog('🚨 This looks like a CORS error. The webhook may need CORS headers.');
+                      alert('CORS Error: The webhook needs to allow cross-origin requests. Check debug logs for details.');
+                    } else {
+                      alert('Error calling recipe items webhook. Check debug logs for details.');
+                    }
+
+                    // Still navigate to show the page with mock data
+                    onNavigate('recipe-ingredients');
                   }
                 }}
                 className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
