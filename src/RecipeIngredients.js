@@ -51,7 +51,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
       addDebugLog('🌐 Calling webhook...');
 
       // Call the webhook
-      const webhookUrl = 'https://needexcelexpert.n8n.cloud/webhook/meal_ingredients';
+      const webhookUrl = 'https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients';
       const response = await fetch(webhookUrl, {
         method: 'GET',
         headers: {
@@ -538,7 +538,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                 addDebugLog('Selected ingredients to add:', selectedIngredients);
 
                 // Call the webhook
-                const webhookUrl = 'https://needexcelexpert.n8n.cloud/webhook/meal_ingredients';
+                const webhookUrl = 'https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients';
                 const response = await fetch(webhookUrl, {
                   method: 'GET',
                   headers: {
