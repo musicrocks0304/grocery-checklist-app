@@ -823,15 +823,50 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                 Review List ({selectedItems.size})
               </button>
               <button
-                onClick={() => {
-                  addDebugLog('Creating grocery list with selected items:', {
-                    selectedItems: Array.from(selectedItems),
-                    quantities: Object.fromEntries(itemQuantities),
-                    meals: selectedMeals
-                  });
-                  // For now, navigate back to main grocery list
-                  alert("Recipe ingredients would be added to your main grocery list!");
-                  onNavigate('grocery');
+                onClick={async () => {
+                  // Show confirmation dialog
+                  const confirmed = window.confirm(
+                    "Are you sure you want to add these ingredients to your main grocery list? This action cannot be undone."
+                  );
+
+                  if (!confirmed) {
+                    return;
+                  }
+
+                  try {
+                    addDebugLog('Adding ingredients to main grocery list...');
+
+                    // Prepare the selected ingredients data
+                    const selectedIngredients = ingredientsList
+                      .filter(item => selectedItems.has(item.ItemID.toString()))
+                      .map(item => ({
+                        ...item,
+                        quantity: itemQuantities.get(item.ItemID.toString()) || 1
+                      }));
+
+                    addDebugLog('Selected ingredients to add:', selectedIngredients);
+
+                    // Call the webhook
+                    const webhookUrl = 'https://needexcelexpert.n8n.cloud/webhook/meal_ingredients';
+                    const response = await fetch(webhookUrl, {
+                      method: 'GET',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      }
+                    });
+
+                    if (response.ok) {
+                      addDebugLog('✅ Successfully added ingredients to main grocery list');
+                      alert("Recipe ingredients have been added to your main grocery list!");
+                      onNavigate('grocery');
+                    } else {
+                      throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                  } catch (error) {
+                    console.error('Error adding ingredients to main list:', error);
+                    addDebugLog('❌ Error adding ingredients to main list:', error.message);
+                    alert("There was an error adding ingredients to your main grocery list. Please try again.");
+                  }
                 }}
                 disabled={selectedItems.size === 0}
                 className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
