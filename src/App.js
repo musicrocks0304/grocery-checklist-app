@@ -342,7 +342,7 @@ const GroceryChecklist = ({ onNavigate }) => {
     groceryStoreSection: "",
   });
   const [itemToRemove, setItemToRemove] = useState(null);
-  const [groupBy, setGroupBy] = useState("Category"); // New state for grouping mode
+  const [groupBy, setGroupBy] = useState("GroceryStoreSection"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
   const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
 
