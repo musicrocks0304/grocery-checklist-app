@@ -25,6 +25,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
   const [showFinalList, setShowFinalList] = useState(false);
   const [groupBy, setGroupBy] = useState("Category");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [expandedMeals, setExpandedMeals] = useState(new Set());
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
@@ -225,9 +226,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
   const getGroups = (data = ingredientsList, groupByField = groupBy) => {
     const groups = new Set();
     data.forEach((item) => {
-      if (typeFilter === "All" || item.Type === typeFilter) {
-        groups.add(item[groupByField] || "Other");
-      }
+      groups.add(item[groupByField] || "Other");
     });
     return Array.from(groups).sort();
   };
@@ -235,22 +234,13 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
   const getItemsByGroup = (group) => {
     return ingredientsList.filter((item) => {
       const matchesGroup = (item[groupBy] || "Other") === group;
-      const matchesType = typeFilter === "All" || item.Type === typeFilter;
-      return matchesGroup && matchesType;
+      return matchesGroup;
     });
   };
 
   const handleGroupByChange = (newGroupBy) => {
     setGroupBy(newGroupBy);
     const groups = getGroups(ingredientsList, newGroupBy);
-    if (groups.length > 0) {
-      setActiveTab(groups[0]);
-    }
-  };
-
-  const handleTypeFilterChange = (newTypeFilter) => {
-    setTypeFilter(newTypeFilter);
-    const groups = getGroups();
     if (groups.length > 0) {
       setActiveTab(groups[0]);
     }
@@ -291,6 +281,18 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
       const newQuantities = new Map(prev);
       newQuantities.set(itemIdStr, numQuantity);
       return newQuantities;
+    });
+  };
+
+  const toggleMealDescription = (mealIndex) => {
+    setExpandedMeals(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(mealIndex)) {
+        newSet.delete(mealIndex);
+      } else {
+        newSet.add(mealIndex);
+      }
+      return newSet;
     });
   };
 
@@ -405,14 +407,29 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
             Selected Meals ({selectedMeals.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {selectedMeals.map((meal, index) => (
-              <div key={meal.id || index} className="bg-white rounded-lg p-3 border border-blue-200">
-                <h3 className="font-medium text-gray-900">{meal.name}</h3>
-                {meal.description && (
-                  <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
-                )}
-              </div>
-            ))}
+            {selectedMeals.map((meal, index) => {
+              const isExpanded = expandedMeals.has(index);
+              return (
+                <div key={meal.id || index} className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-medium text-gray-900 flex-1">{meal.name}</h3>
+                    {meal.description && (
+                      <button
+                        onClick={() => toggleMealDescription(index)}
+                        className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                        aria-label={isExpanded ? "Collapse description" : "Expand description"}
+                      >
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
+                    )}
+                  </div>
+
+                  {meal.description && isExpanded && (
+                    <p className="text-sm text-gray-600 mt-2 leading-relaxed">{meal.description}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -577,28 +594,44 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
               Selected Meals ({selectedMeals.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {selectedMeals.map((meal, index) => (
-                <div key={meal.id || index} className="bg-white rounded-lg p-3 border border-blue-200">
-                  <h3 className="font-medium text-gray-900">{meal.name}</h3>
-                  {meal.description && (
-                    <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
-                  )}
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                    {meal.servings && (
-                      <span className="flex items-center gap-1">
-                        <Users size={12} />
-                        {meal.servings} servings
-                      </span>
+              {selectedMeals.map((meal, index) => {
+                const isExpanded = expandedMeals.has(index);
+                return (
+                  <div key={meal.id || index} className="bg-white rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-start justify-between">
+                      <h3 className="font-medium text-gray-900 flex-1">{meal.name}</h3>
+                      {meal.description && (
+                        <button
+                          onClick={() => toggleMealDescription(index)}
+                          className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                          aria-label={isExpanded ? "Collapse description" : "Expand description"}
+                        >
+                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                      )}
+                    </div>
+
+                    {meal.description && isExpanded && (
+                      <p className="text-sm text-gray-600 mt-2 leading-relaxed">{meal.description}</p>
                     )}
-                    {meal.prepTime && (
-                      <span className="flex items-center gap-1">
-                        <Clock size={12} />
-                        {meal.prepTime} min
-                      </span>
-                    )}
+
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                      {meal.servings && (
+                        <span className="flex items-center gap-1">
+                          <Users size={12} />
+                          {meal.servings} servings
+                        </span>
+                      )}
+                      {meal.prepTime && (
+                        <span className="flex items-center gap-1">
+                          <Clock size={12} />
+                          {meal.prepTime} min
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -607,38 +640,15 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
           Please select ingredients for this week's recipe-based grocery list:
         </p>
 
-        {/* Grouping and Filtering Controls */}
+        {/* Grouping Controls */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          {/* Item Type Filter Section */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center gap-2 text-gray-700">
-              <span className="font-medium">Item Type:</span>
-            </div>
-            <div className="flex gap-2">
-              {["All", "Basic", "Periodic"].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleTypeFilterChange(type)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    typeFilter === type
-                      ? "bg-green-600 text-white"
-                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Group By Section */}
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
             <div className="flex items-center gap-2 text-gray-700">
               <Layers size={20} />
               <span className="font-medium">Group by:</span>
             </div>
             <div className="flex gap-2">
-              {["Category", "Store", "GroceryStoreSection"].map((mode) => (
+              {["Category", "GroceryStoreSection"].map((mode) => (
                 <button
                   key={mode}
                   onClick={() => handleGroupByChange(mode)}
@@ -694,77 +704,76 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
             <p className="text-gray-600">Try selecting a different group or filter.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {currentGroupItems.map((item) => {
-              const isSelected = selectedItems.has(item.ItemID.toString());
-              const quantity = itemQuantities.get(item.ItemID.toString()) || item.QuantitySelected || 1;
+          <div className="bg-white border border-gray-200 rounded-lg">
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              <h3 className="font-medium text-gray-900">Category: {activeTab}</h3>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {currentGroupItems.map((item) => {
+                const isSelected = selectedItems.has(item.ItemID.toString());
+                const quantity = itemQuantities.get(item.ItemID.toString()) || item.QuantitySelected || 1;
 
-              return (
-                <div
-                  key={item.ItemID}
-                  className={`border rounded-lg p-4 transition-all ${
-                    isSelected
-                      ? 'border-purple-300 bg-purple-50 shadow-md'
-                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleItemSelection(item.ItemID)}
-                      className="mt-1 w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-900 truncate">
-                        {item.ItemName}
-                      </h4>
-
-                      {/* Show original recipe quantity and unit */}
-                      <div className="mt-1 text-sm text-gray-600">
-                        Recipe calls for: <span className="font-medium">{item.QuantitySelected} {item.Unit}</span>
-                      </div>
-
-                      {item.Notes && (
-                        <div className="mt-1 text-xs text-gray-500 italic">
-                          {item.Notes}
-                        </div>
-                      )}
-
-                      {item.FromMeals && item.FromMeals.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-xs text-gray-500 mb-1">Used in:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {item.FromMeals.map((mealName, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-block px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full"
-                              >
-                                {mealName}
-                              </span>
-                            ))}
+                return (
+                  <div key={item.ItemID} className="p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleItemSelection(item.ItemID)}
+                        className="mt-1 w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">
+                              {item.ItemName}
+                            </h4>
+                            <div className="mt-1 text-sm text-gray-600">
+                              Recipe calls for: <span className="font-medium">{item.QuantitySelected} {item.Unit}</span>
+                            </div>
+                            {item.Notes && (
+                              <div className="mt-1 text-xs text-gray-500 italic">
+                                {item.Notes}
+                              </div>
+                            )}
                           </div>
+                          {isSelected && (
+                            <div className="ml-4 flex items-center gap-2">
+                              <label className="text-sm text-gray-600 font-medium">Qty:</label>
+                              <select
+                                value={quantity}
+                                onChange={(e) => updateQuantity(item.ItemID, e.target.value)}
+                                className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-purple-500 focus:border-purple-500"
+                              >
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                                  <option key={num} value={num}>{num}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
-                      )}
 
-                      {isSelected && (
-                        <div className="mt-3 flex items-center gap-2">
-                          <label className="text-sm text-gray-600 font-medium">Shopping Qty:</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={quantity}
-                            onChange={(e) => updateQuantity(item.ItemID, e.target.value)}
-                            className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-purple-500 focus:border-purple-500"
-                          />
-                          <span className="text-xs text-gray-500">{item.Unit}</span>
-                        </div>
-                      )}
+                        {item.FromMeals && item.FromMeals.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-500 mb-1">Used in:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {item.FromMeals.map((mealName, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-block px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full"
+                                >
+                                  {mealName}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 
