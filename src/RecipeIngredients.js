@@ -472,16 +472,49 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
           </button>
           <button
             onClick={async () => {
-              // Here you would implement the logic to create the grocery list
-              addDebugLog('Creating grocery list with selected items:', {
-                selectedItems: Array.from(selectedItems),
-                quantities: Object.fromEntries(itemQuantities),
-                meals: selectedMeals
-              });
+              // Show confirmation dialog
+              const confirmed = window.confirm(
+                "Are you sure you want to add these ingredients to your main grocery list? This action cannot be undone."
+              );
 
-              // For now, navigate back to main grocery list
-              alert("Recipe ingredients would be added to your main grocery list!");
-              onNavigate('grocery');
+              if (!confirmed) {
+                return;
+              }
+
+              try {
+                addDebugLog('Adding ingredients to main grocery list...');
+
+                // Prepare the selected ingredients data
+                const selectedIngredients = ingredientsList
+                  .filter(item => selectedItems.has(item.ItemID.toString()))
+                  .map(item => ({
+                    ...item,
+                    quantity: itemQuantities.get(item.ItemID.toString()) || 1
+                  }));
+
+                addDebugLog('Selected ingredients to add:', selectedIngredients);
+
+                // Call the webhook
+                const webhookUrl = 'https://needexcelexpert.n8n.cloud/webhook/meal_ingredients';
+                const response = await fetch(webhookUrl, {
+                  method: 'GET',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  }
+                });
+
+                if (response.ok) {
+                  addDebugLog('✅ Successfully added ingredients to main grocery list');
+                  alert("Recipe ingredients have been added to your main grocery list!");
+                  onNavigate('grocery');
+                } else {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+              } catch (error) {
+                console.error('Error adding ingredients to main list:', error);
+                addDebugLog('❌ Error adding ingredients to main list:', error.message);
+                alert("There was an error adding ingredients to your main grocery list. Please try again.");
+              }
             }}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
