@@ -24,7 +24,6 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
   const [itemQuantities, setItemQuantities] = useState(new Map());
   const [showFinalList, setShowFinalList] = useState(false);
   const [groupBy, setGroupBy] = useState("Category");
-  const [typeFilter, setTypeFilter] = useState("All");
   const [expandedMeals, setExpandedMeals] = useState(new Set());
 
   // Debug logging function
