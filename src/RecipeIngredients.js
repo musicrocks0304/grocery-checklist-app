@@ -784,13 +784,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
           <div className="text-center py-12">
             <ChefHat size={48} className="mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No ingredients to display</h3>
-            <p className="text-gray-600">Select some meals in the meal planner to see ingredients here.</p>
-            <button
-              onClick={() => onNavigate('chatbot')}
-              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Go to Meal Planner
-            </button>
+            <p className="text-gray-600">This page shows ingredients from your selected meals. If you see this message, there may have been an issue loading the ingredient data.</p>
           </div>
         ) : currentGroupItems.length === 0 ? (
           <div className="text-center py-12">
