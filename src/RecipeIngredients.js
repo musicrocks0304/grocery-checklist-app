@@ -48,15 +48,82 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
         }));
 
       addDebugLog('📦 Selected ingredients to add:', selectedIngredients);
-      addDebugLog('🌐 Calling webhook...');
+      addDebugLog(`📊 Total items: ${selectedIngredients.length}`);
 
-      // Call the webhook
-      const webhookUrl = 'https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients';
+      // Get week date information (matching other webhooks)
+      const getWeekDates = () => {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const showNextWeek = dayOfWeek >= 4;
+
+        const daysToSunday = dayOfWeek;
+        const currentWeekSunday = new Date(today);
+        currentWeekSunday.setDate(today.getDate() - daysToSunday);
+
+        const targetSunday = new Date(currentWeekSunday);
+        if (showNextWeek) {
+          targetSunday.setDate(targetSunday.getDate() + 7);
+        }
+
+        const targetSaturday = new Date(targetSunday);
+        targetSaturday.setDate(targetSunday.getDate() + 6);
+
+        const formatDate = (date) => {
+          return date.toISOString().split('T')[0];
+        };
+
+        const formatDisplayDate = (date) => {
+          const month = date.toLocaleDateString("en-US", { month: "long" });
+          const day = date.getDate();
+          const getOrdinalSuffix = (day) => {
+            if (day > 3 && day < 21) return "th";
+            switch (day % 10) {
+              case 1: return "st";
+              case 2: return "nd";
+              case 3: return "rd";
+              default: return "th";
+            }
+          };
+          return `${month} ${day}${getOrdinalSuffix(day)}`;
+        };
+
+        const year = targetSunday.getFullYear();
+        return {
+          startDate: formatDate(targetSunday),
+          endDate: formatDate(targetSaturday),
+          displayRange: `For the week of ${formatDisplayDate(targetSunday)} to ${formatDisplayDate(targetSaturday)}, ${year}`
+        };
+      };
+
+      const weekData = getWeekDates();
+
+      // Prepare query parameters with all the selected ingredient data
+      const queryParams = new URLSearchParams({
+        ingredients: JSON.stringify(selectedIngredients),
+        totalItems: selectedIngredients.length.toString(),
+        selectedMeals: JSON.stringify(selectedMeals.map(meal => ({
+          id: meal.id || meal.recipeId,
+          name: meal.name,
+          description: meal.description
+        }))),
+        weekStartDate: weekData.startDate,
+        weekEndDate: weekData.endDate,
+        weekDateRange: weekData.displayRange,
+        timestamp: new Date().toISOString(),
+        source: 'recipe_ingredients_page'
+      });
+
+      const webhookUrl = `https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients?${queryParams.toString()}`;
+
+      addDebugLog('🌐 Calling webhook with data...');
+      addDebugLog('📋 Webhook URL (truncated):', webhookUrl.substring(0, 200) + '...');
+
       const response = await fetch(webhookUrl, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-        }
+          'Accept': 'application/json',
+        },
+        mode: 'cors'
       });
 
       addDebugLog('📡 Webhook response status:', response.status);
@@ -514,50 +581,8 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
             Back to Selection
           </button>
           <button
-            onClick={async () => {
-              // Show confirmation dialog
-              const confirmed = window.confirm(
-                "Are you sure you want to add these ingredients to your main grocery list? This action cannot be undone."
-              );
-
-              if (!confirmed) {
-                return;
-              }
-
-              try {
-                addDebugLog('Adding ingredients to main grocery list...');
-
-                // Prepare the selected ingredients data
-                const selectedIngredients = ingredientsList
-                  .filter(item => selectedItems.has(item.ItemID.toString()))
-                  .map(item => ({
-                    ...item,
-                    quantity: itemQuantities.get(item.ItemID.toString()) || 1
-                  }));
-
-                addDebugLog('Selected ingredients to add:', selectedIngredients);
-
-                // Call the webhook
-                const webhookUrl = 'https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients';
-                const response = await fetch(webhookUrl, {
-                  method: 'GET',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  }
-                });
-
-                if (response.ok) {
-                  addDebugLog('✅ Successfully added ingredients to main grocery list');
-                  alert("Recipe ingredients have been added to your main grocery list!");
-                  onNavigate('grocery');
-                } else {
-                  throw new Error(`HTTP error! status: ${response.status}`);
-                }
-              } catch (error) {
-                console.error('Error adding ingredients to main list:', error);
-                addDebugLog('❌ Error adding ingredients to main list:', error.message);
-                alert("There was an error adding ingredients to your main grocery list. Please try again.");
-              }
+            onClick={() => {
+              setShowConfirmDialog(true);
             }}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
