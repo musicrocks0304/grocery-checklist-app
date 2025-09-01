@@ -70,9 +70,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
         addDebugLog('No cached response found, using mock data');
       }
 
-      // If no cached response, use the provided format as fallback
+      // If no cached response, use the new format as fallback
       if (!webhookResponse) {
-        addDebugLog('Using fallback data structure matching n8n webhook format');
+        addDebugLog('Using fallback data structure matching new n8n webhook format');
         webhookResponse = [
           {
             output: {
@@ -81,34 +81,34 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                 {
                   name: "ground beef",
                   category: "protein",
-                  quantity: "10 ounces",
-                  unit: "ounce",
-                  usedInRecipes: selectedMeals.map(m => m.name),
-                  notes: ""
+                  purchaseQuantity: "1 lb",
+                  purchaseUnit: "1 lb package",
+                  recipeNeeds: "10 oz",
+                  usedInRecipes: selectedMeals.map(m => m.name)
                 },
                 {
                   name: "pasta",
                   category: "grains",
-                  quantity: "6 ounces",
-                  unit: "ounce",
-                  usedInRecipes: selectedMeals.map(m => m.name),
-                  notes: ""
+                  purchaseQuantity: "1 lb",
+                  purchaseUnit: "1 lb package",
+                  recipeNeeds: "6 oz",
+                  usedInRecipes: selectedMeals.map(m => m.name)
                 },
                 {
                   name: "vegetables",
                   category: "produce",
-                  quantity: "4 ounces",
-                  unit: "ounce",
-                  usedInRecipes: selectedMeals.map(m => m.name),
-                  notes: ""
+                  purchaseQuantity: "1 bag",
+                  purchaseUnit: "1 bag",
+                  recipeNeeds: "4 oz",
+                  usedInRecipes: selectedMeals.map(m => m.name)
                 }
               ],
               summary: {
                 totalItems: 3,
                 recipesIncluded: selectedMeals.map(m => m.name),
-                categories: ["protein", "grains", "produce"]
+                estimatedCost: "$15"
               },
-              message: "Here's your handy shopping list for your selected recipes!"
+              message: "Here's your consolidated shopping list for the recipes!"
             }
           }
         ];
@@ -129,10 +129,13 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
             Type: 'Basic',
             IsActive: 1,
             IsSelected: 1, // Pre-select all items from recipes
-            QuantitySelected: parseQuantity(ingredient.quantity),
-            Unit: ingredient.unit || '',
+            // Use purchase quantity for shopping
+            QuantitySelected: ingredient.purchaseQuantity || '1',
+            Unit: ingredient.purchaseUnit || 'item',
+            // Store recipe needs for reference
+            RecipeNeeds: ingredient.recipeNeeds || '',
             FromMeals: ingredient.usedInRecipes || selectedMeals.map(m => m.name),
-            Notes: ingredient.notes || ''
+            Notes: ingredient.recipeNeeds ? `Recipe needs: ${ingredient.recipeNeeds}` : ''
           });
         });
       }
@@ -191,15 +194,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
     return category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
   };
 
-  // Helper function to parse quantity strings
-  const parseQuantity = (quantityStr) => {
-    if (!quantityStr) return 1;
-    if (quantityStr === 'to taste') return 1;
 
-    // Extract number from quantity string like "10 ounces" or "2 tablespoons"
-    const match = quantityStr.match(/^(\d+(?:\.\d+)?)/);
-    return match ? parseFloat(match[1]) : 1;
-  };
 
   // Helper function to map categories to store sections
   const getCategorySection = (category) => {
@@ -448,14 +443,14 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                     <span className="flex-1">
                       {item.ItemName}
-                      {item.Unit && (
-                        <span className="text-sm text-gray-500 ml-2">
-                          (Recipe: {item.QuantitySelected} {item.Unit})
-                        </span>
-                      )}
+                      <div className="text-xs text-gray-500 mt-1">
+                        {item.RecipeNeeds && (
+                          <div>Recipe needs: {item.RecipeNeeds}</div>
+                        )}
+                      </div>
                     </span>
-                    <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      Shopping: {item.quantity} {item.Unit}
+                    <span className="text-sm font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                      Buy: {item.quantity} × {item.QuantitySelected}
                     </span>
                     {item.FromMeals && (
                       <span className="text-xs text-gray-500">
@@ -727,14 +722,16 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                             <h4 className="font-medium text-gray-900">
                               {item.ItemName}
                             </h4>
-                            <div className="mt-1 text-sm text-gray-600">
-                              Recipe calls for: <span className="font-medium">{item.QuantitySelected} {item.Unit}</span>
-                            </div>
-                            {item.Notes && (
-                              <div className="mt-1 text-xs text-gray-500 italic">
-                                {item.Notes}
+                            <div className="mt-1 space-y-1">
+                              <div className="text-sm text-green-700 font-medium">
+                                Buy: <span className="text-green-800">{item.QuantitySelected}</span>
                               </div>
-                            )}
+                              {item.RecipeNeeds && (
+                                <div className="text-xs text-gray-600">
+                                  Recipe needs: <span className="font-medium">{item.RecipeNeeds}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                           {isSelected && (
                             <div className="ml-4 flex items-center gap-2">
@@ -748,6 +745,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                                   <option key={num} value={num}>{num}</option>
                                 ))}
                               </select>
+                              <span className="text-xs text-gray-500">units</span>
                             </div>
                           )}
                         </div>
