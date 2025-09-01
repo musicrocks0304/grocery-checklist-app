@@ -25,12 +25,55 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
   const [showFinalList, setShowFinalList] = useState(false);
   const [groupBy, setGroupBy] = useState("Category");
   const [expandedMeals, setExpandedMeals] = useState(new Set());
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
     const timestamp = new Date().toLocaleTimeString();
     setDebugInfo((prev) => [...prev, { timestamp, message, data }]);
     console.log(`[${timestamp}] ${message}`, data || "");
+  };
+
+  // Handle adding ingredients to main list
+  const handleAddToMainList = async () => {
+    try {
+      addDebugLog('🚀 Starting to add ingredients to main grocery list...');
+
+      // Prepare the selected ingredients data
+      const selectedIngredients = ingredientsList
+        .filter(item => selectedItems.has(item.ItemID.toString()))
+        .map(item => ({
+          ...item,
+          quantity: itemQuantities.get(item.ItemID.toString()) || 1
+        }));
+
+      addDebugLog('📦 Selected ingredients to add:', selectedIngredients);
+      addDebugLog('🌐 Calling webhook...');
+
+      // Call the webhook
+      const webhookUrl = 'https://needexcelexpert.n8n.cloud/webhook/meal_ingredients';
+      const response = await fetch(webhookUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      addDebugLog('📡 Webhook response status:', response.status);
+
+      if (response.ok) {
+        addDebugLog('✅ Successfully added ingredients to main grocery list');
+        alert("✅ Recipe ingredients have been added to your main grocery list!");
+        onNavigate('grocery');
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('❌ Error adding ingredients to main list:', error);
+      addDebugLog('❌ Error adding ingredients to main list:', error.message);
+      alert("❌ There was an error adding ingredients to your main grocery list. Please try again.");
+    }
+    setShowConfirmDialog(false);
   };
 
   // Process meals and aggregate ingredients
@@ -823,50 +866,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                 Review List ({selectedItems.size})
               </button>
               <button
-                onClick={async () => {
-                  // Show confirmation dialog
-                  const confirmed = window.confirm(
-                    "Are you sure you want to add these ingredients to your main grocery list? This action cannot be undone."
-                  );
-
-                  if (!confirmed) {
-                    return;
-                  }
-
-                  try {
-                    addDebugLog('Adding ingredients to main grocery list...');
-
-                    // Prepare the selected ingredients data
-                    const selectedIngredients = ingredientsList
-                      .filter(item => selectedItems.has(item.ItemID.toString()))
-                      .map(item => ({
-                        ...item,
-                        quantity: itemQuantities.get(item.ItemID.toString()) || 1
-                      }));
-
-                    addDebugLog('Selected ingredients to add:', selectedIngredients);
-
-                    // Call the webhook
-                    const webhookUrl = 'https://needexcelexpert.n8n.cloud/webhook/meal_ingredients';
-                    const response = await fetch(webhookUrl, {
-                      method: 'GET',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      }
-                    });
-
-                    if (response.ok) {
-                      addDebugLog('✅ Successfully added ingredients to main grocery list');
-                      alert("Recipe ingredients have been added to your main grocery list!");
-                      onNavigate('grocery');
-                    } else {
-                      throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                  } catch (error) {
-                    console.error('Error adding ingredients to main list:', error);
-                    addDebugLog('❌ Error adding ingredients to main list:', error.message);
-                    alert("There was an error adding ingredients to your main grocery list. Please try again.");
-                  }
+                onClick={() => {
+                  addDebugLog('🔘 Add to Main List button clicked');
+                  setShowConfirmDialog(true);
                 }}
                 disabled={selectedItems.size === 0}
                 className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
@@ -878,6 +880,36 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="text-orange-500" size={24} />
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Action</h3>
+            </div>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to add these {selectedItems.size} ingredients to your main grocery list?
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddToMainList}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Add to Main List
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
