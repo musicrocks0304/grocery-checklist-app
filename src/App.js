@@ -344,6 +344,7 @@ const GroceryChecklist = ({ onNavigate }) => {
   const [itemToRemove, setItemToRemove] = useState(null);
   const [groupBy, setGroupBy] = useState("Category"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
+  const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
 
   // Your n8n webhook URL - verified working in browser
   const WEBHOOK_URL =
@@ -602,10 +603,21 @@ const GroceryChecklist = ({ onNavigate }) => {
     fetchGroceryData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Get filtered data based on type filter
+  // Get filtered data based on type and data source filters
   const getFilteredData = (data = groceryData) => {
-    if (typeFilter === "All") return data;
-    return data.filter((item) => item.Type === typeFilter);
+    let filteredData = data;
+
+    // Apply type filter
+    if (typeFilter !== "All") {
+      filteredData = filteredData.filter((item) => item.Type === typeFilter);
+    }
+
+    // Apply data source filter
+    if (dataSourceFilter !== "All") {
+      filteredData = filteredData.filter((item) => item.DataSource === dataSourceFilter);
+    }
+
+    return filteredData;
   };
 
   // Get unique groups based on the grouping mode and type filter
@@ -636,6 +648,15 @@ const GroceryChecklist = ({ onNavigate }) => {
   // Handle type filter change
   const handleTypeFilterChange = (newTypeFilter) => {
     setTypeFilter(newTypeFilter);
+    const groups = getGroups(groceryData, groupBy);
+    if (groups.length > 0) {
+      setActiveTab(groups[0]);
+    }
+  };
+
+  // Handle data source filter change
+  const handleDataSourceFilterChange = (newDataSourceFilter) => {
+    setDataSourceFilter(newDataSourceFilter);
     const groups = getGroups(groceryData, groupBy);
     if (groups.length > 0) {
       setActiveTab(groups[0]);
@@ -1446,6 +1467,26 @@ const GroceryChecklist = ({ onNavigate }) => {
                   }`}
                 >
                   {type}
+                </button>
+              ))}
+            </div>
+
+            {/* Data Source Filter Section */}
+            <div className="flex items-center gap-2 text-gray-700 ml-6">
+              <span className="font-medium">Data Source:</span>
+            </div>
+            <div className="flex gap-2">
+              {["All", "Staples", "MealIngredients"].map((source) => (
+                <button
+                  key={source}
+                  onClick={() => handleDataSourceFilterChange(source)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    dataSourceFilter === source
+                      ? "bg-purple-600 text-white"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                  }`}
+                >
+                  {source === "MealIngredients" ? "Meals" : source}
                 </button>
               ))}
             </div>
