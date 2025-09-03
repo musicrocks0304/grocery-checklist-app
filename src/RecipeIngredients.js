@@ -99,10 +99,15 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
 
       const weekData = getWeekDates();
 
-      // Prepare query parameters using the same format as the main grocery list
+      // Prepare query parameters with all the selected ingredient data
       const queryParams = new URLSearchParams({
-        action: "add_recipe_ingredients",
-        selectedItemsCount: selectedIngredients.length.toString(),
+        ingredients: JSON.stringify(selectedIngredients),
+        totalItems: selectedIngredients.length.toString(),
+        selectedMeals: JSON.stringify(selectedMeals.map(meal => ({
+          id: meal.id || meal.recipeId,
+          name: meal.name,
+          description: meal.description
+        }))),
         weekStartDate: weekData.startDate,
         weekEndDate: weekData.endDate,
         weekDateRange: weekData.displayRange,
@@ -110,22 +115,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
         source: 'recipe_ingredients_page'
       });
 
-      // Add each selected ingredient's metadata as separate parameters
-      selectedIngredients.forEach((item, index) => {
-        queryParams.append(`item_${index}_id`, item.ItemID.toString());
-        queryParams.append(`item_${index}_name`, item.ItemName);
-        queryParams.append(`item_${index}_category`, item.Category);
-        queryParams.append(`item_${index}_store`, item.Store || 'HEB');
-        queryParams.append(`item_${index}_section`, item.GroceryStoreSection || 'General');
-        queryParams.append(`item_${index}_type`, item.Type || 'Basic');
-        queryParams.append(`item_${index}_quantity`, item.quantity.toString());
-        queryParams.append(`item_${index}_dataSource`, 'MealIngredients');
-        if (item.RecipeNeeds) {
-          queryParams.append(`item_${index}_recipeNeeds`, item.RecipeNeeds);
-        }
-      });
-
-      const webhookUrl = `https://n8n-grocery.needexcelexpert.com/webhook/create_grocery_list?${queryParams.toString()}`;
+      const webhookUrl = `https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients?${queryParams.toString()}`;
 
       addDebugLog('🌐 Calling webhook with data...');
       addDebugLog('📋 Webhook URL (truncated):', webhookUrl.substring(0, 200) + '...');
