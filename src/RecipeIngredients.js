@@ -26,6 +26,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
   const [groupBy, setGroupBy] = useState("Category");
   const [expandedMeals, setExpandedMeals] = useState(new Set());
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isAddingToMainList, setIsAddingToMainList] = useState(false);
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
@@ -36,6 +37,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
 
   // Handle adding ingredients to main list
   const handleAddToMainList = async () => {
+    setIsAddingToMainList(true);
     try {
       addDebugLog('🚀 Starting to add ingredients to main grocery list...');
 
@@ -149,8 +151,10 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
       console.error('❌ Error adding ingredients to main list:', error);
       addDebugLog('❌ Error adding ingredients to main list:', error.message);
       alert("❌ There was an error adding ingredients to your main grocery list. Please try again.");
+    } finally {
+      setIsAddingToMainList(false);
+      setShowConfirmDialog(false);
     }
-    setShowConfirmDialog(false);
   };
 
   // Process meals and aggregate ingredients
@@ -880,7 +884,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
       </div>
 
       {/* Confirmation Dialog */}
-      {showConfirmDialog && (
+      {showConfirmDialog && !isAddingToMainList && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
@@ -905,6 +909,22 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
                 Add to Main List
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Dialog */}
+      {isAddingToMainList && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md mx-4 shadow-xl text-center">
+            <div className="flex items-center justify-center space-x-1 mb-4">
+              <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '0ms'}}></div>
+              <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '150ms'}}></div>
+              <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '300ms'}}></div>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Adding to Main Grocery List</h3>
+            <p className="text-gray-600 mb-2">Processing your recipe ingredients...</p>
+            <p className="text-sm text-gray-500">This usually takes 10-15 seconds</p>
           </div>
         </div>
       )}
