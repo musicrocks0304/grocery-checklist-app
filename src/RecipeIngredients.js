@@ -97,15 +97,10 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
 
       const weekData = getWeekDates();
 
-      // Prepare query parameters with all the selected ingredient data
+      // Prepare query parameters using the same format as the main grocery list
       const queryParams = new URLSearchParams({
-        ingredients: JSON.stringify(selectedIngredients),
-        totalItems: selectedIngredients.length.toString(),
-        selectedMeals: JSON.stringify(selectedMeals.map(meal => ({
-          id: meal.id || meal.recipeId,
-          name: meal.name,
-          description: meal.description
-        }))),
+        action: "add_recipe_ingredients",
+        selectedItemsCount: selectedIngredients.length.toString(),
         weekStartDate: weekData.startDate,
         weekEndDate: weekData.endDate,
         weekDateRange: weekData.displayRange,
@@ -113,7 +108,22 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
         source: 'recipe_ingredients_page'
       });
 
-      const webhookUrl = `https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients?${queryParams.toString()}`;
+      // Add each selected ingredient's metadata as separate parameters
+      selectedIngredients.forEach((item, index) => {
+        queryParams.append(`item_${index}_id`, item.ItemID.toString());
+        queryParams.append(`item_${index}_name`, item.ItemName);
+        queryParams.append(`item_${index}_category`, item.Category);
+        queryParams.append(`item_${index}_store`, item.Store || 'HEB');
+        queryParams.append(`item_${index}_section`, item.GroceryStoreSection || 'General');
+        queryParams.append(`item_${index}_type`, item.Type || 'Basic');
+        queryParams.append(`item_${index}_quantity`, item.quantity.toString());
+        queryParams.append(`item_${index}_dataSource`, 'MealIngredients');
+        if (item.RecipeNeeds) {
+          queryParams.append(`item_${index}_recipeNeeds`, item.RecipeNeeds);
+        }
+      });
+
+      const webhookUrl = `https://n8n-grocery.needexcelexpert.com/webhook/create_grocery_list?${queryParams.toString()}`;
 
       addDebugLog('🌐 Calling webhook with data...');
       addDebugLog('📋 Webhook URL (truncated):', webhookUrl.substring(0, 200) + '...');
@@ -504,72 +514,41 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
           </p>
         </div>
 
-        {/* Selected Meals Summary */}
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h2 className="text-lg font-semibold text-blue-900 mb-3 flex items-center gap-2">
-            <ChefHat size={20} />
-            Selected Meals ({selectedMeals.length})
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {selectedMeals.map((meal, index) => {
-              const isExpanded = expandedMeals.has(index);
-              return (
-                <div key={meal.id || index} className="bg-white rounded-lg p-3 border border-blue-200">
-                  <div className="flex items-start justify-between">
-                    <h3 className="font-medium text-gray-900 flex-1">{meal.name}</h3>
-                    {meal.description && (
-                      <button
-                        onClick={() => toggleMealDescription(index)}
-                        className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        aria-label={isExpanded ? "Collapse description" : "Expand description"}
-                      >
-                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      </button>
-                    )}
-                  </div>
 
-                  {meal.description && isExpanded && (
-                    <p className="text-sm text-gray-600 mt-2 leading-relaxed">{meal.description}</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
         {Object.entries(finalList)
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([categoryName, items]) => (
             <div key={categoryName} className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3 border-b-2 border-blue-200 pb-1">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-purple-200 pb-2">
                 {categoryName}
               </h2>
-              <ul className="space-y-2">
-                {items.map((item) => (
-                  <li
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                {items.map((item, index) => (
+                  <div
                     key={item.ItemID}
-                    className="flex items-center gap-2 text-gray-700"
+                    className={`p-4 flex items-center justify-between ${
+                      index !== items.length - 1 ? 'border-b border-gray-100' : ''
+                    } hover:bg-gray-50 transition-colors`}
                   >
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="flex-1">
-                      {item.ItemName}
-                      <div className="text-xs text-gray-500 mt-1">
-                        {item.RecipeNeeds && (
-                          <div>Recipe needs: {item.RecipeNeeds}</div>
-                        )}
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900 mb-1">
+                        {item.ItemName}
                       </div>
-                    </span>
-                    <span className="text-sm font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
-                      Buy: {item.quantity} × {item.QuantitySelected}
-                    </span>
-                    {item.FromMeals && (
-                      <span className="text-xs text-gray-500">
-                        ({item.FromMeals.join(', ')})
+                      {item.RecipeNeeds && (
+                        <div className="text-sm text-gray-600">
+                          Recipe needs: {item.RecipeNeeds}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">
+                        Buy: {item.quantity} × {item.QuantitySelected}
                       </span>
-                    )}
-                  </li>
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           ))}
 
