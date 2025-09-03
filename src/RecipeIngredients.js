@@ -572,6 +572,52 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
             Add to Main Grocery List
           </button>
         </div>
+
+        {/* Confirmation Dialog */}
+        {showConfirmDialog && !isAddingToMainList && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertCircle className="text-orange-500" size={24} />
+                <h3 className="text-lg font-semibold text-gray-900">Confirm Action</h3>
+              </div>
+              <p className="text-gray-700 mb-6">
+                Are you sure you want to add these {selectedItems.size} ingredients to your main grocery list?
+                This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowConfirmDialog(false)}
+                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddToMainList}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Add to Main List
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading Dialog */}
+        {isAddingToMainList && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-md mx-4 shadow-xl text-center">
+              <div className="flex items-center justify-center space-x-1 mb-4">
+                <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '0ms'}}></div>
+                <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '150ms'}}></div>
+                <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '300ms'}}></div>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Adding to Main Grocery List</h3>
+              <p className="text-gray-600 mb-2">Processing your recipe ingredients...</p>
+              <p className="text-sm text-gray-500">This usually takes 10-15 seconds</p>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -883,51 +929,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
         )}
       </div>
 
-      {/* Confirmation Dialog */}
-      {showConfirmDialog && !isAddingToMainList && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertCircle className="text-orange-500" size={24} />
-              <h3 className="text-lg font-semibold text-gray-900">Confirm Action</h3>
-            </div>
-            <p className="text-gray-700 mb-6">
-              Are you sure you want to add these {selectedItems.size} ingredients to your main grocery list?
-              This action cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowConfirmDialog(false)}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddToMainList}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Add to Main List
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Loading Dialog */}
-      {isAddingToMainList && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md mx-4 shadow-xl text-center">
-            <div className="flex items-center justify-center space-x-1 mb-4">
-              <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '0ms'}}></div>
-              <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '150ms'}}></div>
-              <div className="animate-bounce h-3 w-3 bg-purple-600 rounded-full" style={{animationDelay: '300ms'}}></div>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Adding to Main Grocery List</h3>
-            <p className="text-gray-600 mb-2">Processing your recipe ingredients...</p>
-            <p className="text-sm text-gray-500">This usually takes 10-15 seconds</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
