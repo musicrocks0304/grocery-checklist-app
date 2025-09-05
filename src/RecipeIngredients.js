@@ -35,6 +35,14 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
     console.log(`[${timestamp}] ${message}`, data || "");
   };
 
+  // Clear any cached data on component mount
+  useEffect(() => {
+    // Remove any cached webhook responses to ensure fresh data
+    localStorage.removeItem('n8n_recipe_ingredients');
+    localStorage.removeItem('n8n_recipe_ingredients_raw');
+    addDebugLog('🧹 Cleared cached webhook data to ensure fresh responses');
+  }, []);
+
   // Handle adding ingredients to main list
   const handleAddToMainList = async () => {
     setIsAddingToMainList(true);
@@ -169,22 +177,10 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
       // We need to fetch the results from the n8n webhook response
       addDebugLog('Processing ingredients for meals:', selectedMeals.map(m => m.name));
 
-      // Check if we have cached webhook response data
-      // In a real implementation, this would come from the webhook response
-      // For now, we'll check localStorage or use the provided format
+      // Always fetch fresh data from webhook - no caching
       let webhookResponse = null;
 
-      try {
-        const cachedResponse = localStorage.getItem('n8n_recipe_ingredients');
-        if (cachedResponse) {
-          webhookResponse = JSON.parse(cachedResponse);
-          addDebugLog('Using cached webhook response:', webhookResponse);
-        }
-      } catch (e) {
-        addDebugLog('No cached response found, using mock data');
-      }
-
-      // If no cached response, use the new format as fallback
+      // For now, use the new format as fallback until webhook integration is complete
       if (!webhookResponse) {
         addDebugLog('Using fallback data structure matching new n8n webhook format');
         webhookResponse = [
