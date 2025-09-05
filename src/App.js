@@ -10,12 +10,11 @@ import {
   Trash2,
   X,
   Layers,
-  ChefHat,
   Menu,
-  Ticket,
+  MessageCircle,
 } from "lucide-react";
 import ChatBot from "./ChatBot";
-import Coupons from "./Coupons";
+import RecipeIngredients from "./RecipeIngredients";
 
 // Memoized grocery item component to prevent unnecessary re-renders
 const GroceryItem = React.memo(({
@@ -85,11 +84,11 @@ const GroceryItem = React.memo(({
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState("grocery");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedMeals, setSelectedMeals] = useState([]);
 
   const navigation = [
     { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
-    { id: "chatbot", name: "AI Meal Planner", icon: ChefHat },
-    { id: "coupons", name: "Coupons & Deals", icon: Ticket },
+    { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
   ];
 
   if (currentScreen === "chatbot") {
@@ -197,118 +196,23 @@ const App = () => {
             onBack={() => setCurrentScreen("grocery")}
             onNavigate={setCurrentScreen}
             onToggleSidebar={() => setSidebarOpen(true)}
+            selectedMeals={selectedMeals}
+            setSelectedMeals={setSelectedMeals}
           />
         </div>
       </div>
     );
   }
 
-  if (currentScreen === "coupons") {
+
+
+  if (currentScreen === "recipe-ingredients") {
     return (
-      <div className="flex min-h-screen bg-gray-50">
-        {/* Sidebar for Coupons */}
-        <div
-          className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}
-        >
-          <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-all duration-200"
-                title="Toggle navigation"
-              >
-                <Menu size={18} className="text-white" />
-              </button>
-              <h2 className="text-lg font-bold text-white">Navigation</h2>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <nav className="mt-6 px-3 space-y-2">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentScreen === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setCurrentScreen(item.id);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-4 px-4 py-3.5 text-left rounded-xl font-medium transition-all duration-200 group relative overflow-hidden ${
-                    isActive
-                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-[1.02]"
-                      : "text-slate-300 hover:text-white hover:bg-slate-700/50 hover:transform hover:scale-[1.01]"
-                  }`}
-                >
-                  {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-xl blur-sm"></div>
-                  )}
-                  <div
-                    className={`relative z-10 p-2 rounded-lg transition-all duration-200 ${
-                      isActive
-                        ? "bg-white/20 backdrop-blur-sm"
-                        : "bg-slate-700/30 group-hover:bg-slate-600/50"
-                    }`}
-                  >
-                    <Icon size={20} />
-                  </div>
-                  <span className="relative z-10 text-sm font-semibold">
-                    {item.name}
-                  </span>
-                  {isActive && (
-                    <div className="relative z-10 ml-auto w-2 h-2 bg-white rounded-full shadow-lg"></div>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Decorative gradient at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
-
-          {/* Subtle pattern overlay */}
-          <div
-            className="absolute inset-0 opacity-5 pointer-events-none"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3Ccircle cx='27' cy='7' r='1'/%3E%3Ccircle cx='47' cy='7' r='1'/%3E%3Ccircle cx='7' cy='27' r='1'/%3E%3Ccircle cx='27' cy='27' r='1'/%3E%3Ccircle cx='47' cy='27' r='1'/%3E%3Ccircle cx='7' cy='47' r='1'/%3E%3Ccircle cx='27' cy='47' r='1'/%3E%3Ccircle cx='47' cy='47' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }}
-          ></div>
-        </div>
-
-        {/* Overlay for mobile */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main content */}
-        <div className="flex-1 lg:ml-0">
-          <div className="lg:hidden bg-white shadow-sm border-b">
-            <div className="flex items-center justify-between px-4 h-16">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-md text-gray-400 hover:text-gray-600"
-              >
-                <Menu size={20} />
-              </button>
-              <h1 className="text-lg font-semibold text-gray-800">
-                Coupons & Deals
-              </h1>
-              <div></div>
-            </div>
-          </div>
-          <Coupons
-            onNavigate={setCurrentScreen}
-            onToggleSidebar={() => setSidebarOpen(true)}
-          />
-        </div>
+      <div className="min-h-screen bg-gray-50">
+        <RecipeIngredients
+          selectedMeals={selectedMeals}
+          onNavigate={setCurrentScreen}
+        />
       </div>
     );
   }
@@ -438,8 +342,9 @@ const GroceryChecklist = ({ onNavigate }) => {
     groceryStoreSection: "",
   });
   const [itemToRemove, setItemToRemove] = useState(null);
-  const [groupBy, setGroupBy] = useState("Category"); // New state for grouping mode
+  const [groupBy, setGroupBy] = useState("GroceryStoreSection"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
+  const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
 
   // Your n8n webhook URL - verified working in browser
   const WEBHOOK_URL =
@@ -698,10 +603,21 @@ const GroceryChecklist = ({ onNavigate }) => {
     fetchGroceryData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Get filtered data based on type filter
+  // Get filtered data based on type and data source filters
   const getFilteredData = (data = groceryData) => {
-    if (typeFilter === "All") return data;
-    return data.filter((item) => item.Type === typeFilter);
+    let filteredData = data;
+
+    // Apply type filter
+    if (typeFilter !== "All") {
+      filteredData = filteredData.filter((item) => item.Type === typeFilter);
+    }
+
+    // Apply data source filter
+    if (dataSourceFilter !== "All") {
+      filteredData = filteredData.filter((item) => item.DataSource === dataSourceFilter);
+    }
+
+    return filteredData;
   };
 
   // Get unique groups based on the grouping mode and type filter
@@ -732,6 +648,15 @@ const GroceryChecklist = ({ onNavigate }) => {
   // Handle type filter change
   const handleTypeFilterChange = (newTypeFilter) => {
     setTypeFilter(newTypeFilter);
+    const groups = getGroups(groceryData, groupBy);
+    if (groups.length > 0) {
+      setActiveTab(groups[0]);
+    }
+  };
+
+  // Handle data source filter change
+  const handleDataSourceFilterChange = (newDataSourceFilter) => {
+    setDataSourceFilter(newDataSourceFilter);
     const groups = getGroups(groceryData, groupBy);
     if (groups.length > 0) {
       setActiveTab(groups[0]);
@@ -1542,6 +1467,26 @@ const GroceryChecklist = ({ onNavigate }) => {
                   }`}
                 >
                   {type}
+                </button>
+              ))}
+            </div>
+
+            {/* Data Source Filter Section */}
+            <div className="flex items-center gap-2 text-gray-700 ml-6">
+              <span className="font-medium">Data Source:</span>
+            </div>
+            <div className="flex gap-2">
+              {["All", "Staples", "MealIngredients"].map((source) => (
+                <button
+                  key={source}
+                  onClick={() => handleDataSourceFilterChange(source)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    dataSourceFilter === source
+                      ? "bg-purple-600 text-white"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                  }`}
+                >
+                  {source === "MealIngredients" ? "Meals" : source}
                 </button>
               ))}
             </div>
