@@ -903,17 +903,6 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
                 <Check size={20} />
                 Review List ({selectedItems.size})
               </button>
-              <button
-                onClick={() => {
-                  addDebugLog('🔘 Add to Main List button clicked');
-                  setShowConfirmDialog(true);
-                }}
-                disabled={selectedItems.size === 0}
-                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              >
-                <ShoppingCart size={20} />
-                Add to Main List ({selectedItems.size})
-              </button>
             </div>
           </div>
         )}

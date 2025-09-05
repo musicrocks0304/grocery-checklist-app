@@ -34,6 +34,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   const [showMealsPanel, setShowMealsPanel] = useState(false);
   const [isGeneratingGroceryList, setIsGeneratingGroceryList] = useState(false);
   const [lastGroceryListRequest, setLastGroceryListRequest] = useState(null);
+  const [collapsedCards, setCollapsedCards] = useState(new Set());
   const messagesEndRef = useRef(null);
 
   // Navigation items
@@ -79,6 +80,20 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   // Remove typing indicator
   const removeTypingIndicator = (typingId) => {
     setMessages(prev => prev.filter(msg => msg.id !== typingId));
+  };
+
+  // Toggle card collapse state (cards are collapsed by default)
+  const toggleCardCollapse = (messageId, mealIndex) => {
+    const cardKey = `${messageId}-${mealIndex}`;
+    setCollapsedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cardKey)) {
+        newSet.delete(cardKey);
+      } else {
+        newSet.add(cardKey);
+      }
+      return newSet;
+    });
   };
 
   // Add a meal to the selected meals list
@@ -552,7 +567,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
     };
 
     const year = targetSunday.getFullYear();
-    return `Meal planning for ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
+    return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
 
   // Add this helper function to get the actual dates for database storage
@@ -611,7 +626,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
       )}
 
       {/* Main Chat Area */}
-      <div className={`bg-white lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showMealsPanel ? 'flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'}`}>
+      <div className={`bg-white lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showMealsPanel ? 'lg:flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'} ${showMealsPanel ? 'lg:mr-0' : ''}`}>
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4">
           <div className="flex items-center justify-between mb-3">
@@ -660,10 +675,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             </div>
           </div>
 
-          {/* Session Info on separate line */}
-          <div className="text-xs bg-white/20 px-3 py-1 rounded mb-3 inline-block min-w-48">
-            Session: {sessionId.split('_')[2]?.substr(0, 12)}...
-          </div>
+
 
           <div className="bg-white/20 rounded-lg p-3">
             <p className="text-sm font-medium">{getWeekDateRange()}</p>
@@ -732,31 +744,54 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                       {/* Meal Suggestion Buttons */}
                       {message.suggestedMeals && message.suggestedMeals.length > 0 && (
                         <div className="mt-3 space-y-2">
-                          {message.suggestedMeals.map((meal, index) => (
-                            <div key={index} className="bg-gray-50 p-3 rounded-lg border">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h4 className="font-semibold text-gray-800">{meal.name}</h4>
-                                  <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
-                                  {meal.totalTime && (
-                                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                                      <span>{meal.totalTime} min cook time</span>
+                          {message.suggestedMeals.map((meal, index) => {
+                            const cardKey = `${message.id}-${index}`;
+                            const isCollapsed = !collapsedCards.has(cardKey); // Cards are collapsed by default
+
+                            return (
+                              <div key={index} className="bg-gray-50 rounded-lg border">
+                                {/* Card Header - Always Visible */}
+                                <div className="p-3">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-semibold text-gray-800">{meal.name}</h4>
+                                        <button
+                                          onClick={() => toggleCardCollapse(message.id, index)}
+                                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                          title={isCollapsed ? "Expand details" : "Collapse details"}
+                                        >
+                                          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                                        </button>
+                                      </div>
                                     </div>
-                                  )}
+                                    <button
+                                      onClick={() => {
+                                        addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
+                                        setShowMealsPanel(true);
+                                      }}
+                                      className="ml-3 flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                                    >
+                                      <Plus size={14} />
+                                      Add to Plan
+                                    </button>
+                                  </div>
                                 </div>
-                                <button
-                                  onClick={() => {
-                                    addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
-                                    setShowMealsPanel(true);
-                                  }}
-                                  className="ml-3 flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
-                                >
-                                  <Plus size={14} />
-                                  Add to Plan
-                                </button>
+
+                                {/* Card Details - Collapsible */}
+                                {!isCollapsed && (
+                                  <div className="px-3 pb-3">
+                                    <p className="text-sm text-gray-600">{meal.description}</p>
+                                    {meal.totalTime && (
+                                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                        <span>{meal.totalTime} min cook time</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
@@ -800,23 +835,23 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             </button>
           </div>
 
-          <div className="flex items-center justify-between mt-3">
-            <div className="text-sm text-gray-500">
-              💡 Try asking about breakfast ideas, lunch prep, or dinner suggestions!
+          {isLoading && (
+            <div className="flex items-center justify-center gap-2 text-sm text-purple-600 mt-3">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+              Thinking...
             </div>
-            {isLoading && (
-              <div className="flex items-center gap-2 text-sm text-purple-600">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                Thinking...
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
       {/* Meals Panel */}
       {showMealsPanel && (
-        <div className="w-full lg:w-96 bg-white lg:rounded-lg lg:shadow-lg overflow-hidden flex flex-col">
+        <>
+          {/* Mobile Overlay */}
+          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMealsPanel(false)} />
+
+          {/* Meals Panel - Mobile Modal / Desktop Sidebar */}
+          <div className="fixed lg:relative inset-y-0 right-0 lg:inset-auto w-full max-w-sm lg:max-w-none lg:w-96 bg-white lg:rounded-lg shadow-2xl lg:shadow-lg overflow-hidden flex flex-col z-50 lg:z-auto transform transition-transform duration-300 ease-in-out">
           <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -825,9 +860,10 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
               </div>
               <button
                 onClick={() => setShowMealsPanel(false)}
-                className="p-1 hover:bg-white/20 rounded transition-colors"
+                className="p-2 lg:p-1 hover:bg-white/20 rounded transition-colors touch-manipulation"
+                aria-label="Close meal plans"
               >
-                <X size={16} />
+                <X size={20} className="lg:w-4 lg:h-4" />
               </button>
             </div>
             <p className="text-sm opacity-90 mt-1">
@@ -925,6 +961,9 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     // Call your new webhook with the recipe IDs using GET method like other webhooks
                     const baseWebhookURL = 'https://n8n-grocery.needexcelexpert.com/webhook/get_recipe_items';
 
+                    // Get week information
+                    const weekInfo = getWeekDates();
+
                     // Convert payload to query parameters to match other webhooks
                     const queryParams = new URLSearchParams({
                       recipe_ids: JSON.stringify(recipeIds),
@@ -935,13 +974,18 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                         id: meal.recipeId,
                         name: meal.name,
                         description: meal.description
-                      })))
+                      }))),
+                      // Add week information
+                      week_start_date: weekInfo.startDate,
+                      week_end_date: weekInfo.endDate,
+                      week_display_range: weekInfo.displayRange
                     });
 
                     const webhookURL = `${baseWebhookURL}?${queryParams.toString()}`;
 
                     addDebugLog('Sending GET request to get_recipe_items webhook');
                     addDebugLog('Recipe IDs:', recipeIds);
+                    addDebugLog('Week info:', weekInfo);
                     addDebugLog('Webhook URL:', webhookURL);
 
                     // Create AbortController for timeout handling
@@ -1038,6 +1082,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   );
