@@ -625,7 +625,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
       )}
 
       {/* Main Chat Area */}
-      <div className={`bg-white lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showMealsPanel ? 'flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'}`}>
+      <div className={`bg-white lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showMealsPanel ? 'lg:flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'} ${showMealsPanel ? 'lg:mr-0' : ''}`}>
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4">
           <div className="flex items-center justify-between mb-3">
@@ -850,7 +850,12 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
 
       {/* Meals Panel */}
       {showMealsPanel && (
-        <div className="w-full lg:w-96 bg-white lg:rounded-lg lg:shadow-lg overflow-hidden flex flex-col">
+        <>
+          {/* Mobile Overlay */}
+          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMealsPanel(false)} />
+
+          {/* Meals Panel - Mobile Modal / Desktop Sidebar */}
+          <div className="fixed lg:relative inset-y-0 right-0 lg:inset-auto w-full max-w-sm lg:max-w-none lg:w-96 bg-white lg:rounded-lg shadow-2xl lg:shadow-lg overflow-hidden flex flex-col z-50 lg:z-auto transform transition-transform duration-300 ease-in-out">
           <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -859,9 +864,10 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
               </div>
               <button
                 onClick={() => setShowMealsPanel(false)}
-                className="p-1 hover:bg-white/20 rounded transition-colors"
+                className="p-2 lg:p-1 hover:bg-white/20 rounded transition-colors touch-manipulation"
+                aria-label="Close meal plans"
               >
-                <X size={16} />
+                <X size={20} className="lg:w-4 lg:h-4" />
               </button>
             </div>
             <p className="text-sm opacity-90 mt-1">
@@ -1044,6 +1050,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   );
