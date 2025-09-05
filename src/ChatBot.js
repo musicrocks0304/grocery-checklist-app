@@ -674,10 +674,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             </div>
           </div>
 
-          {/* Session Info on separate line */}
-          <div className="text-xs bg-white/20 px-3 py-1 rounded mb-3 inline-block min-w-48">
-            Session: {sessionId.split('_')[2]?.substr(0, 12)}...
-          </div>
+
 
           <div className="bg-white/20 rounded-lg p-3">
             <p className="text-sm font-medium">{getWeekDateRange()}</p>
