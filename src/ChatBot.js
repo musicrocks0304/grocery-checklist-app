@@ -566,7 +566,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
     };
 
     const year = targetSunday.getFullYear();
-    return `Meal planning for ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
+    return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
 
   // Add this helper function to get the actual dates for database storage
@@ -938,6 +938,9 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     // Call your new webhook with the recipe IDs using GET method like other webhooks
                     const baseWebhookURL = 'https://n8n-grocery.needexcelexpert.com/webhook/get_recipe_items';
 
+                    // Get week information
+                    const weekInfo = getWeekDates();
+
                     // Convert payload to query parameters to match other webhooks
                     const queryParams = new URLSearchParams({
                       recipe_ids: JSON.stringify(recipeIds),
@@ -948,13 +951,18 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                         id: meal.recipeId,
                         name: meal.name,
                         description: meal.description
-                      })))
+                      }))),
+                      // Add week information
+                      week_start_date: weekInfo.startDate,
+                      week_end_date: weekInfo.endDate,
+                      week_display_range: weekInfo.displayRange
                     });
 
                     const webhookURL = `${baseWebhookURL}?${queryParams.toString()}`;
 
                     addDebugLog('Sending GET request to get_recipe_items webhook');
                     addDebugLog('Recipe IDs:', recipeIds);
+                    addDebugLog('Week info:', weekInfo);
                     addDebugLog('Webhook URL:', webhookURL);
 
                     const response = await fetch(webhookURL, {
