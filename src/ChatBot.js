@@ -81,7 +81,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
     setMessages(prev => prev.filter(msg => msg.id !== typingId));
   };
 
-  // Toggle card collapse state
+  // Toggle card collapse state (cards are collapsed by default)
   const toggleCardCollapse = (messageId, mealIndex) => {
     const cardKey = `${messageId}-${mealIndex}`;
     setCollapsedCards(prev => {
@@ -748,7 +748,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                         <div className="mt-3 space-y-2">
                           {message.suggestedMeals.map((meal, index) => {
                             const cardKey = `${message.id}-${index}`;
-                            const isCollapsed = collapsedCards.has(cardKey);
+                            const isCollapsed = !collapsedCards.has(cardKey); // Cards are collapsed by default
 
                             return (
                               <div key={index} className="bg-gray-50 rounded-lg border">
