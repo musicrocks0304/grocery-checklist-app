@@ -834,17 +834,12 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             </button>
           </div>
 
-          <div className="flex items-center justify-between mt-3">
-            <div className="text-sm text-gray-500">
-              💡 Try asking about breakfast ideas, lunch prep, or dinner suggestions!
+          {isLoading && (
+            <div className="flex items-center justify-center gap-2 text-sm text-purple-600 mt-3">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+              Thinking...
             </div>
-            {isLoading && (
-              <div className="flex items-center gap-2 text-sm text-purple-600">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                Thinking...
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
