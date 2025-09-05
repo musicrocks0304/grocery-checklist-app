@@ -33,6 +33,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   const setSelectedMeals = setParentSelectedMeals || setLocalSelectedMeals;
   const [showMealsPanel, setShowMealsPanel] = useState(false);
   const [isGeneratingGroceryList, setIsGeneratingGroceryList] = useState(false);
+  const [collapsedCards, setCollapsedCards] = useState(new Set());
   const messagesEndRef = useRef(null);
 
   // Navigation items
@@ -78,6 +79,20 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   // Remove typing indicator
   const removeTypingIndicator = (typingId) => {
     setMessages(prev => prev.filter(msg => msg.id !== typingId));
+  };
+
+  // Toggle card collapse state
+  const toggleCardCollapse = (messageId, mealIndex) => {
+    const cardKey = `${messageId}-${mealIndex}`;
+    setCollapsedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cardKey)) {
+        newSet.delete(cardKey);
+      } else {
+        newSet.add(cardKey);
+      }
+      return newSet;
+    });
   };
 
   // Add a meal to the selected meals list
@@ -731,31 +746,54 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                       {/* Meal Suggestion Buttons */}
                       {message.suggestedMeals && message.suggestedMeals.length > 0 && (
                         <div className="mt-3 space-y-2">
-                          {message.suggestedMeals.map((meal, index) => (
-                            <div key={index} className="bg-gray-50 p-3 rounded-lg border">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h4 className="font-semibold text-gray-800">{meal.name}</h4>
-                                  <p className="text-sm text-gray-600 mt-1">{meal.description}</p>
-                                  {meal.totalTime && (
-                                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                                      <span>{meal.totalTime} min cook time</span>
+                          {message.suggestedMeals.map((meal, index) => {
+                            const cardKey = `${message.id}-${index}`;
+                            const isCollapsed = collapsedCards.has(cardKey);
+
+                            return (
+                              <div key={index} className="bg-gray-50 rounded-lg border">
+                                {/* Card Header - Always Visible */}
+                                <div className="p-3">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-semibold text-gray-800">{meal.name}</h4>
+                                        <button
+                                          onClick={() => toggleCardCollapse(message.id, index)}
+                                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                          title={isCollapsed ? "Expand details" : "Collapse details"}
+                                        >
+                                          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                                        </button>
+                                      </div>
                                     </div>
-                                  )}
+                                    <button
+                                      onClick={() => {
+                                        addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
+                                        setShowMealsPanel(true);
+                                      }}
+                                      className="ml-3 flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                                    >
+                                      <Plus size={14} />
+                                      Add to Plan
+                                    </button>
+                                  </div>
                                 </div>
-                                <button
-                                  onClick={() => {
-                                    addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
-                                    setShowMealsPanel(true);
-                                  }}
-                                  className="ml-3 flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
-                                >
-                                  <Plus size={14} />
-                                  Add to Plan
-                                </button>
+
+                                {/* Card Details - Collapsible */}
+                                {!isCollapsed && (
+                                  <div className="px-3 pb-3">
+                                    <p className="text-sm text-gray-600">{meal.description}</p>
+                                    {meal.totalTime && (
+                                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                        <span>{meal.totalTime} min cook time</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
