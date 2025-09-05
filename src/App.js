@@ -85,6 +85,7 @@ const App = () => {
   const [currentScreen, setCurrentScreen] = useState("grocery");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedMeals, setSelectedMeals] = useState([]);
+  const [groceryListData, setGroceryListData] = useState(null);
 
   const navigation = [
     { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
@@ -198,6 +199,8 @@ const App = () => {
             onToggleSidebar={() => setSidebarOpen(true)}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
+            groceryListData={groceryListData}
+            setGroceryListData={setGroceryListData}
           />
         </div>
       </div>
@@ -212,6 +215,7 @@ const App = () => {
         <RecipeIngredients
           selectedMeals={selectedMeals}
           onNavigate={setCurrentScreen}
+          groceryListData={groceryListData}
         />
       </div>
     );

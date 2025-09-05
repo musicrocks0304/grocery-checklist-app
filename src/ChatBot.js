@@ -11,7 +11,7 @@ const getSessionId = () => {
   return sessionId;
 };
 
-const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals }) => {
+const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals, groceryListData, setGroceryListData }) => {
   // Session management
   const [sessionId] = useState(getSessionId());
 
@@ -33,6 +33,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   const setSelectedMeals = setParentSelectedMeals || setLocalSelectedMeals;
   const [showMealsPanel, setShowMealsPanel] = useState(false);
   const [isGeneratingGroceryList, setIsGeneratingGroceryList] = useState(false);
+  const [lastGroceryListRequest, setLastGroceryListRequest] = useState(null);
   const messagesEndRef = useRef(null);
 
   // Navigation items
@@ -880,6 +881,12 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
               </div>
               <button
                 onClick={async () => {
+                  // Prevent duplicate requests
+                  if (isGeneratingGroceryList) {
+                    addDebugLog('⚠️ Grocery list generation already in progress, ignoring duplicate request');
+                    return;
+                  }
+
                   // Set loading state
                   setIsGeneratingGroceryList(true);
 
@@ -891,6 +898,21 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     .filter(id => id); // Remove any undefined/null IDs
 
                   addDebugLog('Recipe IDs to send:', recipeIds);
+
+                  // Check for duplicate request based on recipe IDs
+                  const requestKey = JSON.stringify(recipeIds.sort());
+                  const now = Date.now();
+                  if (lastGroceryListRequest &&
+                      lastGroceryListRequest.key === requestKey &&
+                      (now - lastGroceryListRequest.timestamp) < 120000) { // 2 minutes
+                    addDebugLog('⚠️ Duplicate request detected within 2 minutes, ignoring');
+                    alert('A grocery list for these same recipes was recently requested. Please wait a moment before trying again.');
+                    setIsGeneratingGroceryList(false);
+                    return;
+                  }
+
+                  // Record this request
+                  setLastGroceryListRequest({ key: requestKey, timestamp: now });
 
                   if (recipeIds.length === 0) {
                     addDebugLog('❌ No recipe IDs found in selected meals');
@@ -922,13 +944,24 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     addDebugLog('Recipe IDs:', recipeIds);
                     addDebugLog('Webhook URL:', webhookURL);
 
+                    // Create AbortController for timeout handling
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => {
+                      controller.abort();
+                      addDebugLog('⏰ Request timed out after 90 seconds');
+                    }, 90000); // 90 second timeout
+
                     const response = await fetch(webhookURL, {
                       method: 'GET',
                       headers: {
                         'Accept': 'application/json',
                       },
-                      mode: 'cors'
+                      mode: 'cors',
+                      signal: controller.signal
                     });
+
+                    // Clear timeout if request completes
+                    clearTimeout(timeoutId);
 
                     addDebugLog('Webhook response status:', response.status);
                     addDebugLog('Webhook response headers:', Object.fromEntries(response.headers.entries()));
@@ -938,8 +971,16 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                       addDebugLog('✅ Successfully called get_recipe_items webhook');
                       addDebugLog('Response data:', responseData);
 
-                      // Response received - no caching needed
-                      addDebugLog('✅ Webhook response received (not cached)');
+                      try {
+                        // Parse the JSON response and store it
+                        const parsedData = JSON.parse(responseData);
+                        setGroceryListData(parsedData);
+                        addDebugLog('✅ Grocery list data stored successfully');
+                        addDebugLog('Parsed data:', parsedData);
+                      } catch (parseError) {
+                        addDebugLog('❌ Error parsing webhook response JSON:', parseError.message);
+                        addDebugLog('Raw response data:', responseData);
+                      }
 
                       // Navigate to the Recipe Ingredients page
                       onNavigate('recipe-ingredients');
@@ -956,15 +997,19 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     addDebugLog('❌ Error calling get_recipe_items webhook:', error.message);
                     addDebugLog('Error details:', error);
 
-                    // Check if it's a CORS error
-                    if (error.message === 'Failed to fetch') {
+                    // Check for different types of errors
+                    if (error.name === 'AbortError') {
+                      addDebugLog('⏰ Request was aborted due to timeout (90 seconds)');
+                      alert('The grocery list generation is taking longer than expected. The request has been cancelled to prevent duplicate calls. Please try again or check if the n8n workflow is running properly.');
+                      return; // Don't navigate on timeout
+                    } else if (error.message === 'Failed to fetch') {
                       addDebugLog('🚨 This looks like a CORS error. The webhook may need CORS headers.');
                       alert('CORS Error: The webhook needs to allow cross-origin requests. Check debug logs for details.');
                     } else {
                       alert('Error calling recipe items webhook. Check debug logs for details.');
                     }
 
-                    // Still navigate to show the page with mock data
+                    // Still navigate to show the page with mock data (except for timeout)
                     onNavigate('recipe-ingredients');
                   } finally {
                     // Always reset loading state

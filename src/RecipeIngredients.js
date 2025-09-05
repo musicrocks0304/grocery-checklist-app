@@ -13,7 +13,7 @@ import {
   Layers
 } from 'lucide-react';
 
-const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
+const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) => {
   const [ingredientsList, setIngredientsList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -176,13 +176,14 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
       // The webhook was already called when "Generate Grocery List" was clicked
       // We need to fetch the results from the n8n webhook response
       addDebugLog('Processing ingredients for meals:', selectedMeals.map(m => m.name));
+      addDebugLog('Received grocery list data:', groceryListData);
 
-      // Always fetch fresh data from webhook - no caching
-      let webhookResponse = null;
+      // Use the actual grocery list data from the webhook if available
+      let webhookResponse = groceryListData;
 
-      // For now, use the new format as fallback until webhook integration is complete
+      // If no webhook data is available, use fallback data
       if (!webhookResponse) {
-        addDebugLog('Using fallback data structure matching new n8n webhook format');
+        addDebugLog('No grocery list data available, using fallback data structure');
         webhookResponse = [
           {
             output: {
@@ -222,6 +223,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate }) => {
             }
           }
         ];
+      } else {
+        addDebugLog('✅ Using actual grocery list data from webhook');
+        addDebugLog('Grocery list data:', webhookResponse);
       }
 
       // Transform n8n webhook response to our expected format
