@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
 
 const RecipeInstructions = ({ onNavigate, recipeId }) => {
   // Your n8n webhook URL following the same pattern as other webhooks in the app
@@ -10,6 +10,8 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState([]);
+  const [showDebug, setShowDebug] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Debug logging function (following the same pattern as other components)
   const addDebugLog = (message, data = null) => {
@@ -99,13 +101,27 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState(new Set());
 
+  // Log component initialization
+  useEffect(() => {
+    addDebugLog('🎯 RecipeInstructions component mounted', { recipeId: recipeId || 'none provided' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   // Fetch recipe instructions from webhook
   useEffect(() => {
+    // Prevent double calls in React Strict Mode
+    if (hasInitialized) {
+      addDebugLog('⚠️ Skipping duplicate useEffect call (React Strict Mode)');
+      return;
+    }
+
     const fetchRecipeInstructions = async () => {
       try {
+        setHasInitialized(true);
         setIsLoading(true);
         setError(null);
-        addDebugLog('Fetching recipe instructions from n8n webhook...');
+        addDebugLog('🚀 Fetching recipe instructions from n8n webhook...');
+        addDebugLog('📋 Recipe ID:', recipeId || '123 (default)');
 
         // Build query parameters following the same pattern as other webhooks
         const queryParams = new URLSearchParams({
@@ -265,10 +281,57 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
                 Step {currentStep + 1} of {totalSteps}
               </p>
             </div>
-            <div className="w-20"></div> {/* Spacer for centering */}
+            <div className="flex items-center gap-2">
+              {/* Debug Toggle */}
+              <button
+                onClick={() => setShowDebug(!showDebug)}
+                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <Wifi size={16} />
+                <span className="hidden sm:inline">Debug</span>
+                {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Debug Panel */}
+      {showDebug && (
+        <div className="bg-gray-900 text-white border-b border-gray-200">
+          <div className="max-w-4xl mx-auto px-4 py-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
+              <Wifi size={20} />
+              Recipe Instructions Debug Information
+            </h3>
+            <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
+              {debugInfo.map((log, index) => (
+                <div key={index} className="flex gap-2">
+                  <span className="text-gray-400">[{log.timestamp}]</span>
+                  <span className={
+                    log.message.includes('✅') ? 'text-green-400' :
+                    log.message.includes('❌') ? 'text-red-400' :
+                    log.message.includes('⚠️') ? 'text-yellow-400' :
+                    log.message.includes('🚀') ? 'text-blue-400' :
+                    log.message.includes('📋') ? 'text-cyan-400' :
+                    'text-gray-200'
+                  }>
+                    {log.message}
+                  </span>
+                  {log.data && (
+                    <span className="text-gray-500">
+                      {typeof log.data === 'object' ? JSON.stringify(log.data, null, 2) : log.data}
+                    </span>
+                  )}
+                </div>
+              ))}
+              {debugInfo.length === 0 && (
+                <div className="text-gray-400">No debug information yet...</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Progress Bar */}
       <div className="bg-white border-b border-gray-200">
