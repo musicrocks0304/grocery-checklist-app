@@ -366,20 +366,43 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
         addDebugLog('✅ Recipe instructions data received:', data);
         addDebugLog('📊 Data structure analysis:', {
           isArray: Array.isArray(data),
-          hasInstructions: data && data.instructions,
-          instructionsIsArray: data && data.instructions && Array.isArray(data.instructions),
+          hasOutput: data && data[0] && data[0].output,
+          outputIsArray: data && data[0] && data[0].output && Array.isArray(data[0].output),
           dataKeys: data ? Object.keys(data) : 'null',
+          firstItemKeys: data && data[0] ? Object.keys(data[0]) : 'null',
           dataType: typeof data
         });
 
-        // Transform the data to match our expected format
-        if (data && data.instructions && Array.isArray(data.instructions)) {
-          setRecipeData(data);
-          addDebugLog('✅ Recipe instructions loaded successfully from webhook');
+        // Transform the webhook data to match our expected format
+        if (data && Array.isArray(data) && data[0] && data[0].output && Array.isArray(data[0].output)) {
+          // Filter instructions for the selected recipe only
+          const recipeInstructions = data[0].output.filter(step => step.recipe_id === selectedRecipeId);
+
+          // Transform to our expected format
+          const transformedData = {
+            id: selectedRecipeId,
+            name: selectedRecipe?.name || 'Recipe Instructions',
+            description: `Step-by-step cooking instructions for ${selectedRecipe?.name || 'your recipe'}`,
+            totalTime: `${recipeInstructions.reduce((total, step) => total + (step.time_minutes || 0), 0)} mins`,
+            instructions: recipeInstructions.map(step => ({
+              id: step.step_number,
+              step: step.step_number,
+              instruction: step.instruction_text,
+              time: step.time_minutes ? `${step.time_minutes} mins` : 'As needed',
+              ingredients: step.ingredients_used || []
+            }))
+          };
+
+          setRecipeData(transformedData);
+          addDebugLog('✅ Recipe instructions loaded and transformed from webhook:', {
+            recipeId: selectedRecipeId,
+            totalSteps: transformedData.instructions.length,
+            totalTime: transformedData.totalTime
+          });
         } else {
           // Fallback to sample data if webhook doesn't return expected format
           addDebugLog('⚠️ Webhook data format unexpected, using sample data as fallback');
-          addDebugLog('Expected format: { instructions: [...] }, received:', data);
+          addDebugLog('Expected format: [{ output: [...] }], received:', data);
           setRecipeData(sampleRecipeData);
         }
 
