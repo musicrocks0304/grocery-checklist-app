@@ -338,13 +338,20 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
         const webhookURL = `${GRAB_INSTRUCTIONS_WEBHOOK_URL}?${queryParams.toString()}`;
         addDebugLog('🍳 Grab instructions webhook URL:', webhookURL);
 
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
         const response = await fetch(webhookURL, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
           },
-          mode: 'cors'
+          mode: 'cors',
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         addDebugLog('Response received:', {
           status: response.status,
@@ -356,26 +363,42 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
         }
 
         const data = await response.json();
-        addDebugLog('Recipe instructions data received:', data);
+        addDebugLog('✅ Recipe instructions data received:', data);
+        addDebugLog('📊 Data structure analysis:', {
+          isArray: Array.isArray(data),
+          hasInstructions: data && data.instructions,
+          instructionsIsArray: data && data.instructions && Array.isArray(data.instructions),
+          dataKeys: data ? Object.keys(data) : 'null',
+          dataType: typeof data
+        });
 
         // Transform the data to match our expected format
         if (data && data.instructions && Array.isArray(data.instructions)) {
           setRecipeData(data);
-          addDebugLog('✅ Recipe instructions loaded successfully');
+          addDebugLog('✅ Recipe instructions loaded successfully from webhook');
         } else {
           // Fallback to sample data if webhook doesn't return expected format
-          addDebugLog('⚠️ Webhook data format unexpected, using sample data');
+          addDebugLog('⚠️ Webhook data format unexpected, using sample data as fallback');
+          addDebugLog('Expected format: { instructions: [...] }, received:', data);
           setRecipeData(sampleRecipeData);
         }
 
       } catch (error) {
-        addDebugLog('❌ Error fetching recipe instructions:', error.message);
-        setError(error.message);
+        let errorMessage = error.message;
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timed out after 30 seconds';
+          addDebugLog('⏰ Webhook request timed out');
+        } else {
+          addDebugLog('❌ Error fetching recipe instructions:', error.message);
+        }
+
+        setError(errorMessage);
         // Fallback to sample data on error
         setRecipeData(sampleRecipeData);
-        addDebugLog('Using sample data as fallback');
+        addDebugLog('🔄 Using sample data as fallback due to error');
       } finally {
         setIsLoading(false);
+        addDebugLog('🏁 Loading state set to false');
       }
     };
 
