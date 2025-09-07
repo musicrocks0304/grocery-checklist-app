@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
 
 const RecipeInstructions = ({ onNavigate, recipeId }) => {
@@ -11,7 +11,10 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Use useRef to prevent double calls (more reliable than useState for React Strict Mode)
+  const hasInitialized = useRef(false);
+  const componentId = useRef(Math.random().toString(36).substr(2, 9));
 
   // Debug logging function (following the same pattern as other components)
   const addDebugLog = (message, data = null) => {
@@ -171,21 +174,33 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
 
   // Log component initialization
   useEffect(() => {
-    addDebugLog('🎯 RecipeInstructions component mounted', { recipeId: recipeId || 'none provided' });
+    addDebugLog('🎯 RecipeInstructions component mounted', {
+      recipeId: recipeId || 'none provided',
+      componentId: componentId.current,
+      port: window.location.port
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
   // Fetch recipe instructions from webhook
   useEffect(() => {
-    // Prevent double calls in React Strict Mode
-    if (hasInitialized) {
-      addDebugLog('⚠️ Skipping duplicate useEffect call (React Strict Mode)');
+    // Prevent double calls in React Strict Mode and multiple instances
+    if (hasInitialized.current) {
+      addDebugLog('⚠️ Skipping duplicate useEffect call', {
+        reason: 'Already initialized',
+        componentId: componentId.current,
+        port: window.location.port
+      });
       return;
     }
 
     const fetchRecipeInstructions = async () => {
       try {
-        setHasInitialized(true);
+        hasInitialized.current = true;
+        addDebugLog('🔒 Marking component as initialized', {
+          componentId: componentId.current,
+          port: window.location.port
+        });
         setIsLoading(true);
         setError(null);
         addDebugLog('🚀 Fetching recipe instructions from n8n webhook...');
