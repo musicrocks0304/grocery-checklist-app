@@ -12,9 +12,11 @@ import {
   Layers,
   Menu,
   MessageCircle,
+  ChefHat,
 } from "lucide-react";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
+import RecipeInstructions from "./RecipeInstructions";
 
 // Memoized grocery item component to prevent unnecessary re-renders
 const GroceryItem = React.memo(({
@@ -90,6 +92,7 @@ const App = () => {
   const navigation = [
     { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
     { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
+    { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
   ];
 
   if (currentScreen === "chatbot") {
@@ -218,6 +221,14 @@ const App = () => {
           groceryListData={groceryListData}
         />
       </div>
+    );
+  }
+
+  if (currentScreen === "recipe-instructions") {
+    return (
+      <RecipeInstructions
+        onNavigate={setCurrentScreen}
+      />
     );
   }
 
