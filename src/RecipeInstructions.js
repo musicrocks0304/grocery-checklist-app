@@ -226,14 +226,28 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
         const data = await response.json();
         addDebugLog('✅ Available recipes data received:', data);
 
-        // Set available recipes (fallback to selectedMeals if webhook doesn't return recipes)
-        if (data && data.recipes && Array.isArray(data.recipes)) {
-          setAvailableRecipes(data.recipes);
-          addDebugLog('✅ Available recipes loaded from webhook');
+        // Handle the webhook response - expecting array of recipe objects
+        if (data && Array.isArray(data) && data.length > 0) {
+          // Transform the webhook data to match our component's expected format
+          const transformedRecipes = data.map(recipe => ({
+            id: recipe.recipe_id,
+            recipeId: recipe.recipe_id,
+            name: recipe.recipe_name,
+            selectionId: recipe.selection_id,
+            weekDateRange: recipe.WeekDateRange,
+            notes: recipe.notes,
+            createdAt: recipe.created_at,
+            // Add some default values for UI display
+            description: recipe.notes || `Delicious ${recipe.recipe_name.toLowerCase()} recipe`,
+            totalTime: '30-45 mins' // Default time, could be enhanced later
+          }));
+
+          setAvailableRecipes(transformedRecipes);
+          addDebugLog('✅ Available recipes loaded and transformed from webhook:', transformedRecipes);
         } else {
           // Fallback to selectedMeals from props
           setAvailableRecipes(selectedMeals);
-          addDebugLog('⚠️ Using selectedMeals as fallback for available recipes');
+          addDebugLog('⚠️ Using selectedMeals as fallback - webhook returned empty or invalid data');
         }
 
       } catch (error) {
@@ -252,9 +266,14 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
 
   // Handle recipe selection
   const handleRecipeSelect = (recipeId) => {
+    const selectedRecipe = availableRecipes.find(recipe => recipe.recipeId === recipeId || recipe.id === recipeId);
     setSelectedRecipeId(recipeId);
     setShowRecipeSelection(false);
-    addDebugLog('🎯 Recipe selected for instructions', { recipeId });
+    addDebugLog('🎯 Recipe selected for instructions', {
+      recipeId,
+      recipeName: selectedRecipe?.name || 'Unknown',
+      selectionId: selectedRecipe?.selectionId
+    });
   };
 
   // Handle back to recipe selection
@@ -295,8 +314,13 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
         });
         setIsLoading(true);
         setError(null);
+        const selectedRecipe = availableRecipes.find(recipe => recipe.recipeId === selectedRecipeId || recipe.id === selectedRecipeId);
         addDebugLog('🚀 Fetching recipe instructions from n8n webhook...');
-        addDebugLog('📋 Recipe ID:', selectedRecipeId);
+        addDebugLog('📋 Selected recipe details:', {
+          recipeId: selectedRecipeId,
+          recipeName: selectedRecipe?.name || 'Unknown',
+          selectionId: selectedRecipe?.selectionId
+        });
 
         // Get week date information (following the same pattern as other webhooks)
         const weekData = getWeekDates();
