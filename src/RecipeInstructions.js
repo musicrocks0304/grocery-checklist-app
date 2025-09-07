@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp, ChefHat, Utensils, Play } from 'lucide-react';
 
 const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
-  // Your n8n webhook URL following the same pattern as other webhooks in the app
-  const INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/choose_recipe_instructions';
+  // Your n8n webhook URLs following the same pattern as other webhooks in the app
+  const CHOOSE_RECIPE_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/choose_recipe_instructions';
+  const GRAB_INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/grab_instructions';
 
   // State management
   const [recipeData, setRecipeData] = useState(null);
+  const [availableRecipes, setAvailableRecipes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
@@ -174,13 +177,76 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState(new Set());
 
-  // Log component initialization
+  // Log component initialization and fetch available recipes
   useEffect(() => {
     addDebugLog('🎯 RecipeInstructions component mounted', {
       recipeId: recipeId || 'none provided',
       componentId: componentId.current,
       port: window.location.port
     });
+
+    // Fetch available recipes from choose_recipe_instructions webhook
+    const fetchAvailableRecipes = async () => {
+      try {
+        setIsLoadingRecipes(true);
+        addDebugLog('🍽️ Fetching available recipes from choose_recipe_instructions webhook...');
+
+        // Get week date information
+        const weekData = getWeekDates();
+        addDebugLog('📅 Week information for recipe selection:', weekData);
+
+        // Build query parameters
+        const queryParams = new URLSearchParams({
+          weekStartDate: weekData.startDate,
+          weekEndDate: weekData.endDate,
+          weekDateRange: weekData.displayRange,
+          timestamp: new Date().toISOString(),
+        });
+
+        const webhookURL = `${CHOOSE_RECIPE_WEBHOOK_URL}?${queryParams.toString()}`;
+        addDebugLog('🌐 Choose recipes webhook URL:', webhookURL);
+
+        const response = await fetch(webhookURL, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          mode: 'cors'
+        });
+
+        addDebugLog('📡 Choose recipes response received:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        addDebugLog('✅ Available recipes data received:', data);
+
+        // Set available recipes (fallback to selectedMeals if webhook doesn't return recipes)
+        if (data && data.recipes && Array.isArray(data.recipes)) {
+          setAvailableRecipes(data.recipes);
+          addDebugLog('✅ Available recipes loaded from webhook');
+        } else {
+          // Fallback to selectedMeals from props
+          setAvailableRecipes(selectedMeals);
+          addDebugLog('⚠️ Using selectedMeals as fallback for available recipes');
+        }
+
+      } catch (error) {
+        addDebugLog('❌ Error fetching available recipes:', error.message);
+        // Fallback to selectedMeals from props
+        setAvailableRecipes(selectedMeals);
+        addDebugLog('Using selectedMeals as fallback due to error');
+      } finally {
+        setIsLoadingRecipes(false);
+      }
+    };
+
+    fetchAvailableRecipes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
@@ -245,8 +311,8 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
           timestamp: new Date().toISOString(),
         });
 
-        const webhookURL = `${INSTRUCTIONS_WEBHOOK_URL}?${queryParams.toString()}`;
-        addDebugLog('Webhook URL:', webhookURL);
+        const webhookURL = `${GRAB_INSTRUCTIONS_WEBHOOK_URL}?${queryParams.toString()}`;
+        addDebugLog('🍳 Grab instructions webhook URL:', webhookURL);
 
         const response = await fetch(webhookURL, {
           method: 'GET',
@@ -454,7 +520,15 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
 
         {/* Recipe Selection Content */}
         <div className="max-w-4xl mx-auto px-4 py-8">
-          {selectedMeals.length === 0 ? (
+          {isLoadingRecipes ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">Loading Available Recipes</h2>
+              <p className="text-gray-500">
+                Fetching recipes from your meal planner...
+              </p>
+            </div>
+          ) : availableRecipes.length === 0 ? (
             <div className="text-center py-12">
               <ChefHat size={64} className="mx-auto text-gray-400 mb-4" />
               <h2 className="text-xl font-semibold text-gray-700 mb-2">No Recipes Available</h2>
@@ -478,7 +552,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {selectedMeals.map((meal, index) => (
+                {availableRecipes.map((meal, index) => (
                   <div key={meal.id || index} className="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-4">
