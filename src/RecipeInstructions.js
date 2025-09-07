@@ -9,8 +9,8 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
   // State management
   const [recipeData, setRecipeData] = useState(null);
   const [availableRecipes, setAvailableRecipes] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Only true when loading recipe instructions
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(true); // True when loading available recipes
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
@@ -443,7 +443,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
     setCurrentStep(stepIndex);
   };
 
-  // Loading state
+  // Loading state for recipe instructions (when a recipe is selected)
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
@@ -451,6 +451,31 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Recipe Instructions</h2>
           <p className="text-gray-600">Fetching cooking steps from your database...</p>
+          {debugInfo.length > 0 && (
+            <div className="mt-4 text-left">
+              <p className="text-xs text-gray-500 mb-2">Debug Info:</p>
+              <div className="bg-gray-50 rounded p-2 text-xs text-gray-600 max-h-32 overflow-y-auto">
+                {debugInfo.slice(-3).map((log, index) => (
+                  <div key={index}>
+                    <span className="text-gray-400">[{log.timestamp}]</span> {log.message}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state for available recipes (initial load)
+  if (isLoadingRecipes) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Available Recipes</h2>
+          <p className="text-gray-600">Fetching your selected meals for this week...</p>
           {debugInfo.length > 0 && (
             <div className="mt-4 text-left">
               <p className="text-xs text-gray-500 mb-2">Debug Info:</p>
