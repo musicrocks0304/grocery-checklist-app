@@ -114,6 +114,10 @@ const RecipeInstructions = ({ onNavigate }) => {
     onNavigate('grocery');
   };
 
+  const handleJumpToStep = (stepIndex) => {
+    setCurrentStep(stepIndex);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       {/* Header */}
@@ -149,6 +153,33 @@ const RecipeInstructions = ({ onNavigate }) => {
               style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
             ></div>
           </div>
+        </div>
+      </div>
+
+      {/* Step Numbers Navigation */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex flex-wrap gap-2 justify-center">
+            {sampleRecipeData.instructions.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => handleJumpToStep(index)}
+                className={`w-10 h-10 rounded-full font-bold text-sm transition-all duration-200 ${
+                  index === currentStep
+                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg scale-110'
+                    : completedSteps.has(index)
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                }`}
+                title={`Jump to step ${index + 1}`}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
+          <p className="text-center text-xs text-gray-500 mt-2">
+            Tap any number to jump to that step
+          </p>
         </div>
       </div>
 
