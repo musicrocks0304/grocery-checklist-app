@@ -228,6 +228,7 @@ const App = () => {
     return (
       <RecipeInstructions
         onNavigate={setCurrentScreen}
+        selectedMeals={selectedMeals}
       />
     );
   }

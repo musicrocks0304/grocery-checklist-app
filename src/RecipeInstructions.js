@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp, ChefHat, Utensils, Play } from 'lucide-react';
 
-const RecipeInstructions = ({ onNavigate, recipeId }) => {
+const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
   // Your n8n webhook URL following the same pattern as other webhooks in the app
   const INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/grab_instructions';
 
@@ -11,6 +11,8 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [showRecipeSelection, setShowRecipeSelection] = useState(true);
+  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
 
   // Use useRef to prevent double calls (more reliable than useState for React Strict Mode)
   const hasInitialized = useRef(false);
@@ -182,14 +184,38 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  // Fetch recipe instructions from webhook
+  // Handle recipe selection
+  const handleRecipeSelect = (recipeId) => {
+    setSelectedRecipeId(recipeId);
+    setShowRecipeSelection(false);
+    addDebugLog('🎯 Recipe selected for instructions', { recipeId });
+  };
+
+  // Handle back to recipe selection
+  const handleBackToSelection = () => {
+    setShowRecipeSelection(true);
+    setSelectedRecipeId(null);
+    setRecipeData(null);
+    setCurrentStep(0);
+    setCompletedSteps(new Set());
+    hasInitialized.current = false; // Reset for new recipe
+    addDebugLog('🔙 Returning to recipe selection');
+  };
+
+  // Fetch recipe instructions from webhook (only when recipe is selected)
   useEffect(() => {
+    // Only fetch if we have a selected recipe and not showing selection screen
+    if (showRecipeSelection || !selectedRecipeId) {
+      return;
+    }
+
     // Prevent double calls in React Strict Mode and multiple instances
     if (hasInitialized.current) {
       addDebugLog('⚠️ Skipping duplicate useEffect call', {
         reason: 'Already initialized',
         componentId: componentId.current,
-        port: window.location.port
+        port: window.location.port,
+        selectedRecipeId
       });
       return;
     }
@@ -204,7 +230,7 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
         setIsLoading(true);
         setError(null);
         addDebugLog('🚀 Fetching recipe instructions from n8n webhook...');
-        addDebugLog('📋 Recipe ID:', recipeId || '123 (default)');
+        addDebugLog('📋 Recipe ID:', selectedRecipeId);
 
         // Get week date information (following the same pattern as other webhooks)
         const weekData = getWeekDates();
@@ -212,7 +238,7 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
 
         // Build query parameters following the same pattern as other webhooks
         const queryParams = new URLSearchParams({
-          recipe_id: recipeId || '123', // Use provided recipeId or default for testing
+          recipe_id: selectedRecipeId,
           weekStartDate: weekData.startDate,
           weekEndDate: weekData.endDate,
           weekDateRange: weekData.displayRange,
@@ -265,7 +291,7 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
 
     fetchRecipeInstructions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recipeId]); // Re-fetch if recipeId changes
+  }, [selectedRecipeId, showRecipeSelection]); // Re-fetch if selectedRecipeId changes
 
   // Use fetched data or fallback to sample data
   const activeRecipeData = recipeData || sampleRecipeData;
@@ -350,19 +376,172 @@ const RecipeInstructions = ({ onNavigate, recipeId }) => {
     );
   }
 
+  // Recipe Selection Screen
+  if (showRecipeSelection) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-4xl mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleBackToApp}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <ArrowLeft size={20} />
+                <span className="font-medium">Back to App</span>
+              </button>
+              <div className="text-center">
+                <h1 className="text-lg font-bold text-gray-800">
+                  Select Recipe for Instructions
+                </h1>
+                <p className="text-sm text-gray-500">
+                  Choose which recipe you'd like to cook
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Debug Toggle */}
+                <button
+                  onClick={() => setShowDebug(!showDebug)}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <Wifi size={16} />
+                  <span className="hidden sm:inline">Debug</span>
+                  {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Debug Panel */}
+        {showDebug && (
+          <div className="bg-gray-900 text-white border-b border-gray-200">
+            <div className="max-w-4xl mx-auto px-4 py-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
+                <Wifi size={20} />
+                Recipe Selection Debug Information
+              </h3>
+              <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
+                {debugInfo.map((log, index) => (
+                  <div key={index} className="flex gap-2">
+                    <span className="text-gray-400">[{log.timestamp}]</span>
+                    <span className={
+                      log.message.includes('✅') ? 'text-green-400' :
+                      log.message.includes('❌') ? 'text-red-400' :
+                      log.message.includes('⚠️') ? 'text-yellow-400' :
+                      log.message.includes('🚀') ? 'text-blue-400' :
+                      log.message.includes('📋') ? 'text-cyan-400' :
+                      log.message.includes('🎯') ? 'text-purple-400' :
+                      'text-gray-200'
+                    }>
+                      {log.message}
+                    </span>
+                    {log.data && (
+                      <span className="text-gray-500">
+                        {typeof log.data === 'object' ? JSON.stringify(log.data, null, 2) : log.data}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {debugInfo.length === 0 && (
+                  <div className="text-gray-400">No debug information yet...</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recipe Selection Content */}
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          {selectedMeals.length === 0 ? (
+            <div className="text-center py-12">
+              <ChefHat size={64} className="mx-auto text-gray-400 mb-4" />
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">No Recipes Available</h2>
+              <p className="text-gray-500 mb-6">
+                You need to select some meals first from the AI Meal Planner.
+              </p>
+              <button
+                onClick={() => onNavigate('chatbot')}
+                className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+              >
+                Go to Meal Planner
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">Available Recipes</h2>
+                <p className="text-gray-600">
+                  Select a recipe to view step-by-step cooking instructions
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {selectedMeals.map((meal, index) => (
+                  <div key={meal.id || index} className="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <Utensils className="text-orange-500 flex-shrink-0" size={24} />
+                        {meal.totalTime && (
+                          <div className="flex items-center gap-1 text-sm text-gray-500">
+                            <Clock size={16} />
+                            {meal.totalTime}
+                          </div>
+                        )}
+                      </div>
+
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                        {meal.name}
+                      </h3>
+
+                      {meal.description && (
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                          {meal.description}
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => handleRecipeSelect(meal.recipeId || meal.id)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-colors font-medium"
+                      >
+                        <Play size={18} />
+                        Start Cooking
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <button
-              onClick={handleBackToApp}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <ArrowLeft size={20} />
-              <span className="font-medium">Back to App</span>
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleBackToSelection}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <ArrowLeft size={20} />
+                <span className="font-medium">Back to Recipes</span>
+              </button>
+              <div className="h-6 w-px bg-gray-300"></div>
+              <button
+                onClick={handleBackToApp}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <ArrowLeft size={20} />
+                <span className="font-medium">Back to App</span>
+              </button>
+            </div>
             <div className="text-center">
               <h1 className="text-lg font-bold text-gray-800 truncate max-w-xs">
                 {activeRecipeData.recipe_name}
