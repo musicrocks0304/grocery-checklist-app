@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, 
 
 const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
   // Your n8n webhook URL following the same pattern as other webhooks in the app
-  const INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/grab_instructions';
+  const INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/choose_recipe_instructions';
 
   // State management
   const [recipeData, setRecipeData] = useState(null);
