@@ -375,8 +375,19 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
 
         // Transform the webhook data to match our expected format
         if (data && Array.isArray(data) && data[0] && data[0].output && Array.isArray(data[0].output)) {
-          // Filter instructions for the selected recipe only
-          const recipeInstructions = data[0].output.filter(step => step.recipe_id === selectedRecipeId);
+          // Filter instructions for the selected recipe only (handle both string and number recipe_id)
+          const recipeInstructions = data[0].output.filter(step =>
+            step.recipe_id === selectedRecipeId || step.recipe_id === parseInt(selectedRecipeId)
+          );
+
+          addDebugLog('🔍 Recipe filtering details:', {
+            selectedRecipeId,
+            selectedRecipeIdType: typeof selectedRecipeId,
+            totalStepsInWebhook: data[0].output.length,
+            filteredSteps: recipeInstructions.length,
+            firstStepRecipeId: data[0].output[0]?.recipe_id,
+            firstStepRecipeIdType: typeof data[0].output[0]?.recipe_id
+          });
 
           // Transform to our expected format
           const transformedData = {
@@ -397,7 +408,8 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
           addDebugLog('✅ Recipe instructions loaded and transformed from webhook:', {
             recipeId: selectedRecipeId,
             totalSteps: transformedData.instructions.length,
-            totalTime: transformedData.totalTime
+            totalTime: transformedData.totalTime,
+            transformedData: transformedData
           });
         } else {
           // Fallback to sample data if webhook doesn't return expected format
@@ -821,7 +833,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
                 <div className="flex items-center gap-2 mt-2">
                   <Clock size={16} />
                   <span className="text-orange-100">
-                    {currentInstruction.time_minutes} minute{currentInstruction.time_minutes !== 1 ? 's' : ''}
+                    {currentInstruction.time}
                   </span>
                 </div>
               </div>
@@ -842,9 +854,31 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
           {/* Instruction Text */}
           <div className="p-6">
             <p className="text-lg leading-relaxed text-gray-700 font-medium">
-              {currentInstruction.instruction_text}
+              {currentInstruction.instruction}
             </p>
           </div>
+
+          {/* Ingredients for this step */}
+          {currentInstruction.ingredients && currentInstruction.ingredients.length > 0 && (
+            <div className="px-6 pb-6">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                  <ChefHat size={16} />
+                  Ingredients for this step:
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {currentInstruction.ingredients.map((ingredient, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 border border-orange-200"
+                    >
+                      {ingredient}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Navigation */}
           <div className="bg-gray-50 px-6 py-4 flex items-center justify-between">
