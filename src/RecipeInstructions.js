@@ -1,8 +1,24 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
-const RecipeInstructions = ({ onNavigate }) => {
-  // Sample data based on the provided schema and screenshot
+const RecipeInstructions = ({ onNavigate, recipeId }) => {
+  // Your n8n webhook URL following the same pattern as other webhooks in the app
+  const INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/grab_instructions';
+
+  // State management
+  const [recipeData, setRecipeData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState([]);
+
+  // Debug logging function (following the same pattern as other components)
+  const addDebugLog = (message, data = null) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugInfo(prev => [...prev, { timestamp, message, data }]);
+    console.log(`[${timestamp}] ${message}`, data || '');
+  };
+
+  // Sample data based on the provided schema and screenshot (fallback)
   const sampleRecipeData = {
     recipe_id: 123,
     recipe_name: "Delicious Pasta with Tomato Sauce",
@@ -83,8 +99,72 @@ const RecipeInstructions = ({ onNavigate }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState(new Set());
 
-  const currentInstruction = sampleRecipeData.instructions[currentStep];
-  const totalSteps = sampleRecipeData.instructions.length;
+  // Fetch recipe instructions from webhook
+  useEffect(() => {
+    const fetchRecipeInstructions = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        addDebugLog('Fetching recipe instructions from n8n webhook...');
+
+        // Build query parameters following the same pattern as other webhooks
+        const queryParams = new URLSearchParams({
+          recipe_id: recipeId || '123', // Use provided recipeId or default for testing
+          timestamp: new Date().toISOString(),
+        });
+
+        const webhookURL = `${INSTRUCTIONS_WEBHOOK_URL}?${queryParams.toString()}`;
+        addDebugLog('Webhook URL:', webhookURL);
+
+        const response = await fetch(webhookURL, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          mode: 'cors'
+        });
+
+        addDebugLog('Response received:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        addDebugLog('Recipe instructions data received:', data);
+
+        // Transform the data to match our expected format
+        if (data && data.instructions && Array.isArray(data.instructions)) {
+          setRecipeData(data);
+          addDebugLog('✅ Recipe instructions loaded successfully');
+        } else {
+          // Fallback to sample data if webhook doesn't return expected format
+          addDebugLog('⚠️ Webhook data format unexpected, using sample data');
+          setRecipeData(sampleRecipeData);
+        }
+
+      } catch (error) {
+        addDebugLog('❌ Error fetching recipe instructions:', error.message);
+        setError(error.message);
+        // Fallback to sample data on error
+        setRecipeData(sampleRecipeData);
+        addDebugLog('Using sample data as fallback');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecipeInstructions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipeId]); // Re-fetch if recipeId changes
+
+  // Use fetched data or fallback to sample data
+  const activeRecipeData = recipeData || sampleRecipeData;
+  const currentInstruction = activeRecipeData.instructions[currentStep];
+  const totalSteps = activeRecipeData.instructions.length;
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
 
@@ -118,6 +198,52 @@ const RecipeInstructions = ({ onNavigate }) => {
     setCurrentStep(stepIndex);
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Recipe Instructions</h2>
+          <p className="text-gray-600">Fetching cooking steps from your database...</p>
+          {debugInfo.length > 0 && (
+            <div className="mt-4 text-left">
+              <p className="text-xs text-gray-500 mb-2">Debug Info:</p>
+              <div className="bg-gray-50 rounded p-2 text-xs text-gray-600 max-h-32 overflow-y-auto">
+                {debugInfo.slice(-3).map((log, index) => (
+                  <div key={index}>
+                    <span className="text-gray-400">[{log.timestamp}]</span> {log.message}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state (still shows sample data as fallback)
+  if (error && !recipeData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
+          <div className="text-red-500 mb-4">
+            <AlertCircle size={48} className="mx-auto" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Unable to Load Recipe</h2>
+          <p className="text-gray-600 mb-4">There was an error loading the recipe instructions from the webhook.</p>
+          <button
+            onClick={handleBackToApp}
+            className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+          >
+            Back to App
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       {/* Header */}
@@ -133,7 +259,7 @@ const RecipeInstructions = ({ onNavigate }) => {
             </button>
             <div className="text-center">
               <h1 className="text-lg font-bold text-gray-800 truncate max-w-xs">
-                {sampleRecipeData.recipe_name}
+                {activeRecipeData.recipe_name}
               </h1>
               <p className="text-sm text-gray-500">
                 Step {currentStep + 1} of {totalSteps}
@@ -160,7 +286,7 @@ const RecipeInstructions = ({ onNavigate }) => {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex flex-wrap gap-2 justify-center">
-            {sampleRecipeData.instructions.map((_, index) => (
+            {activeRecipeData.instructions.map((_, index) => (
               <button
                 key={index}
                 onClick={() => handleJumpToStep(index)}
@@ -261,7 +387,7 @@ const RecipeInstructions = ({ onNavigate }) => {
             <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-green-800 mb-2">Recipe Complete!</h3>
             <p className="text-green-700">
-              Congratulations! You've finished preparing {sampleRecipeData.recipe_name}.
+              Congratulations! You've finished preparing {activeRecipeData.recipe_name}.
             </p>
             <button
               onClick={handleBackToApp}
