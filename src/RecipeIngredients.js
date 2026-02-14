@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ChefHat,
   ShoppingCart,
@@ -10,7 +10,8 @@ import {
   ChevronUp,
   Wifi,
   AlertCircle,
-  Layers
+  Layers,
+  ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getWeekDateRange, getWeekDates } from './utils/weekDates';
@@ -29,6 +30,19 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
   const [expandedMeals, setExpandedMeals] = useState(new Set());
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isAddingToMainList, setIsAddingToMainList] = useState(false);
+  const abortControllerRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
@@ -48,6 +62,11 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
   // Handle adding ingredients to main list
   const handleAddToMainList = async () => {
     setIsAddingToMainList(true);
+
+    // Create an abort controller for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       addDebugLog('🚀 Starting to add ingredients to main grocery list...');
 
@@ -92,8 +111,12 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
           'Accept': 'application/json',
         },
         body: JSON.stringify(payload),
-        mode: 'cors'
+        mode: 'cors',
+        signal: controller.signal
       });
+
+      // Skip state updates if component unmounted during fetch
+      if (!isMountedRef.current) return;
 
       addDebugLog('📡 Webhook response status:', response.status);
 
@@ -105,12 +128,18 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
         throw new Error(`HTTP error! status: ${response.status}`);
       }
     } catch (error) {
+      // Silently ignore aborted requests (user navigated away)
+      if (error.name === 'AbortError') return;
+      if (!isMountedRef.current) return;
+
       console.error('❌ Error adding ingredients to main list:', error);
       addDebugLog('❌ Error adding ingredients to main list:', error.message);
       toast.error("There was an error adding ingredients to your main grocery list. Please try again.");
     } finally {
-      setIsAddingToMainList(false);
-      setShowConfirmDialog(false);
+      if (isMountedRef.current) {
+        setIsAddingToMainList(false);
+        setShowConfirmDialog(false);
+      }
     }
   };
 
@@ -527,6 +556,13 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
       <div className="p-6 bg-white rounded-lg shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => onNavigate('grocery')}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Back to Grocery List"
+            >
+              <ArrowLeft size={20} />
+            </button>
             <ChefHat className="text-purple-600" size={28} />
             <h1 className="text-2xl font-bold text-gray-800">
               Recipe Ingredients

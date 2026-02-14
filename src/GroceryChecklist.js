@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Check,
   ShoppingCart,
@@ -80,7 +80,7 @@ const GroceryItem = React.memo(({
   );
 });
 
-const GroceryChecklist = ({ onNavigate }) => {
+const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
   const [groceryData, setGroceryData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -102,6 +102,13 @@ const GroceryChecklist = ({ onNavigate }) => {
   const [groupBy, setGroupBy] = useState("GroceryStoreSection"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
   const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
+
+  // Notify parent when user has unsaved changes (final list view)
+  useEffect(() => {
+    if (onUnsavedChanges) {
+      onUnsavedChanges(showFinalList);
+    }
+  }, [showFinalList, onUnsavedChanges]);
 
   // Your n8n webhook URL - verified working in browser
   const WEBHOOK_URL =
@@ -387,6 +394,7 @@ const GroceryChecklist = ({ onNavigate }) => {
   }, []);
 
   const handleRemoveItem = async (item) => {
+    setShowAddPanel(false); // Close add panel to prevent overlapping modals
     setItemToRemove(item);
   };
 

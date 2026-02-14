@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ShoppingCart, MessageCircle, ChefHat } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import ChatBot from "./ChatBot";
@@ -7,11 +7,54 @@ import RecipeInstructions from "./RecipeInstructions";
 import Sidebar from "./Sidebar";
 import GroceryChecklist from "./GroceryChecklist";
 
+const VALID_SCREENS = ["grocery", "chatbot", "recipe-ingredients", "recipe-instructions"];
+
 const App = () => {
-  const [currentScreen, setCurrentScreen] = useState("grocery");
+  const [currentScreen, setCurrentScreen] = useState(() => {
+    const hash = window.location.hash.replace("#", "");
+    return VALID_SCREENS.includes(hash) ? hash : "grocery";
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedMeals, setSelectedMeals] = useState([]);
   const [groceryListData, setGroceryListData] = useState(null);
+  const hasUnsavedChangesRef = useRef(false);
+
+  const setHasUnsavedChanges = useCallback((value) => {
+    hasUnsavedChangesRef.current = value;
+  }, []);
+
+  // Navigate with unsaved-changes confirmation and browser history push
+  const navigateToScreen = useCallback((screen) => {
+    if (hasUnsavedChangesRef.current) {
+      const confirmed = window.confirm(
+        "You have unsaved changes that will be lost. Are you sure you want to leave?"
+      );
+      if (!confirmed) return;
+      hasUnsavedChangesRef.current = false;
+    }
+    setCurrentScreen(screen);
+    window.history.pushState({ screen }, "", `#${screen}`);
+    setSidebarOpen(false);
+  }, []);
+
+  // Browser back/forward button support
+  useEffect(() => {
+    const initialScreen = window.location.hash.replace("#", "") || "grocery";
+    window.history.replaceState({ screen: initialScreen }, "", `#${initialScreen}`);
+
+    const handlePopState = (event) => {
+      const screen = event.state?.screen || "grocery";
+      if (VALID_SCREENS.includes(screen)) {
+        setCurrentScreen(screen);
+      } else {
+        setCurrentScreen("grocery");
+      }
+      setSidebarOpen(false);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const navigation = [
     { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
@@ -27,12 +70,12 @@ const App = () => {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           currentScreen={currentScreen}
-          setCurrentScreen={setCurrentScreen}
+          setCurrentScreen={navigateToScreen}
           navigation={navigation}
         >
           <ChatBot
-            onBack={() => setCurrentScreen("grocery")}
-            onNavigate={setCurrentScreen}
+            onBack={() => navigateToScreen("grocery")}
+            onNavigate={navigateToScreen}
             onToggleSidebar={() => setSidebarOpen(true)}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
@@ -48,13 +91,19 @@ const App = () => {
     return (
       <>
         <Toaster position="top-center" />
-        <div className="min-h-screen bg-gray-50">
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          currentScreen={currentScreen}
+          setCurrentScreen={navigateToScreen}
+          navigation={navigation}
+        >
           <RecipeIngredients
             selectedMeals={selectedMeals}
-            onNavigate={setCurrentScreen}
+            onNavigate={navigateToScreen}
             groceryListData={groceryListData}
           />
-        </div>
+        </Sidebar>
       </>
     );
   }
@@ -63,10 +112,18 @@ const App = () => {
     return (
       <>
         <Toaster position="top-center" />
-        <RecipeInstructions
-          onNavigate={setCurrentScreen}
-          selectedMeals={selectedMeals}
-        />
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          currentScreen={currentScreen}
+          setCurrentScreen={navigateToScreen}
+          navigation={navigation}
+        >
+          <RecipeInstructions
+            onNavigate={navigateToScreen}
+            selectedMeals={selectedMeals}
+          />
+        </Sidebar>
       </>
     );
   }
@@ -78,10 +135,13 @@ const App = () => {
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         currentScreen={currentScreen}
-        setCurrentScreen={setCurrentScreen}
+        setCurrentScreen={navigateToScreen}
         navigation={navigation}
       >
-        <GroceryChecklist onNavigate={setCurrentScreen} />
+        <GroceryChecklist
+          onNavigate={navigateToScreen}
+          onUnsavedChanges={setHasUnsavedChanges}
+        />
       </Sidebar>
     </>
   );

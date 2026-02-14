@@ -433,6 +433,12 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
               </div>
             </div>
           )}
+          <button
+            onClick={handleBackToSelection}
+            className="mt-4 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     );
@@ -458,6 +464,12 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
               </div>
             </div>
           )}
+          <button
+            onClick={handleBackToApp}
+            className="mt-4 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     );

@@ -535,7 +535,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
     <div className="h-screen flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative">
       {/* Loading Overlay */}
       {isGeneratingGroceryList && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
@@ -573,8 +573,9 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             <div className="flex items-center gap-2">
               {/* Meals Panel Toggle */}
               <button
-                onClick={() => setShowMealsPanel(!showMealsPanel)}
-                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
+                onClick={() => !isGeneratingGroceryList && setShowMealsPanel(!showMealsPanel)}
+                disabled={isGeneratingGroceryList}
+                className={`flex items-center gap-1 text-sm px-2 py-1 rounded-lg transition-colors ${isGeneratingGroceryList ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/20'}`}
               >
                 <ShoppingCart size={16} />
                 <span className="hidden sm:inline">Meal Plans</span> ({selectedMeals.length})
