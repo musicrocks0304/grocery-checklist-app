@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ChefHat,
   ShoppingCart,
@@ -10,12 +10,13 @@ import {
   ChevronUp,
   Wifi,
   AlertCircle,
-  Layers
+  Layers,
+  ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getWeekDateRange, getWeekDates } from './utils/weekDates';
 
-const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) => {
+const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, debugMode = false }) => {
   const [ingredientsList, setIngredientsList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,6 +30,19 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
   const [expandedMeals, setExpandedMeals] = useState(new Set());
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isAddingToMainList, setIsAddingToMainList] = useState(false);
+  const abortControllerRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
@@ -48,6 +62,11 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
   // Handle adding ingredients to main list
   const handleAddToMainList = async () => {
     setIsAddingToMainList(true);
+
+    // Create an abort controller for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       addDebugLog('🚀 Starting to add ingredients to main grocery list...');
 
@@ -92,8 +111,12 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
           'Accept': 'application/json',
         },
         body: JSON.stringify(payload),
-        mode: 'cors'
+        mode: 'cors',
+        signal: controller.signal
       });
+
+      // Skip state updates if component unmounted during fetch
+      if (!isMountedRef.current) return;
 
       addDebugLog('📡 Webhook response status:', response.status);
 
@@ -105,12 +128,18 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
         throw new Error(`HTTP error! status: ${response.status}`);
       }
     } catch (error) {
+      // Silently ignore aborted requests (user navigated away)
+      if (error.name === 'AbortError') return;
+      if (!isMountedRef.current) return;
+
       console.error('❌ Error adding ingredients to main list:', error);
       addDebugLog('❌ Error adding ingredients to main list:', error.message);
       toast.error("There was an error adding ingredients to your main grocery list. Please try again.");
     } finally {
-      setIsAddingToMainList(false);
-      setShowConfirmDialog(false);
+      if (isMountedRef.current) {
+        setIsAddingToMainList(false);
+        setShowConfirmDialog(false);
+      }
     }
   };
 
@@ -444,7 +473,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">
-                        Buy: {item.quantity} × {item.QuantitySelected}
+                        {item.quantity > 1
+                          ? `${item.quantity} \u00d7 ${item.QuantitySelected}`
+                          : item.QuantitySelected}
                       </span>
                     </div>
                   </div>
@@ -527,6 +558,13 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
       <div className="p-6 bg-white rounded-lg shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => onNavigate('grocery')}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Back to Grocery List"
+            >
+              <ArrowLeft size={20} />
+            </button>
             <ChefHat className="text-purple-600" size={28} />
             <h1 className="text-2xl font-bold text-gray-800">
               Recipe Ingredients
@@ -534,15 +572,17 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Debug Toggle */}
-            <button
-              onClick={() => setShowDebug(!showDebug)}
-              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <Wifi size={16} />
-              Debug Info
-              {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
+            {/* Debug Toggle - only visible with ?debug=true */}
+            {debugMode && (
+              <button
+                onClick={() => setShowDebug(!showDebug)}
+                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <Wifi size={16} />
+                Debug Info
+                {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            )}
           </div>
         </div>
 
@@ -689,19 +729,26 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
         {/* Group Tabs */}
         <div className="mb-6 border-b border-gray-200">
           <div className="flex flex-wrap gap-2">
-            {groups.map((group) => (
-              <button
-                key={group}
-                onClick={() => setActiveTab(group)}
-                className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
-                  activeTab === group
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {group}
-              </button>
-            ))}
+            {groups.map((group) => {
+              const groupItems = getItemsByGroup(group);
+              const selectedCount = groupItems.filter(item => selectedItems.has(item.ItemID.toString())).length;
+              return (
+                <button
+                  key={group}
+                  onClick={() => setActiveTab(group)}
+                  className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
+                    activeTab === group
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {group}
+                  <span className="ml-2 text-sm opacity-80">
+                    ({selectedCount}/{groupItems.length})
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -720,8 +767,42 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
           </div>
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h3 className="font-medium text-gray-900">Category: {activeTab}</h3>
+              <button
+                onClick={() => {
+                  const groupItemIds = currentGroupItems.map(item => item.ItemID.toString());
+                  const allSelected = groupItemIds.every(id => selectedItems.has(id));
+                  setSelectedItems(prev => {
+                    const newSet = new Set(prev);
+                    groupItemIds.forEach(id => {
+                      if (allSelected) {
+                        newSet.delete(id);
+                      } else {
+                        newSet.add(id);
+                      }
+                    });
+                    return newSet;
+                  });
+                  setItemQuantities(prev => {
+                    const newMap = new Map(prev);
+                    groupItemIds.forEach(id => {
+                      if (allSelected) {
+                        newMap.delete(id);
+                      } else if (!newMap.has(id)) {
+                        const item = ingredientsList.find(i => i.ItemID.toString() === id);
+                        newMap.set(id, item?.QuantitySelected || 1);
+                      }
+                    });
+                    return newMap;
+                  });
+                }}
+                className="text-sm text-purple-600 hover:text-purple-800 transition-colors"
+              >
+                {currentGroupItems.length > 0 && currentGroupItems.every(item => selectedItems.has(item.ItemID.toString()))
+                  ? "Deselect All"
+                  : "Select All"}
+              </button>
             </div>
             <div className="divide-y divide-gray-200">
               {currentGroupItems.map((item) => {
@@ -756,17 +837,18 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
                           </div>
                           {isSelected && (
                             <div className="ml-4 flex items-center gap-2">
-                              <label className="text-sm text-gray-600 font-medium">Qty:</label>
                               <select
                                 value={quantity}
                                 onChange={(e) => updateQuantity(item.ItemID, e.target.value)}
                                 className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-purple-500 focus:border-purple-500"
                               >
                                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                                  <option key={num} value={num}>{num}</option>
+                                  <option key={num} value={num}>&times;{num}</option>
                                 ))}
                               </select>
-                              <span className="text-xs text-gray-500">units</span>
+                              <span className="text-xs text-gray-500">
+                                {quantity > 1 ? `= ${quantity} \u00d7 ${item.QuantitySelected}` : ""}
+                              </span>
                             </div>
                           )}
                         </div>

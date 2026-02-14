@@ -13,7 +13,7 @@ const getSessionId = () => {
   return sessionId;
 };
 
-const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals, groceryListData, setGroceryListData }) => {
+const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals, groceryListData, setGroceryListData, debugMode = false }) => {
   // Session management
   const [sessionId] = useState(getSessionId());
 
@@ -535,7 +535,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
     <div className="h-screen flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative">
       {/* Loading Overlay */}
       {isGeneratingGroceryList && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
@@ -573,28 +573,33 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             <div className="flex items-center gap-2">
               {/* Meals Panel Toggle */}
               <button
-                onClick={() => setShowMealsPanel(!showMealsPanel)}
-                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
+                onClick={() => !isGeneratingGroceryList && setShowMealsPanel(!showMealsPanel)}
+                disabled={isGeneratingGroceryList}
+                className={`flex items-center gap-1 text-sm px-2 py-1 rounded-lg transition-colors ${isGeneratingGroceryList ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/20'}`}
               >
                 <ShoppingCart size={16} />
                 <span className="hidden sm:inline">Meal Plans</span> ({selectedMeals.length})
               </button>
 
-              {/* Debug Toggle */}
-              <button
-                onClick={() => setShowDebug(!showDebug)}
-                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
-              >
-                <Wifi size={16} />
-                <span className="hidden sm:inline">Debug</span>
-                {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
+              {/* Debug Toggle - only visible with ?debug=true */}
+              {debugMode && (
+                <button
+                  onClick={() => setShowDebug(!showDebug)}
+                  className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
+                >
+                  <Wifi size={16} />
+                  <span className="hidden sm:inline">Debug</span>
+                  {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              )}
 
               {/* New Session Button */}
               <button
                 onClick={() => {
-                  localStorage.removeItem('chatSessionId');
-                  window.location.reload();
+                  if (window.confirm("Start a new chat session? Your current conversation will be cleared.")) {
+                    localStorage.removeItem('chatSessionId');
+                    window.location.reload();
+                  }
                 }}
                 className="text-xs hover:bg-white/20 px-2 py-1 rounded transition-colors"
                 title="Start new session"
@@ -795,9 +800,23 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                 <X size={20} className="lg:w-4 lg:h-4" />
               </button>
             </div>
-            <p className="text-sm opacity-90 mt-1">
-              {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
-            </p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-sm opacity-90">
+                {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
+              </p>
+              {selectedMeals.length > 1 && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Remove all ${selectedMeals.length} meals from your plan?`)) {
+                      setSelectedMeals([]);
+                    }
+                  }}
+                  className="text-xs opacity-80 hover:opacity-100 hover:bg-white/20 px-2 py-1 rounded transition-colors"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4">

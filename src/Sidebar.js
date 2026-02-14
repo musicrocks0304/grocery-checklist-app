@@ -37,7 +37,7 @@ const Sidebar = ({
             >
               <Menu size={18} className="text-white" />
             </button>
-            <h2 className="text-lg font-bold text-white">Navigation</h2>
+            <h2 className="text-lg font-bold text-white">Grocery Planner</h2>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
