@@ -37,6 +37,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
   const [isGeneratingGroceryList, setIsGeneratingGroceryList] = useState(false);
   const [lastGroceryListRequest, setLastGroceryListRequest] = useState(null);
   const [collapsedCards, setCollapsedCards] = useState(new Set());
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Navigation items
@@ -44,6 +45,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
 
   // Your n8n webhook URL for the chatbot - using the actual webhook from your n8n flow
   const CHATBOT_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/call_grocery_agent';
+  const CHAT_HISTORY_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/chat_history';
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
@@ -51,6 +53,143 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
     setDebugInfo(prev => [...prev, { timestamp, message, data }]);
     console.log(`[${timestamp}] ${message}`, data || '');
   };
+
+  // Parse AI response content from structured JSON string into displayable format
+  const parseAIResponseContent = (contentString) => {
+    try {
+      const parsed = JSON.parse(contentString);
+      if (parsed && parsed.responseType === 'recipe_list') {
+        const suggestedMeals = (parsed.recipes || []).map(recipe => ({
+          name: recipe.name,
+          description: recipe.description,
+          recipeId: recipe.id,
+          servings: recipe.servings || 4,
+          totalTime: recipe.totalTime || null
+        }));
+        return {
+          content: parsed.message || '',
+          suggestedMeals
+        };
+      }
+      if (parsed && parsed.message) {
+        return { content: parsed.message, suggestedMeals: [] };
+      }
+      // If it's JSON but not a recognized format, return the message field or stringify
+      return { content: typeof parsed === 'string' ? parsed : JSON.stringify(parsed), suggestedMeals: [] };
+    } catch {
+      // Not JSON — return as plain text
+      return { content: contentString, suggestedMeals: [] };
+    }
+  };
+
+  // Load conversation history from Postgres on mount
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      if (!sessionId) return;
+
+      setIsLoadingHistory(true);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(
+          `${CHAT_HISTORY_URL}?sessionId=${encodeURIComponent(sessionId)}`,
+          {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
+          }
+        );
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          addDebugLog('⚠️ Chat history fetch failed:', response.status);
+          return;
+        }
+
+        const responseText = await response.text();
+        if (!responseText || responseText.trim() === '') {
+          addDebugLog('No previous chat history found');
+          return;
+        }
+
+        const historyRows = JSON.parse(responseText);
+
+        if (!Array.isArray(historyRows) || historyRows.length === 0) {
+          addDebugLog('No previous chat history found');
+          return;
+        }
+
+        addDebugLog('Loading chat history:', { rowCount: historyRows.length });
+
+        // Build messages from history
+        const restoredMessages = [];
+        // Start with the greeting message
+        restoredMessages.push({
+          id: 1,
+          type: 'bot',
+          content: "Hi! I'm your meal planning assistant. I can help you create delicious meal ideas based on your grocery list and preferences. What kind of meals are you looking to plan this week?",
+          timestamp: 'restored'
+        });
+
+        let msgId = 1000;
+        historyRows.forEach(row => {
+          const msg = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
+          if (!msg || !msg.type) return;
+
+          // Support both formats: {type, content} (actual) and {type, data: {content}} (legacy)
+          const content = msg.content || (msg.data && msg.data.content) || '';
+
+          msgId++;
+          if (msg.type === 'human') {
+            restoredMessages.push({
+              id: msgId,
+              type: 'user',
+              content: content,
+              timestamp: 'restored'
+            });
+          } else if (msg.type === 'ai') {
+            // AI content might be a JSON string wrapping the structured output
+            let aiContent = content;
+            // The AI agent wraps its response in {"output": {...}}, so unwrap it
+            try {
+              const wrapper = JSON.parse(aiContent);
+              if (wrapper && wrapper.output) {
+                aiContent = JSON.stringify(wrapper.output);
+              }
+            } catch {
+              // Not JSON wrapper, use as-is
+            }
+            const parsed = parseAIResponseContent(aiContent);
+            restoredMessages.push({
+              id: msgId,
+              type: 'bot',
+              content: parsed.content,
+              suggestedMeals: parsed.suggestedMeals,
+              timestamp: 'restored'
+            });
+          }
+        });
+
+        setMessages(restoredMessages);
+        toast.success('Previous conversation restored', {
+          duration: 2000,
+          style: { fontSize: '14px' }
+        });
+        addDebugLog('✅ Chat history restored:', { messageCount: restoredMessages.length });
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          addDebugLog('⚠️ Chat history fetch timed out');
+        } else {
+          addDebugLog('⚠️ Error loading chat history:', error.message);
+        }
+        // Silently continue with fresh greeting — no disruption
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadChatHistory();
+  }, [sessionId]);
 
   // Log session info on component mount
   useEffect(() => {
@@ -649,6 +788,12 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
 
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-gray-50">
+          {isLoadingHistory && (
+            <div className="flex items-center justify-center gap-2 text-sm text-purple-600 py-4">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+              Loading conversation history...
+            </div>
+          )}
           <div className="space-y-4">
             {messages.map((message) => (
               <div

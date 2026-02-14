@@ -405,12 +405,15 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, debugMode = false }) =
     try {
       addDebugLog("Removing item from database:", itemToRemove);
 
+      const weekData = getWeekDates();
+
       // Call the deactivate webhook
       const webhookURL = `https://n8n-grocery.needexcelexpert.com/webhook/deactivate_grocery_item`;
       const payload = {
         itemId: itemToRemove.ItemID.toString(),
         itemName: itemToRemove.ItemName.trim(),
         category: itemToRemove.Category.trim(),
+        weekDateRange: weekData.displayRange,
         timestamp: new Date().toISOString(),
       };
       addDebugLog("Deactivate webhook URL:", webhookURL, "Payload:", payload);
