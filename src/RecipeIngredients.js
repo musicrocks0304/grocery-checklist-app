@@ -12,6 +12,8 @@ import {
   AlertCircle,
   Layers
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { getWeekDateRange, getWeekDates } from './utils/weekDates';
 
 const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) => {
   const [ingredientsList, setIngredientsList] = useState([]);
@@ -60,55 +62,10 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
       addDebugLog('📦 Selected ingredients to add:', selectedIngredients);
       addDebugLog(`📊 Total items: ${selectedIngredients.length}`);
 
-      // Get week date information (matching other webhooks)
-      const getWeekDates = () => {
-        const today = new Date();
-        const dayOfWeek = today.getDay();
-        const showNextWeek = dayOfWeek >= 4;
-
-        const daysToSunday = dayOfWeek;
-        const currentWeekSunday = new Date(today);
-        currentWeekSunday.setDate(today.getDate() - daysToSunday);
-
-        const targetSunday = new Date(currentWeekSunday);
-        if (showNextWeek) {
-          targetSunday.setDate(targetSunday.getDate() + 7);
-        }
-
-        const targetSaturday = new Date(targetSunday);
-        targetSaturday.setDate(targetSunday.getDate() + 6);
-
-        const formatDate = (date) => {
-          return date.toISOString().split('T')[0];
-        };
-
-        const formatDisplayDate = (date) => {
-          const month = date.toLocaleDateString("en-US", { month: "long" });
-          const day = date.getDate();
-          const getOrdinalSuffix = (day) => {
-            if (day > 3 && day < 21) return "th";
-            switch (day % 10) {
-              case 1: return "st";
-              case 2: return "nd";
-              case 3: return "rd";
-              default: return "th";
-            }
-          };
-          return `${month} ${day}${getOrdinalSuffix(day)}`;
-        };
-
-        const year = targetSunday.getFullYear();
-        return {
-          startDate: formatDate(targetSunday),
-          endDate: formatDate(targetSaturday),
-          displayRange: `For the week of ${formatDisplayDate(targetSunday)} to ${formatDisplayDate(targetSaturday)}, ${year}`
-        };
-      };
-
       const weekData = getWeekDates();
 
-      // Prepare query parameters with all the selected ingredient data
-      const queryParams = new URLSearchParams({
+      // Prepare JSON payload for POST request
+      const payload = {
         ingredients: JSON.stringify(selectedIngredients),
         totalItems: selectedIngredients.length.toString(),
         selectedMeals: JSON.stringify(selectedMeals.map(meal => ({
@@ -121,18 +78,20 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
         weekDateRange: weekData.displayRange,
         timestamp: new Date().toISOString(),
         source: 'recipe_ingredients_page'
-      });
+      };
 
-      const webhookUrl = `https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients?${queryParams.toString()}`;
+      const webhookUrl = 'https://n8n-grocery.needexcelexpert.com/webhook/meal_ingredients';
 
-      addDebugLog('🌐 Calling webhook with data...');
-      addDebugLog('📋 Webhook URL (truncated):', webhookUrl.substring(0, 200) + '...');
+      addDebugLog('🌐 Calling webhook with POST data...');
+      addDebugLog('📋 Payload items:', selectedIngredients.length);
 
       const response = await fetch(webhookUrl, {
-        method: 'GET',
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        body: JSON.stringify(payload),
         mode: 'cors'
       });
 
@@ -140,7 +99,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
 
       if (response.ok) {
         addDebugLog('✅ Successfully added ingredients to main grocery list');
-        alert("✅ Recipe ingredients have been added to your main grocery list!");
+        toast.success("Recipe ingredients have been added to your main grocery list!");
         onNavigate('grocery');
       } else {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -148,7 +107,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
     } catch (error) {
       console.error('❌ Error adding ingredients to main list:', error);
       addDebugLog('❌ Error adding ingredients to main list:', error.message);
-      alert("❌ There was an error adding ingredients to your main grocery list. Please try again.");
+      toast.error("There was an error adding ingredients to your main grocery list. Please try again.");
     } finally {
       setIsAddingToMainList(false);
       setShowConfirmDialog(false);
@@ -254,26 +213,15 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
         });
       }
 
-      // Clean up the data by removing any tab characters from item names and categories
-      const cleanedData = transformedIngredients.map((item) => ({
-        ...item,
-        ItemName: item.ItemName
-          ? item.ItemName.replace(/\t/g, "").trim()
-          : item.ItemName,
-        Category: item.Category
-          ? item.Category.replace(/\t/g, "").trim()
-          : item.Category,
-      }));
-
-      setIngredientsList(cleanedData);
+      setIngredientsList(transformedIngredients);
       addDebugLog("✅ Successfully loaded and transformed recipe ingredients");
-      addDebugLog("Transformed ingredients:", cleanedData);
+      addDebugLog("Transformed ingredients:", transformedIngredients);
 
       // Initialize selected items and quantities based on IsSelected field
       const preSelectedItems = new Set();
       const preSelectedQuantities = new Map();
 
-      cleanedData.forEach((item) => {
+      transformedIngredients.forEach((item) => {
         if (item.IsSelected === 1) {
           preSelectedItems.add(item.ItemID.toString());
           // Use QuantitySelected from payload, fallback to 1 if not present
@@ -286,12 +234,12 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
       setItemQuantities(preSelectedQuantities);
 
       // Set the first group as active tab
-      const groups = getGroups(cleanedData, groupBy);
+      const groups = getGroups(transformedIngredients, groupBy);
       if (groups.length > 0) {
         setActiveTab(groups[0]);
       }
 
-      addDebugLog(`✅ Processed ${cleanedData.length} ingredients from ${selectedMeals.length} meals`);
+      addDebugLog(`✅ Processed ${transformedIngredients.length} ingredients from ${selectedMeals.length} meals`);
 
     } catch (err) {
       console.error('Error processing recipe ingredients:', err);
@@ -402,47 +350,6 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData }) 
       }
       return newSet;
     });
-  };
-
-  const getWeekDateRange = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const showNextWeek = dayOfWeek >= 4;
-
-    const daysToSunday = dayOfWeek;
-    const currentWeekSunday = new Date(today);
-    currentWeekSunday.setDate(today.getDate() - daysToSunday);
-
-    const targetSunday = new Date(currentWeekSunday);
-    if (showNextWeek) {
-      targetSunday.setDate(targetSunday.getDate() + 7);
-    }
-
-    const targetSaturday = new Date(targetSunday);
-    targetSaturday.setDate(targetSunday.getDate() + 6);
-
-    const formatDate = (date) => {
-      const month = date.toLocaleDateString("en-US", { month: "long" });
-      const day = date.getDate();
-      return `${month} ${day}${getOrdinalSuffix(day)}`;
-    };
-
-    const getOrdinalSuffix = (day) => {
-      if (day > 3 && day < 21) return "th";
-      switch (day % 10) {
-        case 1:
-          return "st";
-        case 2:
-          return "nd";
-        case 3:
-          return "rd";
-        default:
-          return "th";
-      }
-    };
-
-    const year = targetSunday.getFullYear();
-    return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
   };
 
   const getFinalGroceryList = () => {

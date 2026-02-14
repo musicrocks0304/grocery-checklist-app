@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp, ChefHat, Utensils, Play } from 'lucide-react';
+import { getWeekDates } from './utils/weekDates';
 
 const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
   // Your n8n webhook URLs following the same pattern as other webhooks in the app
@@ -28,77 +29,10 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
     console.log(`[${timestamp}] ${message}`, data || '');
   };
 
-  // Helper function to get week dates (following the same pattern as other components)
-  const getWeekDates = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const showNextWeek = dayOfWeek >= 4;
-
-    const daysToSunday = dayOfWeek;
-    const currentWeekSunday = new Date(today);
-    currentWeekSunday.setDate(today.getDate() - daysToSunday);
-
-    const targetSunday = new Date(currentWeekSunday);
-    if (showNextWeek) {
-      targetSunday.setDate(targetSunday.getDate() + 7);
-    }
-
-    const targetSaturday = new Date(targetSunday);
-    targetSaturday.setDate(targetSunday.getDate() + 6);
-
-    // Format dates for SQL (YYYY-MM-DD)
-    const formatDateForSQL = (date) => {
-      return date.toISOString().split('T')[0];
-    };
-
-    return {
-      startDate: formatDateForSQL(targetSunday),
-      endDate: formatDateForSQL(targetSaturday),
-      displayRange: getWeekDateRange() // Uses the existing function
-    };
-  };
-
-  // Helper function to get week date range display (following the same pattern as other components)
-  const getWeekDateRange = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const showNextWeek = dayOfWeek >= 4;
-
-    const daysToSunday = dayOfWeek;
-    const currentWeekSunday = new Date(today);
-    currentWeekSunday.setDate(today.getDate() - daysToSunday);
-
-    const targetSunday = new Date(currentWeekSunday);
-    if (showNextWeek) {
-      targetSunday.setDate(targetSunday.getDate() + 7);
-    }
-
-    const targetSaturday = new Date(targetSunday);
-    targetSaturday.setDate(targetSunday.getDate() + 6);
-
-    const formatDate = (date) => {
-      const day = date.getDate();
-      const month = date.toLocaleDateString('en-US', { month: 'long' });
-      return `${month} ${day}${getOrdinalSuffix(day)}`;
-    };
-
-    const getOrdinalSuffix = (day) => {
-      if (day > 3 && day < 21) return 'th';
-      switch (day % 10) {
-        case 1: return 'st';
-        case 2: return 'nd';
-        case 3: return 'rd';
-        default: return 'th';
-      }
-    };
-
-    const year = targetSunday.getFullYear();
-    return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
-  };
-
   // Sample data based on the provided schema and screenshot (fallback)
   const sampleRecipeData = {
     recipe_id: 123,
+    name: "Delicious Pasta with Tomato Sauce",
     recipe_name: "Delicious Pasta with Tomato Sauce",
     instructions: [
       {
@@ -393,6 +327,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
           const transformedData = {
             id: selectedRecipeId,
             name: selectedRecipe?.name || 'Recipe Instructions',
+            recipe_name: selectedRecipe?.name || 'Recipe Instructions',
             description: `Step-by-step cooking instructions for ${selectedRecipe?.name || 'your recipe'}`,
             totalTime: `${recipeInstructions.reduce((total, step) => total + (step.time_minutes || 0), 0)} mins`,
             instructions: recipeInstructions.map(step => ({

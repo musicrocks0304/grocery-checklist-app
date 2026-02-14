@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Ticket, AlertCircle, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Coupons = ({ onNavigate, onToggleSidebar }) => {
   const [couponsData, setCouponsData] = useState([]);
@@ -339,7 +340,7 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
               addDebugLog('Selected coupons ready for use:', selectedCouponsList);
               console.log('Selected coupons:', selectedCouponsList);
 
-              alert(`${selectedCoupons.size} coupon${selectedCoupons.size !== 1 ? 's' : ''} ready to use!\n\nCheck the debug panel for details.`);
+              toast.success(`${selectedCoupons.size} coupon${selectedCoupons.size !== 1 ? 's' : ''} ready to use!`);
             }}
             className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >

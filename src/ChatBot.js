@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, ArrowLeft, Sparkles, Plus, X, ShoppingCart } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { getWeekDateRange, getWeekDates } from './utils/weekDates';
 
 // Generate or retrieve session ID
 const getSessionId = () => {
@@ -132,7 +134,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
       // Call the webhook with delete context
       const weekData = getWeekDates();
 
-      const queryParams = new URLSearchParams({
+      const payload = {
         message: `Delete meal: ${mealToRemove.name}`,
         context: 'delete_meal',
         deleteFlag: 'true',
@@ -143,16 +145,17 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
         weekStartDate: weekData.startDate,
         weekEndDate: weekData.endDate,
         weekDateRange: weekData.displayRange
-      });
+      };
 
-      const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
-      addDebugLog('Delete meal webhook URL:', fullURL);
+      addDebugLog('Delete meal webhook payload:', payload);
 
-      const response = await fetch(fullURL, {
-        method: 'GET',
+      const response = await fetch(CHATBOT_WEBHOOK_URL, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        body: JSON.stringify(payload),
         mode: 'cors'
       });
 
@@ -192,23 +195,12 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
     addDebugLog('Sending message to n8n chatbot webhook...', messageToSend);
 
     try {
-      // Test connectivity first
-      addDebugLog('Testing connectivity...');
-      const testResponse = await fetch('https://api.github.com/zen', {
-        method: 'GET',
-        mode: 'cors'
-      });
-
-      if (testResponse.ok) {
-        addDebugLog('✅ External connectivity working');
-      }
-
       addDebugLog('Webhook URL:', CHATBOT_WEBHOOK_URL);
 
-      // Use GET method to match n8n webhook configuration
+      // Use POST method with JSON body
       const weekData = getWeekDates();
 
-      const queryParams = new URLSearchParams({
+      const payload = {
         message: messageToSend,
         context: 'meal_planning',
         timestamp: new Date().toISOString(),
@@ -216,14 +208,18 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
         weekStartDate: weekData.startDate,
         weekEndDate: weekData.endDate,
         weekDateRange: weekData.displayRange
-      });
+      };
 
-      const fullURL = `${CHATBOT_WEBHOOK_URL}?${queryParams.toString()}`;
-      addDebugLog('Full GET URL:', fullURL);
+      addDebugLog('POST payload:', payload);
 
-      addDebugLog('Making API call to chatbot webhook with GET method...');
-      const response = await fetch(fullURL, {
-        method: 'GET',
+      addDebugLog('Making API call to chatbot webhook with POST method...');
+      const response = await fetch(CHATBOT_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
         mode: 'cors'
       });
 
@@ -246,7 +242,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
           status: response.status, 
           statusText: response.statusText, 
           body: errorText,
-          url: fullURL 
+          url: CHATBOT_WEBHOOK_URL
         });
 
         // For 500 errors, provide a helpful fallback message
@@ -531,73 +527,6 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
       e.preventDefault();
       sendMessage();
     }
-  };
-
-  const getWeekDateRange = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const showNextWeek = dayOfWeek >= 4;
-
-    const daysToSunday = dayOfWeek;
-    const currentWeekSunday = new Date(today);
-    currentWeekSunday.setDate(today.getDate() - daysToSunday);
-
-    const targetSunday = new Date(currentWeekSunday);
-    if (showNextWeek) {
-      targetSunday.setDate(targetSunday.getDate() + 7);
-    }
-
-    const targetSaturday = new Date(targetSunday);
-    targetSaturday.setDate(targetSunday.getDate() + 6);
-
-    const formatDate = (date) => {
-      const day = date.getDate();
-      const month = date.toLocaleDateString('en-US', { month: 'long' });
-      return `${month} ${day}${getOrdinalSuffix(day)}`;
-    };
-
-    const getOrdinalSuffix = (day) => {
-      if (day > 3 && day < 21) return 'th';
-      switch (day % 10) {
-        case 1: return 'st';
-        case 2: return 'nd';
-        case 3: return 'rd';
-        default: return 'th';
-      }
-    };
-
-    const year = targetSunday.getFullYear();
-    return `For the week of ${formatDate(targetSunday)} to ${formatDate(targetSaturday)}, ${year}`;
-  };
-
-  // Add this helper function to get the actual dates for database storage
-  const getWeekDates = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const showNextWeek = dayOfWeek >= 4;
-
-    const daysToSunday = dayOfWeek;
-    const currentWeekSunday = new Date(today);
-    currentWeekSunday.setDate(today.getDate() - daysToSunday);
-
-    const targetSunday = new Date(currentWeekSunday);
-    if (showNextWeek) {
-      targetSunday.setDate(targetSunday.getDate() + 7);
-    }
-
-    const targetSaturday = new Date(targetSunday);
-    targetSaturday.setDate(targetSunday.getDate() + 6);
-
-    // Format dates for SQL (YYYY-MM-DD)
-    const formatDateForSQL = (date) => {
-      return date.toISOString().split('T')[0];
-    };
-
-    return {
-      startDate: formatDateForSQL(targetSunday),
-      endDate: formatDateForSQL(targetSaturday),
-      displayRange: getWeekDateRange() // Uses the existing function
-    };
   };
 
   // Removed getFallbackIngredients function since we're not using it anymore
@@ -942,7 +871,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                       lastGroceryListRequest.key === requestKey &&
                       (now - lastGroceryListRequest.timestamp) < 120000) { // 2 minutes
                     addDebugLog('⚠️ Duplicate request detected within 2 minutes, ignoring');
-                    alert('A grocery list for these same recipes was recently requested. Please wait a moment before trying again.');
+                    toast('A grocery list for these same recipes was recently requested. Please wait a moment before trying again.', { icon: '⚠️' });
                     setIsGeneratingGroceryList(false);
                     return;
                   }
@@ -952,20 +881,20 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
 
                   if (recipeIds.length === 0) {
                     addDebugLog('❌ No recipe IDs found in selected meals');
-                    alert('No recipe IDs found. Please make sure meals were added properly.');
+                    toast.error('No recipe IDs found. Please make sure meals were added properly.');
                     setIsGeneratingGroceryList(false);
                     return;
                   }
 
                   try {
-                    // Call your new webhook with the recipe IDs using GET method like other webhooks
+                    // Call webhook with POST method and JSON body
                     const baseWebhookURL = 'https://n8n-grocery.needexcelexpert.com/webhook/get_recipe_items';
 
                     // Get week information
                     const weekInfo = getWeekDates();
 
-                    // Convert payload to query parameters to match other webhooks
-                    const queryParams = new URLSearchParams({
+                    // Build JSON payload
+                    const recipePayload = {
                       recipe_ids: JSON.stringify(recipeIds),
                       session_id: sessionId,
                       timestamp: new Date().toISOString(),
@@ -975,18 +904,15 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                         name: meal.name,
                         description: meal.description
                       }))),
-                      // Add week information
                       week_start_date: weekInfo.startDate,
                       week_end_date: weekInfo.endDate,
                       week_display_range: weekInfo.displayRange
-                    });
+                    };
 
-                    const webhookURL = `${baseWebhookURL}?${queryParams.toString()}`;
-
-                    addDebugLog('Sending GET request to get_recipe_items webhook');
+                    addDebugLog('Sending POST request to get_recipe_items webhook');
                     addDebugLog('Recipe IDs:', recipeIds);
                     addDebugLog('Week info:', weekInfo);
-                    addDebugLog('Webhook URL:', webhookURL);
+                    addDebugLog('Payload:', recipePayload);
 
                     // Create AbortController for timeout handling
                     const controller = new AbortController();
@@ -995,11 +921,13 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                       addDebugLog('⏰ Request timed out after 90 seconds');
                     }, 90000); // 90 second timeout
 
-                    const response = await fetch(webhookURL, {
-                      method: 'GET',
+                    const response = await fetch(baseWebhookURL, {
+                      method: 'POST',
                       headers: {
+                        'Content-Type': 'application/json',
                         'Accept': 'application/json',
                       },
+                      body: JSON.stringify(recipePayload),
                       mode: 'cors',
                       signal: controller.signal
                     });
@@ -1033,7 +961,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                       addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
                       addDebugLog('Error response:', errorText);
                       // Still navigate to the page, but show a warning
-                      alert('Warning: There was an issue calling the recipe items webhook, but proceeding anyway.');
+                      toast('There was an issue calling the recipe items webhook, but proceeding anyway.', { icon: '⚠️' });
                       onNavigate('recipe-ingredients');
                     }
 
@@ -1044,13 +972,13 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     // Check for different types of errors
                     if (error.name === 'AbortError') {
                       addDebugLog('⏰ Request was aborted due to timeout (90 seconds)');
-                      alert('The grocery list generation is taking longer than expected. The request has been cancelled to prevent duplicate calls. Please try again or check if the n8n workflow is running properly.');
+                      toast.error('The grocery list generation timed out. Please try again or check if the n8n workflow is running properly.');
                       return; // Don't navigate on timeout
                     } else if (error.message === 'Failed to fetch') {
                       addDebugLog('🚨 This looks like a CORS error. The webhook may need CORS headers.');
-                      alert('CORS Error: The webhook needs to allow cross-origin requests. Check debug logs for details.');
+                      toast.error('CORS Error: The webhook needs to allow cross-origin requests.');
                     } else {
-                      alert('Error calling recipe items webhook. Check debug logs for details.');
+                      toast.error('Error calling recipe items webhook. Check debug logs for details.');
                     }
 
                     // Still navigate to show the page with mock data (except for timeout)
