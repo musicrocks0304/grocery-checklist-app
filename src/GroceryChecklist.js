@@ -80,7 +80,7 @@ const GroceryItem = React.memo(({
   );
 });
 
-const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
+const GroceryChecklist = ({ onNavigate, onUnsavedChanges, debugMode = false }) => {
   const [groceryData, setGroceryData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,6 +99,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
     groceryStoreSection: "",
   });
   const [itemToRemove, setItemToRemove] = useState(null);
+  const [isSavingList, setIsSavingList] = useState(false);
   const [groupBy, setGroupBy] = useState("GroceryStoreSection"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
   const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
@@ -682,7 +683,9 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
             Modify Selection
           </button>
           <button
+            disabled={isSavingList}
             onClick={async () => {
+              setIsSavingList(true);
               try {
                 // Get full metadata of all selected items with quantities
                 const selectedGroceryItems = groceryData
@@ -758,11 +761,24 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
                   "Grocery list saved locally, but there was a connection issue.",
                   { icon: "⚠️" },
                 );
+              } finally {
+                setIsSavingList(false);
               }
             }}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className={`px-6 py-2 text-white rounded-lg transition-colors flex items-center gap-2 ${
+              isSavingList
+                ? "bg-green-400 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
           >
-            Save List
+            {isSavingList ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                Saving...
+              </>
+            ) : (
+              "Save List"
+            )}
           </button>
         </div>
       </div>
@@ -1023,15 +1039,17 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Debug Toggle */}
-            <button
-              onClick={() => setShowDebug(!showDebug)}
-              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <Wifi size={16} />
-              Debug Info
-              {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
+            {/* Debug Toggle - only visible with ?debug=true */}
+            {debugMode && (
+              <button
+                onClick={() => setShowDebug(!showDebug)}
+                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <Wifi size={16} />
+                Debug Info
+                {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            )}
           </div>
         </div>
 
@@ -1098,18 +1116,16 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
         </p>
 
         {/* Grouping and Filtering Controls */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          {/* Item Type Filter Section - moved above Group By */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center gap-2 text-gray-700">
-              <span className="font-medium">Item Type:</span>
-            </div>
-            <div className="flex gap-2">
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-4">
+          {/* Item Type Filter Section */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+            <span className="font-medium text-gray-700 whitespace-nowrap">Item Type:</span>
+            <div className="flex flex-wrap gap-2">
               {["All", "Basic", "Periodic"].map((type) => (
                 <button
                   key={type}
                   onClick={() => handleTypeFilterChange(type)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     typeFilter === type
                       ? "bg-green-600 text-white"
                       : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
@@ -1119,17 +1135,17 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
                 </button>
               ))}
             </div>
+          </div>
 
-            {/* Data Source Filter Section */}
-            <div className="flex items-center gap-2 text-gray-700 ml-6">
-              <span className="font-medium">Data Source:</span>
-            </div>
-            <div className="flex gap-2">
+          {/* Data Source Filter Section */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+            <span className="font-medium text-gray-700 whitespace-nowrap">Data Source:</span>
+            <div className="flex flex-wrap gap-2">
               {["All", "Staples", "MealIngredients"].map((source) => (
                 <button
                   key={source}
                   onClick={() => handleDataSourceFilterChange(source)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     dataSourceFilter === source
                       ? "bg-purple-600 text-white"
                       : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
@@ -1142,17 +1158,17 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
           </div>
 
           {/* Group By Section */}
-          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
             <div className="flex items-center gap-2 text-gray-700">
               <Layers size={20} />
-              <span className="font-medium">Group by:</span>
+              <span className="font-medium whitespace-nowrap">Group by:</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {["Category", "Store", "GroceryStoreSection"].map((mode) => (
                 <button
                   key={mode}
                   onClick={() => handleGroupByChange(mode)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     groupBy === mode
                       ? "bg-blue-600 text-white"
                       : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
@@ -1168,22 +1184,26 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
         {/* Group Tabs */}
         <div className="mb-6 border-b border-gray-200">
           <div className="flex flex-wrap gap-2">
-            {groups.map((group) => (
-              <button
-                key={group}
-                onClick={() => setActiveTab(group)}
-                className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
-                  activeTab === group
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {group}
-                <span className="ml-2 text-sm opacity-80">
-                  ({getItemsByGroup(group).length})
-                </span>
-              </button>
-            ))}
+            {groups.map((group) => {
+              const groupItems = getItemsByGroup(group);
+              const selectedCount = groupItems.filter(item => selectedItems.has(item.ItemID.toString())).length;
+              return (
+                <button
+                  key={group}
+                  onClick={() => setActiveTab(group)}
+                  className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
+                    activeTab === group
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {group}
+                  <span className="ml-2 text-sm opacity-80">
+                    ({selectedCount}/{groupItems.length})
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1194,14 +1214,49 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
               {groupBy === "GroceryStoreSection" ? "Store Section" : groupBy}:{" "}
               {activeTab}
             </h2>
-            <button
-              onClick={() => setShowAddPanel(true)}
-              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-              title="Add new item"
-            >
-              <Plus size={20} />
-              Add Item
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const groupItemIds = currentGroupItems.map(item => item.ItemID.toString());
+                  const allSelected = groupItemIds.every(id => selectedItems.has(id));
+                  setSelectedItems(prev => {
+                    const newSet = new Set(prev);
+                    groupItemIds.forEach(id => {
+                      if (allSelected) {
+                        newSet.delete(id);
+                      } else {
+                        newSet.add(id);
+                      }
+                    });
+                    return newSet;
+                  });
+                  setItemQuantities(prev => {
+                    const newMap = new Map(prev);
+                    groupItemIds.forEach(id => {
+                      if (allSelected) {
+                        newMap.delete(id);
+                      } else if (!newMap.has(id)) {
+                        newMap.set(id, 1);
+                      }
+                    });
+                    return newMap;
+                  });
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                {currentGroupItems.length > 0 && currentGroupItems.every(item => selectedItems.has(item.ItemID.toString()))
+                  ? "Deselect All"
+                  : "Select All"}
+              </button>
+              <button
+                onClick={() => setShowAddPanel(true)}
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                title="Add new item"
+              >
+                <Plus size={20} />
+                Add Item
+              </button>
+            </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg bg-white">
@@ -1231,7 +1286,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges }) => {
             disabled={selectedItems.size === 0}
             className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
           >
-            Generate Grocery List
+            Review Selection
           </button>
         </div>
       </div>

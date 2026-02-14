@@ -9,7 +9,14 @@ import GroceryChecklist from "./GroceryChecklist";
 
 const VALID_SCREENS = ["grocery", "chatbot", "recipe-ingredients", "recipe-instructions"];
 
+// Only show debug panels when ?debug=true is in the URL
+const isDebugMode = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("debug") === "true";
+};
+
 const App = () => {
+  const [debugMode] = useState(isDebugMode);
   const [currentScreen, setCurrentScreen] = useState(() => {
     const hash = window.location.hash.replace("#", "");
     return VALID_SCREENS.includes(hash) ? hash : "grocery";
@@ -81,6 +88,7 @@ const App = () => {
             setSelectedMeals={setSelectedMeals}
             groceryListData={groceryListData}
             setGroceryListData={setGroceryListData}
+            debugMode={debugMode}
           />
         </Sidebar>
       </>
@@ -102,6 +110,7 @@ const App = () => {
             selectedMeals={selectedMeals}
             onNavigate={navigateToScreen}
             groceryListData={groceryListData}
+            debugMode={debugMode}
           />
         </Sidebar>
       </>
@@ -122,6 +131,7 @@ const App = () => {
           <RecipeInstructions
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
+            debugMode={debugMode}
           />
         </Sidebar>
       </>
@@ -141,6 +151,7 @@ const App = () => {
         <GroceryChecklist
           onNavigate={navigateToScreen}
           onUnsavedChanges={setHasUnsavedChanges}
+          debugMode={debugMode}
         />
       </Sidebar>
     </>

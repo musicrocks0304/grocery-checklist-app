@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp, ChefHat, Utensils, Play } from 'lucide-react';
 import { getWeekDates } from './utils/weekDates';
 
-const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
+const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMode = false }) => {
   // Your n8n webhook URLs following the same pattern as other webhooks in the app
   const CHOOSE_RECIPE_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/choose_recipe_instructions';
   const GRAB_INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/grab_instructions';
@@ -489,7 +489,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
             onClick={handleBackToApp}
             className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
           >
-            Back to App
+            Back to Grocery List
           </button>
         </div>
       </div>
@@ -509,7 +509,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
               >
                 <ArrowLeft size={20} />
-                <span className="font-medium">Back to App</span>
+                <span className="font-medium">Back to Grocery List</span>
               </button>
               <div className="text-center">
                 <h1 className="text-lg font-bold text-gray-800">
@@ -520,22 +520,24 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {/* Debug Toggle */}
-                <button
-                  onClick={() => setShowDebug(!showDebug)}
-                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  <Wifi size={16} />
-                  <span className="hidden sm:inline">Debug</span>
-                  {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
+                {/* Debug Toggle - only visible with ?debug=true */}
+                {debugMode && (
+                  <button
+                    onClick={() => setShowDebug(!showDebug)}
+                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                  >
+                    <Wifi size={16} />
+                    <span className="hidden sm:inline">Debug</span>
+                    {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Debug Panel */}
-        {showDebug && (
+        {debugMode && showDebug && (
           <div className="bg-gray-900 text-white border-b border-gray-200">
             <div className="max-w-4xl mx-auto px-4 py-4">
               <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
@@ -661,14 +663,6 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
                 <ArrowLeft size={20} />
                 <span className="font-medium">Back to Recipes</span>
               </button>
-              <div className="h-6 w-px bg-gray-300"></div>
-              <button
-                onClick={handleBackToApp}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
-              >
-                <ArrowLeft size={20} />
-                <span className="font-medium">Back to App</span>
-              </button>
             </div>
             <div className="text-center">
               <h1 className="text-lg font-bold text-gray-800 truncate max-w-xs">
@@ -679,22 +673,24 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {/* Debug Toggle */}
-              <button
-                onClick={() => setShowDebug(!showDebug)}
-                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-              >
-                <Wifi size={16} />
-                <span className="hidden sm:inline">Debug</span>
-                {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
+              {/* Debug Toggle - only visible with ?debug=true */}
+              {debugMode && (
+                <button
+                  onClick={() => setShowDebug(!showDebug)}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <Wifi size={16} />
+                  <span className="hidden sm:inline">Debug</span>
+                  {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Debug Panel */}
-      {showDebug && (
+      {debugMode && showDebug && (
         <div className="bg-gray-900 text-white border-b border-gray-200">
           <div className="max-w-4xl mx-auto px-4 py-4">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
@@ -875,7 +871,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [] }) => {
               onClick={handleBackToApp}
               className="mt-4 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
             >
-              Back to App
+              Back to Grocery List
             </button>
           </div>
         )}
