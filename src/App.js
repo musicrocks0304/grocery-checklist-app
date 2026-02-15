@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ShoppingCart, MessageCircle, ChefHat } from "lucide-react";
+import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
 import RecipeInstructions from "./RecipeInstructions";
 import Sidebar from "./Sidebar";
 import GroceryChecklist from "./GroceryChecklist";
+import InStoreMode from "./InStoreMode";
 
-const VALID_SCREENS = ["grocery", "chatbot", "recipe-ingredients", "recipe-instructions"];
+const VALID_SCREENS = ["grocery", "chatbot", "recipe-ingredients", "recipe-instructions", "in-store"];
 
 // Only show debug panels when ?debug=true is in the URL
 const isDebugMode = () => {
@@ -24,6 +25,7 @@ const App = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedMeals, setSelectedMeals] = useState([]);
   const [groceryListData, setGroceryListData] = useState(null);
+  const [inStoreData, setInStoreData] = useState(null);
   const hasUnsavedChangesRef = useRef(false);
 
   const setHasUnsavedChanges = useCallback((value) => {
@@ -43,6 +45,12 @@ const App = () => {
     window.history.pushState({ screen }, "", `#${screen}`);
     setSidebarOpen(false);
   }, []);
+
+  const handleStartShopping = useCallback((data) => {
+    setInStoreData(data);
+    localStorage.setItem("inStoreShoppingList", JSON.stringify(data));
+    navigateToScreen("in-store");
+  }, [navigateToScreen]);
 
   // Browser back/forward button support
   useEffect(() => {
@@ -65,9 +73,22 @@ const App = () => {
 
   const navigation = [
     { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
+    { id: "in-store", name: "In Store Mode", icon: ShoppingBag },
     { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
     { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
   ];
+
+  if (currentScreen === "in-store") {
+    return (
+      <>
+        <Toaster position="top-center" />
+        <InStoreMode
+          inStoreData={inStoreData}
+          onExit={() => navigateToScreen("grocery")}
+        />
+      </>
+    );
+  }
 
   if (currentScreen === "chatbot") {
     return (
@@ -151,6 +172,7 @@ const App = () => {
         <GroceryChecklist
           onNavigate={navigateToScreen}
           onUnsavedChanges={setHasUnsavedChanges}
+          onStartShopping={handleStartShopping}
           debugMode={debugMode}
         />
       </Sidebar>

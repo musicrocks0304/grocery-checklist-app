@@ -10,6 +10,7 @@ import {
   Trash2,
   X,
   Layers,
+  ShoppingBag,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getWeekDateRange, getWeekDates } from "./utils/weekDates";
@@ -80,7 +81,7 @@ const GroceryItem = React.memo(({
   );
 });
 
-const GroceryChecklist = ({ onNavigate, onUnsavedChanges, debugMode = false }) => {
+const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debugMode = false }) => {
   const [groceryData, setGroceryData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -100,6 +101,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, debugMode = false }) =
   });
   const [itemToRemove, setItemToRemove] = useState(null);
   const [isSavingList, setIsSavingList] = useState(false);
+  const [listSaved, setListSaved] = useState(false);
   const [groupBy, setGroupBy] = useState("GroceryStoreSection"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
   const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
@@ -745,6 +747,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, debugMode = false }) =
                 if (response.ok) {
                   addDebugLog("✅ Grocery list successfully sent to webhook");
                   toast.success("Grocery list saved successfully!");
+                  setListSaved(true);
                 } else {
                   addDebugLog(
                     "⚠️ Webhook returned non-OK status:",
@@ -783,6 +786,27 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, debugMode = false }) =
               "Save List"
             )}
           </button>
+          {listSaved && onStartShopping && (
+            <button
+              onClick={() => {
+                const selectedGroceryItems = groceryData
+                  .filter((item) => selectedItems.has(item.ItemID.toString()))
+                  .map((item) => ({
+                    ...item,
+                    quantity: itemQuantities.get(item.ItemID.toString()) || 1,
+                  }));
+                onStartShopping({
+                  items: selectedGroceryItems,
+                  savedAt: new Date().toISOString(),
+                  weekDateRange: getWeekDateRange(),
+                });
+              }}
+              className="px-6 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all flex items-center gap-2 font-medium shadow-md"
+            >
+              <ShoppingBag size={20} />
+              Start Shopping
+            </button>
+          )}
         </div>
       </div>
     );
