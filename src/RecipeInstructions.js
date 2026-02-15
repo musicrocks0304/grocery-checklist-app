@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp, ChefHat, Utensils, Play, Smartphone, Sun, Moon, Timer, Pause, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, Wifi, ChevronDown, ChevronUp, ChefHat, Utensils, Play, Smartphone, Sun, Moon, Timer, Pause, X, List } from 'lucide-react';
 import { getWeekDates } from './utils/weekDates';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
@@ -7,7 +7,7 @@ import confetti from 'canvas-confetti';
 const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMode = false }) => {
   // Your n8n webhook URLs following the same pattern as other webhooks in the app
   const CHOOSE_RECIPE_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/choose_recipe_instructions';
-  const GRAB_INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/grab_instructions';
+  const GRAB_INSTRUCTIONS_WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/grab_instructions_fast';
 
   // State management
   const [recipeData, setRecipeData] = useState(null);
@@ -33,6 +33,9 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
   // Feature 5: Compact Progress
   const [showStepDrawer, setShowStepDrawer] = useState(false);
+
+  // Step Navigation Menu (full list with previews)
+  const [showStepMenu, setShowStepMenu] = useState(false);
 
   // Feature 6: Timer
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -275,18 +278,19 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           dataType: typeof data
         });
 
-        if (data && Array.isArray(data) && data[0] && data[0].output && Array.isArray(data[0].output)) {
-          const recipeInstructions = data[0].output.filter(step =>
+        // Handle response: [{ output: [...], all_ingredients: [...] }]
+        const responseObj = Array.isArray(data) ? data[0] : data;
+        const outputSteps = responseObj?.output;
+
+        if (outputSteps && Array.isArray(outputSteps)) {
+          const recipeInstructions = outputSteps.filter(step =>
             step.recipe_id === selectedRecipeId || step.recipe_id === parseInt(selectedRecipeId)
           );
+          const allIngredients = responseObj.all_ingredients || [];
 
-          addDebugLog('Recipe filtering details:', {
-            selectedRecipeId,
-            selectedRecipeIdType: typeof selectedRecipeId,
-            totalStepsInWebhook: data[0].output.length,
-            filteredSteps: recipeInstructions.length,
-            firstStepRecipeId: data[0].output[0]?.recipe_id,
-            firstStepRecipeIdType: typeof data[0].output[0]?.recipe_id
+          addDebugLog('Recipe data received:', {
+            totalSteps: recipeInstructions.length,
+            totalIngredients: allIngredients.length,
           });
 
           const transformedData = {
@@ -295,6 +299,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             recipe_name: selectedRecipe?.name || 'Recipe Instructions',
             description: `Step-by-step cooking instructions for ${selectedRecipe?.name || 'your recipe'}`,
             totalTime: `${recipeInstructions.reduce((total, step) => total + (step.time_minutes || 0), 0)} mins`,
+            allIngredients,
             instructions: recipeInstructions.map(step => ({
               id: step.step_number,
               step: step.step_number,
@@ -573,6 +578,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
     setCurrentStep(0);
     setCompletedSteps(new Set());
     setShowStepDrawer(false);
+    setShowStepMenu(false);
     hasInitialized.current = false;
     celebratedRef.current = false;
     addDebugLog('Back to recipe selection (state cleared)');
@@ -682,19 +688,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
         <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Recipe Instructions</h2>
-          <p className="text-gray-600">Fetching cooking steps from your database...</p>
-          {debugInfo.length > 0 && (
-            <div className="mt-4 text-left">
-              <p className="text-xs text-gray-500 mb-2">Debug Info:</p>
-              <div className="bg-gray-50 rounded p-2 text-xs text-gray-600 max-h-32 overflow-y-auto">
-                {debugInfo.slice(-3).map((log, index) => (
-                  <div key={index}>
-                    <span className="text-gray-400">[{log.timestamp}]</span> {log.message}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <p className="text-gray-600">Fetching cooking steps...</p>
           <button
             onClick={() => { setShowRecipeSelection(true); setSelectedRecipeId(null); setRecipeData(null); setCurrentStep(0); setCompletedSteps(new Set()); hasInitialized.current = false; }}
             className="mt-4 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
@@ -945,6 +939,19 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             <Smartphone size={16} className="text-green-500 flex-shrink-0" title="Screen stays on" />
           )}
 
+          {/* Step menu toggle */}
+          <button
+            onClick={() => setShowStepMenu(prev => !prev)}
+            className={`p-2 rounded-lg transition-colors ${
+              showStepMenu
+                ? (kitchenMode ? 'text-amber-400 bg-gray-700' : 'text-orange-500 bg-orange-50')
+                : (kitchenMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100')
+            }`}
+            title="All Steps"
+          >
+            <List size={20} />
+          </button>
+
           {/* Kitchen mode toggle (Feature 9) */}
           <button
             onClick={handleToggleKitchenMode}
@@ -994,6 +1001,80 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
               {debugInfo.length === 0 && (
                 <div className="text-gray-400">No debug information yet...</div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step Navigation Menu (slide-down panel with all steps) */}
+      {showStepMenu && (
+        <div className={`border-b ${kitchenMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className="max-w-4xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`font-bold text-sm ${kitchenMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                All Steps
+              </h3>
+              <span className={`text-xs ${kitchenMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                {completedSteps.size}/{totalSteps} done
+              </span>
+            </div>
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {activeRecipeData.instructions.map((step, index) => (
+                <button
+                  key={index}
+                  onClick={() => { handleJumpToStep(index); setShowStepMenu(false); }}
+                  className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-all
+                    min-h-[48px] active:scale-[0.98] ${
+                    index === currentStep
+                      ? (kitchenMode
+                          ? 'bg-amber-500/20 border border-amber-500/40'
+                          : 'bg-orange-50 border border-orange-200')
+                      : completedSteps.has(index)
+                        ? (kitchenMode
+                            ? 'bg-gray-700/50 border border-gray-600'
+                            : 'bg-green-50/50 border border-green-100')
+                        : (kitchenMode
+                            ? 'bg-gray-700/30 border border-gray-700 hover:bg-gray-700/50'
+                            : 'bg-gray-50 border border-gray-100 hover:bg-gray-100')
+                  }`}
+                >
+                  {/* Step number circle */}
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5 ${
+                    index === currentStep
+                      ? (kitchenMode ? 'bg-amber-400 text-gray-900' : 'bg-orange-500 text-white')
+                      : completedSteps.has(index)
+                        ? 'bg-green-500 text-white'
+                        : (kitchenMode ? 'bg-gray-600 text-gray-400' : 'bg-gray-200 text-gray-600')
+                  }`}>
+                    {completedSteps.has(index) ? <CheckCircle size={14} /> : index + 1}
+                  </div>
+
+                  {/* Step preview text */}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${
+                      index === currentStep
+                        ? (kitchenMode ? 'text-amber-400' : 'text-orange-700')
+                        : completedSteps.has(index)
+                          ? (kitchenMode ? 'text-gray-500 line-through' : 'text-gray-400 line-through')
+                          : (kitchenMode ? 'text-gray-300' : 'text-gray-700')
+                    }`}>
+                      {step.instruction.length > 60 ? step.instruction.substring(0, 60) + '...' : step.instruction}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${kitchenMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {step.time}
+                    </p>
+                  </div>
+
+                  {/* Current indicator */}
+                  {index === currentStep && (
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 ${
+                      kitchenMode ? 'bg-amber-400/20 text-amber-400' : 'bg-orange-100 text-orange-600'
+                    }`}>
+                      Current
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         </div>
