@@ -9,6 +9,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import confetti from "canvas-confetti";
 
 // Memoized individual shopping item with large tap target
 const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
@@ -286,6 +287,37 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   useEffect(() => {
     if (allDone && !celebratedRef.current) {
       celebratedRef.current = true;
+
+      // Fire confetti burst from left and right sides
+      const fireConfetti = () => {
+        // Left side burst
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { x: 0.1, y: 0.6 },
+          colors: ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"],
+        });
+        // Right side burst
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { x: 0.9, y: 0.6 },
+          colors: ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"],
+        });
+      };
+
+      // Fire immediately, then again for a more festive effect
+      fireConfetti();
+      setTimeout(fireConfetti, 300);
+      setTimeout(() => {
+        confetti({
+          particleCount: 120,
+          spread: 100,
+          origin: { x: 0.5, y: 0.4 },
+          colors: ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"],
+        });
+      }, 600);
+
       toast.success("You got everything! Shopping complete!", {
         icon: "🎉",
         duration: 4000,
