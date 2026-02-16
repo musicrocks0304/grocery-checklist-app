@@ -1,0 +1,72 @@
+-- ============================================================
+-- 05: View Documentation
+-- These 4 views exist in the hsa database. This file documents
+-- what they do, what they join, and whether they're still accurate.
+-- ============================================================
+
+-- -------------------------------------------------------
+-- VIEW: recipe_instructions_list
+-- -------------------------------------------------------
+-- Purpose: Aggregates all instruction steps for each recipe into
+--          a single concatenated text block with step numbers.
+-- Joins:   recipe_instructions only (no joins)
+-- Output:  recipe_id, full_instructions (text), total_steps, total_instruction_time
+-- Status:  ACTIVE & ACCURATE. Used by recipe_complete and recipe_summary views.
+-- Used by: recipe_complete view, recipe_summary view
+
+-- -------------------------------------------------------
+-- VIEW: recipe_ingredient_list
+-- -------------------------------------------------------
+-- Purpose: Formats each ingredient line with quantity, unit, name,
+--          preparation notes, and optional flag.
+-- Joins:   recipe_ingredients -> ingredients (INNER JOIN)
+--          recipe_ingredients -> units (LEFT JOIN)
+-- Output:  recipe_id, ingredient_order, ingredient_line (formatted text),
+--          ingredient_name, quantity, unit_name, preparation_notes, optional
+-- Status:  ACTIVE & ACCURATE. Standalone view, not referenced by other views.
+-- Used by: Potentially the "Ingredient Agent" n8n workflow for aggregation.
+
+-- -------------------------------------------------------
+-- VIEW: recipe_summary
+-- -------------------------------------------------------
+-- Purpose: Comprehensive recipe overview with aggregated tags,
+--          average rating, rating count, instructions summary.
+-- Joins:   recipes -> ratings (LEFT)
+--          recipes -> recipe_tags -> tags (LEFT)
+--          recipes -> recipe_instructions_list view (LEFT)
+-- Output:  All recipe fields + avg_rating, rating_count, tags (comma-separated),
+--          total_steps, full_instructions
+-- Status:  ACTIVE & ACCURATE. Ratings table is empty (0 rows) so avg_rating
+--          and rating_count are always NULL/0. Still structurally correct.
+-- Note:    When the ratings feature is implemented, this view will automatically
+--          start returning meaningful rating data.
+
+-- -------------------------------------------------------
+-- VIEW: recipe_complete
+-- -------------------------------------------------------
+-- Purpose: Full recipe with instructions and ratings.
+--          Similar to recipe_summary but WITHOUT tags.
+-- Joins:   recipes -> recipe_instructions_list view (LEFT)
+--          recipes -> ratings (LEFT)
+-- Output:  All recipe fields + full_instructions, total_steps,
+--          avg_rating, rating_count
+-- Status:  ACTIVE & ACCURATE. Essentially a simpler version of recipe_summary.
+-- Note:    Consider whether both recipe_complete and recipe_summary are needed.
+--          recipe_summary is a superset (includes tags). recipe_complete could
+--          potentially be dropped if nothing references it directly.
+
+-- ============================================================
+-- HSA TABLES (Unrelated to Grocery App)
+-- ============================================================
+-- ManualHSAItems (32 rows): Health Savings Account manual entries.
+--   Part of a separate HSA tracking project. Not referenced by
+--   any grocery app code or n8n workflows.
+--
+-- OrderDetails (3,855 rows): HSA order/transaction details.
+--   Part of the same HSA project. Referenced by the "HSA Step 2 -
+--   Manual Uploads" n8n workflow (which is still active).
+--
+-- ACTION: These tables should eventually be moved to a separate
+-- database to avoid cross-project contamination. For now, they're
+-- clearly documented and isolated.
+-- ============================================================

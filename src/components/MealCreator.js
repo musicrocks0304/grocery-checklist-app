@@ -1,0 +1,767 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, Sparkles, ChefHat, ArrowLeft, ChevronDown, ChevronUp, Wifi, Clock, Users, Flame, Check, Plus, RotateCcw, BookOpen, Save } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { getWeekDateRange, getWeekDates } from '../utils/weekDates';
+import { ENDPOINTS, apiFetch } from '../config/api';
+
+// Generate or retrieve a creator-specific session ID
+const getCreatorSessionId = () => {
+  let sessionId = localStorage.getItem('creatorSessionId');
+  if (!sessionId) {
+    sessionId = `creator_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('creatorSessionId', sessionId);
+  }
+  return sessionId;
+};
+
+const PROPOSE_WEBHOOK_URL = ENDPOINTS.mealCreatorPropose;
+const BUILD_WEBHOOK_URL = ENDPOINTS.mealCreatorBuild;
+const SAVE_WEBHOOK_URL = ENDPOINTS.mealCreatorSave;
+const ADD_TO_WEEK_WEBHOOK_URL = ENDPOINTS.callGroceryAgent;
+
+const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSelectedMeals, debugMode = false }) => {
+  const [sessionId] = useState(getCreatorSessionId());
+  const [phase, setPhase] = useState(1); // 1=describe, 2=building, 3=preview, 4=saved
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      type: 'bot',
+      content: "Hi! I'm your recipe creator. Tell me what you're craving and I'll invent something new for your family. Describe a cuisine, protein, mood, or anything — I'll come up with 2-3 original ideas!",
+      timestamp: new Date().toLocaleTimeString()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [, setProposals] = useState([]);
+  const [fullRecipe, setFullRecipe] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState(null);
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [expandedSections, setExpandedSections] = useState(new Set(['ingredients', 'instructions', 'notes']));
+  const [debugInfo, setDebugInfo] = useState([]);
+  const [showDebug, setShowDebug] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const addDebugLog = (message, data = null) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugInfo(prev => [...prev, { timestamp, message, data }]);
+    console.log(`[Creator ${timestamp}] ${message}`, data || '');
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(section)) newSet.delete(section);
+      else newSet.add(section);
+      return newSet;
+    });
+  };
+
+  // ===== PHASE 1: Send message to get proposals =====
+  const sendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: inputMessage.trim(),
+      timestamp: new Date().toLocaleTimeString()
+    };
+    setMessages(prev => [...prev, userMessage]);
+    const messageToSend = inputMessage.trim();
+    setInputMessage('');
+    setIsLoading(true);
+
+    // Show typing indicator
+    const typingId = Date.now() + Math.random();
+    setMessages(prev => [...prev, { id: typingId, type: 'bot', content: '...', isTyping: true, timestamp: '' }]);
+
+    addDebugLog('Sending proposal request...', messageToSend);
+
+    try {
+      const weekData = getWeekDates();
+      const payload = {
+        message: messageToSend,
+        sessionId: sessionId,
+        context: 'meal_creation',
+        weekDateRange: weekData.displayRange,
+        timestamp: new Date().toISOString()
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+      const response = await apiFetch(PROPOSE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+        mode: 'cors',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+      const responseText = await response.text();
+      addDebugLog('Raw propose response:', responseText);
+
+      let data = JSON.parse(responseText);
+
+      // Handle array wrapper from n8n
+      if (Array.isArray(data) && data.length > 0) data = data[0];
+
+      // Unwrap n8n AI Agent output
+      let output = data;
+      if (data.output && typeof data.output === 'object') output = data.output;
+      else if (data.output && typeof data.output === 'string') {
+        try { output = JSON.parse(data.output); } catch { output = data; }
+      }
+
+      addDebugLog('Parsed output:', output);
+
+      // Remove typing indicator
+      setMessages(prev => prev.filter(msg => msg.id !== typingId));
+
+      if (output.responseType === 'recipe_proposals' && output.proposals) {
+        setProposals(output.proposals);
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'bot',
+          content: output.message || "Here are some ideas! Pick one and I'll build the full recipe.",
+          proposals: output.proposals,
+          timestamp: new Date().toLocaleTimeString()
+        }]);
+      } else {
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'bot',
+          content: output.message || output.text || JSON.stringify(output),
+          timestamp: new Date().toLocaleTimeString()
+        }]);
+      }
+    } catch (error) {
+      addDebugLog('Error in propose:', error.message);
+      setMessages(prev => prev.filter(msg => msg.id !== typingId));
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        type: 'bot',
+        content: error.name === 'AbortError'
+          ? "That took too long — please try again with a simpler description."
+          : "Something went wrong generating proposals. Please try again!",
+        timestamp: new Date().toLocaleTimeString()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ===== PHASE 2: Build full recipe from selected proposal =====
+  const buildRecipe = async (proposal) => {
+    setPhase(2);
+    setIsBuilding(true);
+    addDebugLog('Building full recipe for:', proposal.name);
+
+    try {
+      const weekData = getWeekDates();
+      const payload = {
+        proposalName: proposal.name,
+        proposalDescription: proposal.description,
+        userNotes: `Cuisine: ${proposal.cuisineStyle}. Protein: ${proposal.protein}. Kid vehicle: ${proposal.kidVehicle}. Adult twist: ${proposal.adultTwist}.`,
+        message: `Build a complete recipe for: ${proposal.name}. ${proposal.description}. Cuisine: ${proposal.cuisineStyle}. Protein: ${proposal.protein}. Kid vehicle: ${proposal.kidVehicle}. Adult twist: ${proposal.adultTwist}.`,
+        sessionId: sessionId,
+        weekDateRange: weekData.displayRange,
+        timestamp: new Date().toISOString()
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 min for full build
+
+      const response = await apiFetch(BUILD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+        mode: 'cors',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+      const responseText = await response.text();
+      addDebugLog('Raw build response:', responseText);
+
+      let data = JSON.parse(responseText);
+      if (Array.isArray(data) && data.length > 0) data = data[0];
+
+      let output = data;
+      if (data.output && typeof data.output === 'object') output = data.output;
+      else if (data.output && typeof data.output === 'string') {
+        try { output = JSON.parse(data.output); } catch { output = data; }
+      }
+
+      addDebugLog('Parsed build output:', output);
+
+      if (output.responseType === 'full_recipe' && output.recipe) {
+        setFullRecipe(output.recipe);
+        setPhase(3);
+        toast.success('Recipe built! Review and save it below.');
+      } else {
+        throw new Error('Unexpected response format from build webhook');
+      }
+    } catch (error) {
+      addDebugLog('Error in build:', error.message);
+      toast.error(error.name === 'AbortError' ? 'Recipe build timed out. Try again.' : 'Error building recipe. Please try again.');
+      setPhase(1); // Go back to proposals
+    } finally {
+      setIsBuilding(false);
+    }
+  };
+
+  // ===== SAVE: Persist to MySQL =====
+  const saveRecipe = async () => {
+    if (!fullRecipe) return;
+    setIsSaving(true);
+    addDebugLog('Saving recipe to database:', fullRecipe.recipe_name);
+
+    try {
+      const payload = { recipe: fullRecipe };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      const response = await apiFetch(SAVE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+        mode: 'cors',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+      const responseText = await response.text();
+      addDebugLog('Save response:', responseText);
+
+      let data = JSON.parse(responseText);
+      if (Array.isArray(data) && data.length > 0) data = data[0];
+
+      if (data.success) {
+        setSaveResult(data);
+        setPhase(4);
+        toast.success(`"${data.recipeName}" saved to your recipe book!`);
+      } else {
+        throw new Error(data.message || 'Save failed');
+      }
+    } catch (error) {
+      addDebugLog('Error saving:', error.message);
+      toast.error('Error saving recipe. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ===== ADD TO THIS WEEK =====
+  const addToThisWeek = async () => {
+    if (!saveResult) return;
+    const weekData = getWeekDates();
+
+    const newMeal = {
+      id: Date.now(),
+      name: saveResult.recipeName,
+      description: fullRecipe?.recipe_description || '',
+      recipeId: String(saveResult.recipeId),
+      totalTime: fullRecipe?.total_time_minutes || null,
+      servings: fullRecipe?.servings || 4,
+      ingredients: []
+    };
+
+    // Call the webhook first, then update local state on success
+    try {
+      const payload = {
+        message: `Add recipe to this week: ${saveResult.recipeName}`,
+        context: 'add_meal',
+        recipeId: String(saveResult.recipeId),
+        recipeName: saveResult.recipeName,
+        sessionId: sessionId,
+        weekStartDate: weekData.startDate,
+        weekEndDate: weekData.endDate,
+        weekDateRange: weekData.displayRange,
+        timestamp: new Date().toISOString()
+      };
+
+      const response = await apiFetch(ADD_TO_WEEK_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        mode: 'cors'
+      });
+
+      if (response.ok) {
+        setSelectedMeals(prev => [...prev, newMeal]);
+        toast.success(`Added to this week's meals!`);
+        addDebugLog('Added to weekly_selections:', saveResult.recipeId);
+      } else {
+        toast.error('Failed to add meal to this week. Please try again.');
+        addDebugLog('Webhook returned non-OK:', response.status);
+      }
+    } catch (error) {
+      addDebugLog('Error adding to week:', error.message);
+      toast.error('Failed to add meal. Check your connection.');
+    }
+  };
+
+  const startOver = () => {
+    setPhase(1);
+    setProposals([]);
+    setFullRecipe(null);
+    setSaveResult(null);
+    // Clear creator session for fresh conversation
+    localStorage.removeItem('creatorSessionId');
+    window.location.reload();
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Group ingredients by category
+  const groupedIngredients = fullRecipe?.ingredients?.reduce((acc, ing) => {
+    const cat = ing.ingredient_category || 'other';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(ing);
+    return acc;
+  }, {}) || {};
+
+  // Parse kid plate and make it better from notes
+  const parseNotes = (notes) => {
+    if (!notes) return { kidPlate: '', makeItBetter: '' };
+    const parts = notes.split('|').map(p => p.trim());
+    let kidPlate = '';
+    let makeItBetter = '';
+    for (const part of parts) {
+      if (part.toUpperCase().startsWith('KID PLATE:')) kidPlate = part.replace(/^KID PLATE:\s*/i, '');
+      if (part.toUpperCase().startsWith('MAKE IT BETTER:')) makeItBetter = part.replace(/^MAKE IT BETTER:\s*/i, '');
+    }
+    return { kidPlate, makeItBetter };
+  };
+
+  return (
+    <div className="h-screen flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4">
+      {/* Building Overlay */}
+      {isBuilding && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-600 border-t-transparent"></div>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">Building Your Recipe</h3>
+            <p className="text-gray-600 mb-4">
+              The AI is crafting a detailed Blue Apron-style recipe with ingredients, step-by-step instructions, and kid-friendly modifications...
+            </p>
+            <div className="flex items-center justify-center space-x-1">
+              <div className="animate-bounce h-2 w-2 bg-amber-600 rounded-full" style={{animationDelay: '0ms'}}></div>
+              <div className="animate-bounce h-2 w-2 bg-amber-600 rounded-full" style={{animationDelay: '150ms'}}></div>
+              <div className="animate-bounce h-2 w-2 bg-amber-600 rounded-full" style={{animationDelay: '300ms'}}></div>
+            </div>
+            <p className="text-sm text-gray-500 mt-4">This usually takes 20-40 seconds</p>
+          </div>
+        </div>
+      )}
+
+      {/* Saving Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent"></div>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">Saving to Recipe Book</h3>
+            <p className="text-gray-600">Normalizing ingredients, creating database entries...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="bg-white lg:rounded-lg lg:shadow-lg overflow-hidden flex flex-col flex-1">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                <ArrowLeft size={20} />
+              </button>
+              <Sparkles size={24} />
+              <h1 className="text-xl font-bold">AI Meal Creator</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              {debugMode && (
+                <button
+                  onClick={() => setShowDebug(!showDebug)}
+                  className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
+                >
+                  <Wifi size={16} />
+                  <span className="hidden sm:inline">Debug</span>
+                </button>
+              )}
+              <button
+                onClick={startOver}
+                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
+              >
+                <RotateCcw size={16} />
+                <span className="hidden sm:inline">New</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Phase Indicator */}
+          <div className="flex items-center gap-2 text-sm">
+            <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${phase >= 1 ? 'bg-white/30 font-semibold' : 'bg-white/10'}`}>
+              <span>1.</span> Describe
+            </div>
+            <div className="w-4 h-px bg-white/40"></div>
+            <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${phase >= 2 ? 'bg-white/30 font-semibold' : 'bg-white/10'}`}>
+              <span>2.</span> Build
+            </div>
+            <div className="w-4 h-px bg-white/40"></div>
+            <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${phase >= 3 ? 'bg-white/30 font-semibold' : 'bg-white/10'}`}>
+              <span>3.</span> Preview
+            </div>
+            <div className="w-4 h-px bg-white/40"></div>
+            <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${phase >= 4 ? 'bg-white/30 font-semibold' : 'bg-white/10'}`}>
+              <span>4.</span> Save
+            </div>
+          </div>
+
+          <div className="bg-white/20 rounded-lg p-3 mt-3">
+            <p className="text-sm font-medium">{getWeekDateRange()}</p>
+            <p className="text-xs opacity-90 mt-1">Create brand-new recipes tailored to your family</p>
+          </div>
+        </div>
+
+        {/* Debug Panel */}
+        {showDebug && (
+          <div className="p-4 bg-gray-900 text-white">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
+              <Wifi size={20} /> Creator Debug
+            </h3>
+            <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
+              {debugInfo.map((log, index) => (
+                <div key={index} className="flex gap-2">
+                  <span className="text-gray-400">[{log.timestamp}]</span>
+                  <span className={
+                    log.message.includes('✅') ? 'text-green-400' :
+                    log.message.includes('❌') ? 'text-red-400' :
+                    'text-gray-200'
+                  }>{log.message}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-gray-50">
+
+          {/* ===== PHASE 1 & 2: Chat Messages ===== */}
+          {(phase === 1 || phase === 2) && (
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-xs lg:max-w-lg px-4 py-3 rounded-2xl ${
+                    message.type === 'user'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-white text-gray-800 shadow-md border'
+                  }`}>
+                    {message.isTyping ? (
+                      <div className="flex items-center gap-1">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                        </div>
+                        <Sparkles size={16} className="text-amber-500 ml-2" />
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="whitespace-pre-line">{message.content}</div>
+
+                        {/* Proposal Cards */}
+                        {message.proposals && message.proposals.length > 0 && (
+                          <div className="mt-3 space-y-3">
+                            {message.proposals.map((proposal, index) => (
+                              <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg border border-amber-200 p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <h4 className="font-bold text-gray-800 text-base">{proposal.name}</h4>
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{proposal.cuisineStyle}</span>
+                                      <span className="text-xs text-gray-500 flex items-center gap-1"><Clock size={12} /> {proposal.estimatedTotalTime} min</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <p className="text-sm text-gray-600 mt-2">{proposal.description}</p>
+                                <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
+                                  <span><strong>Protein:</strong> {proposal.protein}</span>
+                                  <span>•</span>
+                                  <span><strong>Kid:</strong> {proposal.kidVehicle}</span>
+                                  <span>•</span>
+                                  <span><strong>Adult twist:</strong> {proposal.adultTwist}</span>
+                                </div>
+                                <button
+                                  onClick={() => buildRecipe(proposal)}
+                                  disabled={isBuilding}
+                                  className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+                                >
+                                  <ChefHat size={16} />
+                                  Build This Recipe
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className={`text-xs mt-2 ${message.type === 'user' ? 'text-amber-200' : 'text-gray-500'}`}>
+                          {message.timestamp}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+
+          {/* ===== PHASE 3: Recipe Preview ===== */}
+          {phase === 3 && fullRecipe && (
+            <div className="max-w-2xl mx-auto space-y-4">
+              {/* Recipe Header */}
+              <div className="bg-white rounded-xl shadow-md border p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800">{fullRecipe.recipe_name}</h2>
+                    <p className="text-gray-600 mt-1">{fullRecipe.recipe_description}</p>
+                  </div>
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">NEW</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-gray-600">
+                  <span className="flex items-center gap-1"><Clock size={16} className="text-amber-600" /> {fullRecipe.total_time_minutes || '—'} min total</span>
+                  <span className="flex items-center gap-1"><Flame size={16} className="text-orange-500" /> {fullRecipe.prep_time_minutes || '—'} min prep</span>
+                  <span className="flex items-center gap-1"><Users size={16} className="text-blue-500" /> Serves {fullRecipe.servings || 4}</span>
+                  <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium capitalize">{fullRecipe.difficulty_level || 'medium'}</span>
+                </div>
+                {fullRecipe.tags && fullRecipe.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {fullRecipe.tags.map((tag, i) => (
+                      <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Ingredients */}
+              <div className="bg-white rounded-xl shadow-md border">
+                <button
+                  onClick={() => toggleSection('ingredients')}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+                >
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <BookOpen size={20} className="text-green-600" /> Ingredients
+                    <span className="text-sm font-normal text-gray-500">({fullRecipe.ingredients?.length || 0})</span>
+                  </h3>
+                  {expandedSections.has('ingredients') ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </button>
+                {expandedSections.has('ingredients') && (
+                  <div className="px-4 pb-4">
+                    {Object.entries(groupedIngredients).map(([category, ingredients]) => (
+                      <div key={category} className="mb-3">
+                        <h4 className="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-1.5">{category}</h4>
+                        <ul className="space-y-1">
+                          {ingredients.map((ing, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                              <Check size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                              <span>
+                                <strong>{ing.quantity} {ing.unit_name}</strong> {ing.ingredient_name}
+                                {ing.preparation_notes && <span className="text-gray-500"> — {ing.preparation_notes}</span>}
+                                {ing.optional && <span className="text-gray-400 italic"> (optional)</span>}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Instructions */}
+              <div className="bg-white rounded-xl shadow-md border">
+                <button
+                  onClick={() => toggleSection('instructions')}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+                >
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <ChefHat size={20} className="text-amber-600" /> Instructions
+                    <span className="text-sm font-normal text-gray-500">({fullRecipe.instructions?.length || 0} steps)</span>
+                  </h3>
+                  {expandedSections.has('instructions') ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </button>
+                {expandedSections.has('instructions') && (
+                  <div className="px-4 pb-4 space-y-3">
+                    {fullRecipe.instructions?.map((step) => (
+                      <div key={step.step_number} className="flex gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
+                          {step.step_number}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700">{step.instruction_text}</p>
+                          {step.time_minutes && (
+                            <span className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                              <Clock size={12} /> {step.time_minutes} min
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Kid Plate & Make It Better */}
+              {fullRecipe.notes && (
+                <div className="bg-white rounded-xl shadow-md border">
+                  <button
+                    onClick={() => toggleSection('notes')}
+                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-800">Kid Plate & Tips</h3>
+                    {expandedSections.has('notes') ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  </button>
+                  {expandedSections.has('notes') && (
+                    <div className="px-4 pb-4 space-y-3">
+                      {parseNotes(fullRecipe.notes).kidPlate && (
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <h4 className="text-sm font-semibold text-blue-700 mb-1">👦 Kid Plate</h4>
+                          <p className="text-sm text-blue-800">{parseNotes(fullRecipe.notes).kidPlate}</p>
+                        </div>
+                      )}
+                      {parseNotes(fullRecipe.notes).makeItBetter && (
+                        <div className="bg-purple-50 rounded-lg p-3">
+                          <h4 className="text-sm font-semibold text-purple-700 mb-1">✨ Make It Better</h4>
+                          <p className="text-sm text-purple-800">{parseNotes(fullRecipe.notes).makeItBetter}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={saveRecipe}
+                  disabled={isSaving}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold disabled:opacity-50"
+                >
+                  <Save size={20} />
+                  Save to Recipe Book
+                </button>
+                <button
+                  onClick={() => { setPhase(1); setFullRecipe(null); }}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors"
+                >
+                  <ArrowLeft size={18} />
+                  Back
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== PHASE 4: Save Success ===== */}
+          {phase === 4 && saveResult && (
+            <div className="max-w-md mx-auto text-center mt-12">
+              <div className="bg-white rounded-xl shadow-lg border p-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check size={32} className="text-green-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">Recipe Saved!</h2>
+                <p className="text-gray-600 mb-1">"{saveResult.recipeName}"</p>
+                <p className="text-sm text-gray-500 mb-6">Recipe ID: #{saveResult.recipeId} • {saveResult.ingredientsProcessed} ingredients • {saveResult.instructionsProcessed} steps • {saveResult.tagsProcessed} tags</p>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={addToThisWeek}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors font-semibold"
+                  >
+                    <Plus size={20} />
+                    Add to This Week's Meals
+                  </button>
+                  <button
+                    onClick={startOver}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+                  >
+                    <Sparkles size={18} />
+                    Create Another Recipe
+                  </button>
+                  <button
+                    onClick={() => onNavigate('chatbot')}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    Go to AI Meal Planner →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Input Area (Phase 1 only) */}
+        {phase === 1 && (
+          <div className="p-4 lg:p-6 bg-white border-t border-gray-200">
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <textarea
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Describe what you're craving... (e.g., 'quick chicken pasta, Italian vibes, under 30 min')"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                  rows="2"
+                  disabled={isLoading}
+                />
+              </div>
+              <button
+                onClick={sendMessage}
+                disabled={!inputMessage.trim() || isLoading}
+                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+              >
+                <Send size={20} />
+                Send
+              </button>
+            </div>
+            {isLoading && (
+              <div className="flex items-center justify-center gap-2 text-sm text-amber-600 mt-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+                Inventing recipes...
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default MealCreator;
