@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getWeekDateRange, getWeekDates } from "./utils/weekDates";
+import CouponMatchPanel from "./CouponMatchPanel";
 
 
 // Memoized grocery item component to prevent unnecessary re-renders
@@ -102,6 +103,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   const [itemToRemove, setItemToRemove] = useState(null);
   const [isSavingList, setIsSavingList] = useState(false);
   const [listSaved, setListSaved] = useState(false);
+  const [couponMatches, setCouponMatches] = useState(null);
+  const [isMatchingCoupons, setIsMatchingCoupons] = useState(false);
   const [groupBy, setGroupBy] = useState("GroceryStoreSection"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
   const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
@@ -748,6 +751,69 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   addDebugLog("✅ Grocery list successfully sent to webhook");
                   toast.success("Grocery list saved successfully!");
                   setListSaved(true);
+
+                  // Trigger AI coupon matching in the background
+                  console.log('[coupon-match] Starting coupon matching...');
+                  setIsMatchingCoupons(true);
+                  try {
+                    const matchResponse = await fetch(
+                      "https://n8n-grocery.needexcelexpert.com/webhook/match_coupons",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Accept: "application/json",
+                        },
+                        body: JSON.stringify({
+                          items: selectedGroceryItems.map((item) => ({
+                            name: item.ItemName,
+                            category: item.Category,
+                            store: item.Store,
+                            quantity: item.quantity,
+                          })),
+                        }),
+                        mode: "cors",
+                      }
+                    );
+                    console.log('[coupon-match] Response status:', matchResponse.status);
+                    if (matchResponse.ok) {
+                      const matchData = await matchResponse.json();
+                      console.log('[coupon-match] Raw response:', JSON.stringify(matchData).substring(0, 500));
+                      // n8n returns array with one item containing matches
+                      let matches = [];
+                      if (Array.isArray(matchData)) {
+                        for (const item of matchData) {
+                          const m = item.matches || [];
+                          if (m.length > matches.length) matches = m;
+                        }
+                      } else {
+                        matches = matchData.matches || [];
+                      }
+                      console.log('[coupon-match] Parsed matches count:', matches.length);
+                      if (matches.length > 0) {
+                        setCouponMatches(matches);
+                        addDebugLog(`✅ Found ${matches.length} coupon matches`);
+                        toast.success(`Found ${matches.length} coupon matches! Scroll down to view.`);
+                        // Auto-scroll to coupon panel after a brief delay for render
+                        setTimeout(() => {
+                          const panel = document.querySelector('[data-coupon-panel]');
+                          if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 300);
+                      } else {
+                        addDebugLog("No coupon matches found for this list");
+                        toast("No coupon matches found for your items.", { icon: "ℹ️" });
+                      }
+                    } else {
+                      console.log('[coupon-match] Non-OK response:', matchResponse.status);
+                      toast.error(`Coupon matching failed (status ${matchResponse.status})`);
+                    }
+                  } catch (matchErr) {
+                    console.error('[coupon-match] Error:', matchErr);
+                    addDebugLog("⚠️ Coupon matching failed:", matchErr.message);
+                    toast.error(`Coupon matching error: ${matchErr.message}`);
+                  } finally {
+                    setIsMatchingCoupons(false);
+                  }
                 } else {
                   addDebugLog(
                     "⚠️ Webhook returned non-OK status:",
@@ -808,6 +874,24 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             </button>
           )}
         </div>
+
+        {/* Coupon matching status */}
+        {isMatchingCoupons && (
+          <div className="mt-4 flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
+            <p className="text-sm text-green-700">Finding coupon matches for your grocery list...</p>
+          </div>
+        )}
+
+        {/* Coupon match results */}
+        {couponMatches && (
+          <div data-coupon-panel>
+            <CouponMatchPanel
+              matches={couponMatches}
+              onDismiss={() => setCouponMatches(null)}
+            />
+          </div>
+        )}
       </div>
     );
   }

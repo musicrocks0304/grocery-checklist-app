@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles } from "lucide-react";
+import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Ticket } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
@@ -8,8 +8,9 @@ import Sidebar from "./Sidebar";
 import GroceryChecklist from "./GroceryChecklist";
 import InStoreMode from "./InStoreMode";
 import MealCreator from "./MealCreator";
+import Coupons from "./Coupons";
 
-const VALID_SCREENS = ["grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions", "in-store"];
+const VALID_SCREENS = ["grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions", "in-store", "coupons"];
 
 // Only show debug panels when ?debug=true is in the URL
 const isDebugMode = () => {
@@ -78,6 +79,7 @@ const App = () => {
     { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
     { id: "meal-creator", name: "AI Meal Creator", icon: Sparkles },
     { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
+    { id: "coupons", name: "HEB Coupons", icon: Ticket },
   ];
 
   if (currentScreen === "in-store") {
@@ -179,6 +181,26 @@ const App = () => {
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             debugMode={debugMode}
+          />
+        </Sidebar>
+      </>
+    );
+  }
+
+  if (currentScreen === "coupons") {
+    return (
+      <>
+        <Toaster position="top-center" />
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          currentScreen={currentScreen}
+          setCurrentScreen={navigateToScreen}
+          navigation={navigation}
+        >
+          <Coupons
+            onNavigate={navigateToScreen}
+            onToggleSidebar={() => setSidebarOpen(true)}
           />
         </Sidebar>
       </>

@@ -1,351 +1,288 @@
-import React, { useState } from 'react';
-import { Ticket, AlertCircle, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Ticket, Search, AlertCircle, ChevronDown, ChevronUp, Calendar, DollarSign, Percent, Gift, Tag } from 'lucide-react';
+
+const WEBHOOK_URL = 'https://n8n-grocery.needexcelexpert.com/webhook/fetch_heb_coupons';
+
+const TYPE_CONFIG = {
+  'all': { label: 'All', icon: Ticket, badgeClass: 'bg-blue-100 text-blue-700' },
+  'dollar-off': { label: 'Dollar Off', icon: DollarSign, badgeClass: 'bg-green-100 text-green-700' },
+  'percentage': { label: '% Off', icon: Percent, badgeClass: 'bg-purple-100 text-purple-700' },
+  'bogo': { label: 'BOGO', icon: Gift, badgeClass: 'bg-orange-100 text-orange-700' },
+  'other': { label: 'Other', icon: Tag, badgeClass: 'bg-gray-100 text-gray-700' },
+};
+
+const CouponCard = ({ coupon }) => {
+  const daysLeft = useMemo(() => {
+    if (!coupon.expiration_date) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exp = new Date(coupon.expiration_date);
+    return Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+  }, [coupon.expiration_date]);
+
+  const typeConfig = TYPE_CONFIG[coupon.coupon_type] || TYPE_CONFIG['other'];
+  const TypeIcon = typeConfig.icon;
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white">
+      {/* Image */}
+      {coupon.image_url && (
+        <div className="w-full h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
+          <img
+            src={coupon.image_url}
+            alt={coupon.product_name}
+            className="w-full h-full object-contain"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        </div>
+      )}
+
+      <div className="p-3">
+        {/* Type badge + expiration */}
+        <div className="flex items-center justify-between mb-2">
+          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${typeConfig.badgeClass}`}>
+            <TypeIcon size={12} />
+            {typeConfig.label}
+          </span>
+          {daysLeft !== null && (
+            <span className={`text-xs font-medium flex items-center gap-1 ${
+              daysLeft <= 3 ? 'text-red-600' : daysLeft <= 7 ? 'text-amber-600' : 'text-gray-500'
+            }`}>
+              <Calendar size={12} />
+              {daysLeft <= 0 ? 'Expired' : daysLeft === 1 ? '1 day left' : `${daysLeft} days`}
+            </span>
+          )}
+        </div>
+
+        {/* Discount */}
+        <div className="text-lg font-bold text-green-700 mb-1">
+          {coupon.discount || 'Special Offer'}
+        </div>
+
+        {/* Product name */}
+        <h3 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2">
+          {coupon.product_name}
+        </h3>
+
+        {/* Description */}
+        {coupon.description && coupon.description !== coupon.product_name && (
+          <p className="text-xs text-gray-500 line-clamp-2">
+            {coupon.description}
+          </p>
+        )}
+
+        {/* Uses limit */}
+        {coupon.uses_limit && (
+          <p className="text-xs text-gray-400 mt-1">
+            {coupon.uses_limit}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Coupons = ({ onNavigate, onToggleSidebar }) => {
   const [couponsData, setCouponsData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState([]);
-  const [showDebug, setShowDebug] = useState(false);
-  const [selectedCoupons, setSelectedCoupons] = useState(new Set());
-  const [filterStore, setFilterStore] = useState('all');
+  const [searchText, setSearchText] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [sortBy, setSortBy] = useState('expiration'); // 'expiration' or 'savings'
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Debug logging function
-  const addDebugLog = (message, data = null) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setDebugInfo(prev => [...prev, { timestamp, message, data }]);
-    console.log(`[${timestamp}] ${message}`, data || '');
-  };
-
-  // Fetch coupons data (placeholder for future web scraping API)
-  React.useEffect(() => {
-    const fetchCouponsData = async () => {
+  useEffect(() => {
+    const fetchCoupons = async () => {
       try {
         setError(null);
-        setDebugInfo([]);
+        const response = await fetch(WEBHOOK_URL, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          mode: 'cors',
+        });
 
-        addDebugLog('Fetching coupons data from web scraping API...');
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
 
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Sample data for wireframe - replace with actual API call
-        const sampleCoupons = [
-          {
-            id: 1,
-            title: "$2 OFF Organic Grapes",
-            description: "Save $2 on any organic grapes 2lbs or more",
-            store: "Tom Thumb",
-            category: "Produce",
-            discount: "$2.00",
-            expiryDate: "2025-02-15",
-            code: "GRAPES2024",
-            minPurchase: "$5.00"
-          },
-          {
-            id: 2,
-            title: "Buy 2 Get 1 Free - Frozen Items",
-            description: "Mix and match on select frozen meals and appetizers",
-            store: "Trader Joe's",
-            category: "Frozen",
-            discount: "33% OFF",
-            expiryDate: "2025-02-10",
-            code: "B2G1FREE",
-            minPurchase: null
-          },
-          {
-            id: 3,
-            title: "$1.50 OFF Almond Milk",
-            description: "Any variety, any size almond milk",
-            store: "Whole Foods",
-            category: "Dairy",
-            discount: "$1.50",
-            expiryDate: "2025-02-20",
-            code: "ALMONDMILK",
-            minPurchase: null
-          },
-          {
-            id: 4,
-            title: "20% OFF Breakfast Items",
-            description: "Save on breakfast bars, cereals, and pastries",
-            store: "Kroger",
-            category: "Breakfast",
-            discount: "20%",
-            expiryDate: "2025-02-12",
-            code: "BREAKFAST20",
-            minPurchase: "$10.00"
-          },
-          {
-            id: 5,
-            title: "$3 OFF $15 Purchase",
-            description: "Save $3 when you spend $15 or more on pantry items",
-            store: "Costco",
-            category: "Pantry",
-            discount: "$3.00",
-            expiryDate: "2025-02-25",
-            code: "PANTRY3OFF",
-            minPurchase: "$15.00"
-          }
-        ];
-
-        setCouponsData(sampleCoupons);
-        addDebugLog('✅ Successfully loaded coupons data');
-
-      } catch (error) {
-        addDebugLog('❌ Error fetching coupons:', error.message);
-        setError(error.message);
+        const data = await response.json();
+        setCouponsData(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('[coupons] Fetch error:', err.message);
+        setError(err.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchCouponsData();
+    fetchCoupons();
   }, []);
 
-  const handleCouponToggle = (couponId) => {
-    const newSelected = new Set(selectedCoupons);
-    if (newSelected.has(couponId)) {
-      newSelected.delete(couponId);
-    } else {
-      newSelected.add(couponId);
+  const filteredCoupons = useMemo(() => {
+    let result = couponsData;
+
+    // Type filter
+    if (filterType !== 'all') {
+      result = result.filter(c => c.coupon_type === filterType);
     }
-    setSelectedCoupons(newSelected);
-  };
 
-  const getFilteredCoupons = () => {
-    if (filterStore === 'all') {
-      return couponsData;
+    // Search filter
+    if (searchText.trim()) {
+      const query = searchText.toLowerCase();
+      result = result.filter(c =>
+        (c.product_name && c.product_name.toLowerCase().includes(query)) ||
+        (c.description && c.description.toLowerCase().includes(query)) ||
+        (c.discount && c.discount.toLowerCase().includes(query))
+      );
     }
-    return couponsData.filter(coupon => coupon.store === filterStore);
-  };
 
-  const getUniqueStores = () => {
-    return [...new Set(couponsData.map(coupon => coupon.store))];
-  };
+    // Sort
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'savings') {
+        return (b.savings_amount || 0) - (a.savings_amount || 0);
+      }
+      // Default: expiration (soonest first)
+      const dateA = a.expiration_date ? new Date(a.expiration_date) : new Date('2099-12-31');
+      const dateB = b.expiration_date ? new Date(b.expiration_date) : new Date('2099-12-31');
+      return dateA - dateB;
+    });
 
-  const getDaysUntilExpiry = (expiryDate) => {
-    const today = new Date();
-    const expiry = new Date(expiryDate);
-    const diffTime = expiry - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
+    return result;
+  }, [couponsData, filterType, searchText, sortBy]);
+
+  // Count by type
+  const typeCounts = useMemo(() => {
+    const counts = { all: couponsData.length };
+    couponsData.forEach(c => {
+      counts[c.coupon_type] = (counts[c.coupon_type] || 0) + 1;
+    });
+    return counts;
+  }, [couponsData]);
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading available coupons and deals...</p>
-          <p className="mt-2 text-sm text-gray-500">Scraping web for the best offers...</p>
+      <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading HEB coupons...</p>
         </div>
       </div>
     );
   }
 
-  const filteredCoupons = getFilteredCoupons();
-
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Ticket className="text-purple-600" size={28} />
-          <h1 className="text-2xl font-bold text-gray-800">Coupons & Deals</h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Debug Toggle */}
+    <div className="max-w-6xl mx-auto p-4 sm:p-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-red-600 text-white p-2 rounded-lg">
+              <Ticket size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">HEB Digital Coupons</h1>
+              <p className="text-sm text-gray-500">
+                {couponsData.length} active coupon{couponsData.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+          </div>
           <button
-            onClick={() => setShowDebug(!showDebug)}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 sm:hidden"
           >
-            <Wifi size={16} />
-            Debug Info
-            {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            Filters {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
         </div>
-      </div>
 
-      {/* Debug Panel */}
-      {showDebug && (
-        <div className="mb-6 p-4 bg-gray-900 text-white rounded-lg shadow-lg">
-          <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
-            <Wifi size={20} />
-            Coupons Debug Information
-          </h3>
-          <div className="space-y-1 text-sm font-mono max-h-60 overflow-y-auto">
-            {debugInfo.map((log, index) => (
-              <div key={index} className="flex gap-2">
-                <span className="text-gray-400">[{log.timestamp}]</span>
-                <span className={
-                  log.message.includes('✅') ? 'text-green-400' :
-                  log.message.includes('❌') ? 'text-red-400' :
-                  log.message.includes('⚠️') ? 'text-yellow-400' :
-                  'text-gray-200'
-                }>
-                  {log.message}
-                </span>
-                {log.data && (
-                  <span className="text-gray-500">
-                    {typeof log.data === 'object' ? JSON.stringify(log.data, null, 2) : log.data}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="text-red-600 mt-0.5" size={20} />
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
             <div>
-              <p className="font-semibold text-red-800">Connection Error</p>
-              <p className="text-red-700 text-sm mt-1">{error}</p>
-              <p className="text-red-600 text-sm mt-1">Using sample data instead.</p>
+              <p className="text-sm font-medium text-red-800">Failed to load coupons</p>
+              <p className="text-xs text-red-600">{error}</p>
             </div>
           </div>
+        )}
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search coupons... (e.g., chicken, pasta, milk)"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+          />
         </div>
-      )}
 
-      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
-        <p className="text-lg font-medium text-purple-900">Available Deals for This Week</p>
-        <p className="text-sm text-purple-700 mt-1">
-          {filteredCoupons.length} coupon{filteredCoupons.length !== 1 ? 's' : ''} found
-          {filterStore !== 'all' && ` at ${filterStore}`}
-        </p>
-      </div>
-
-      {/* Store Filter */}
-      <div className="mb-6 flex items-center gap-4">
-        <span className="text-gray-700 font-medium">Filter by store:</span>
-        <select
-          value={filterStore}
-          onChange={(e) => setFilterStore(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-        >
-          <option value="all">All Stores</option>
-          {getUniqueStores().sort().map(store => (
-            <option key={store} value={store}>{store}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Coupons Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredCoupons.map((coupon) => {
-          const daysLeft = getDaysUntilExpiry(coupon.expiryDate);
-          const isSelected = selectedCoupons.has(coupon.id);
-          const isExpiringSoon = daysLeft <= 3;
-
-          return (
-            <div
-              key={coupon.id}
-              className={`border rounded-lg p-4 transition-all cursor-pointer ${
-                isSelected 
-                  ? 'border-purple-500 bg-purple-50 shadow-lg' 
-                  : 'border-gray-200 hover:border-purple-300 hover:shadow-md'
-              }`}
-              onClick={() => handleCouponToggle(coupon.id)}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleCouponToggle(coupon.id)}
-                    className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                    {coupon.store}
+        {/* Filters — always visible on desktop, toggle on mobile */}
+        <div className={`space-y-3 ${showFilters ? '' : 'hidden sm:block'}`}>
+          {/* Type filter pills */}
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(TYPE_CONFIG).map(([key, config]) => {
+              const Icon = config.icon;
+              const count = typeCounts[key] || 0;
+              const isActive = filterType === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setFilterType(key)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon size={14} />
+                  {config.label}
+                  <span className={`text-xs ${isActive ? 'text-green-100' : 'text-gray-400'}`}>
+                    ({count})
                   </span>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-purple-600">{coupon.discount}</div>
-                  {isExpiringSoon && (
-                    <div className="text-xs text-red-600 font-medium">
-                      {daysLeft === 0 ? 'Expires Today' : `${daysLeft} days left`}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <h3 className="font-semibold text-gray-800 mb-2">{coupon.title}</h3>
-              <p className="text-sm text-gray-600 mb-3">{coupon.description}</p>
-
-              <div className="space-y-2 text-xs text-gray-500">
-                <div className="flex justify-between">
-                  <span>Category:</span>
-                  <span className="font-medium">{coupon.category}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Code:</span>
-                  <span className="font-mono bg-gray-100 px-1 rounded">{coupon.code}</span>
-                </div>
-                {coupon.minPurchase && (
-                  <div className="flex justify-between">
-                    <span>Min Purchase:</span>
-                    <span className="font-medium">{coupon.minPurchase}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span>Expires:</span>
-                  <span className={isExpiringSoon ? 'text-red-600 font-medium' : ''}>
-                    {new Date(coupon.expiryDate).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {filteredCoupons.length === 0 && (
-        <div className="text-center py-12">
-          <Ticket size={64} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-600">No coupons available</h3>
-          <p className="text-gray-500 mt-2">
-            {filterStore !== 'all' 
-              ? `No coupons found for ${filterStore}. Try selecting "All Stores".`
-              : 'Check back later for new deals and offers.'
-            }
-          </p>
-        </div>
-      )}
-
-      {/* Selected Coupons Summary */}
-      {selectedCoupons.size > 0 && (
-        <div className="mt-8 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-          <h3 className="font-semibold text-purple-800 mb-2">
-            Selected Coupons ({selectedCoupons.size})
-          </h3>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {Array.from(selectedCoupons).map(couponId => {
-              const coupon = couponsData.find(c => c.id === couponId);
-              return coupon ? (
-                <span key={couponId} className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">
-                  {coupon.title}
-                </span>
-              ) : null;
+                </button>
+              );
             })}
           </div>
-          <button
-            onClick={() => {
-              const selectedCouponsList = Array.from(selectedCoupons).map(id => 
-                couponsData.find(c => c.id === id)
-              ).filter(Boolean);
 
-              addDebugLog('Selected coupons ready for use:', selectedCouponsList);
-              console.log('Selected coupons:', selectedCouponsList);
+          {/* Sort */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600">Sort:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="expiration">Expiring Soonest</option>
+              <option value="savings">Highest Savings</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
-              toast.success(`${selectedCoupons.size} coupon${selectedCoupons.size !== 1 ? 's' : ''} ready to use!`);
-            }}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            Add to Shopping List ({selectedCoupons.size})
-          </button>
+      {/* Results count */}
+      {searchText.trim() || filterType !== 'all' ? (
+        <p className="text-sm text-gray-500 mb-3">
+          Showing {filteredCoupons.length} of {couponsData.length} coupons
+          {searchText.trim() && ` matching "${searchText}"`}
+        </p>
+      ) : null}
+
+      {/* Coupon Grid */}
+      {filteredCoupons.length > 0 ? (
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+          {filteredCoupons.map((coupon) => (
+            <CouponCard key={coupon.hash_id} coupon={coupon} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16 bg-white rounded-lg shadow-lg">
+          <Ticket size={48} className="mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-600">No coupons found</h3>
+          <p className="text-gray-400 mt-1">
+            {searchText.trim()
+              ? 'Try a different search term.'
+              : 'No coupons match the selected filter.'}
+          </p>
         </div>
       )}
     </div>
