@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { X, Check, AlertCircle, Sparkles, ChevronDown, ChevronUp, Scissors, CheckCircle, XCircle, Loader, DollarSign } from 'lucide-react';
 
-const CLIP_SERVER_URL = 'http://localhost:3847';
+const CLIP_SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3847'
+  : 'https://clip.needexcelexpert.com';
 
 const CONFIDENCE_STYLES = {
   high: { bg: 'bg-green-100', text: 'text-green-700', label: 'High Match', border: 'border-green-200' },
