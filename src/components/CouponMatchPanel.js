@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Check, AlertCircle, Sparkles, ChevronDown, ChevronUp, Scissors, CheckCircle, XCircle, Loader, DollarSign } from 'lucide-react';
-import { CLIP_SERVER_URL, apiFetch } from '../config/api';
+import { CLIP_SERVER_URL } from '../config/api';
 
 const CONFIDENCE_STYLES = {
   high: { bg: 'bg-green-100', text: 'text-green-700', label: 'High Match', border: 'border-green-200' },
@@ -111,7 +111,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
 
     try {
       // Start the clip job
-      const startResponse = await apiFetch(`${CLIP_SERVER_URL}/api/clip`, {
+      const startResponse = await fetch(`${CLIP_SERVER_URL}/api/clip`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ couponIds: selectedIds }),
