@@ -169,48 +169,12 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
       // Use the actual grocery list data from the webhook if available
       let webhookResponse = groceryListData;
 
-      // If no webhook data is available, use fallback data
+      // If no webhook data is available, show error instead of fake fallback data
       if (!webhookResponse) {
-        addDebugLog('No grocery list data available, using fallback data structure');
-        webhookResponse = [
-          {
-            output: {
-              responseType: "shopping_list",
-              ingredients: [
-                {
-                  name: "ground beef",
-                  category: "protein",
-                  purchaseQuantity: "1 lb",
-                  purchaseUnit: "1 lb package",
-                  recipeNeeds: "10 oz",
-                  usedInRecipes: selectedMeals.map(m => m.name)
-                },
-                {
-                  name: "pasta",
-                  category: "grains",
-                  purchaseQuantity: "1 lb",
-                  purchaseUnit: "1 lb package",
-                  recipeNeeds: "6 oz",
-                  usedInRecipes: selectedMeals.map(m => m.name)
-                },
-                {
-                  name: "vegetables",
-                  category: "produce",
-                  purchaseQuantity: "1 bag",
-                  purchaseUnit: "1 bag",
-                  recipeNeeds: "4 oz",
-                  usedInRecipes: selectedMeals.map(m => m.name)
-                }
-              ],
-              summary: {
-                totalItems: 3,
-                recipesIncluded: selectedMeals.map(m => m.name),
-                estimatedCost: "$15"
-              },
-              message: "Here's your consolidated shopping list for the recipes!"
-            }
-          }
-        ];
+        addDebugLog('❌ No grocery list data available - webhook may have failed');
+        setError('No ingredient data was received. Please go back and try generating the grocery list again.');
+        setIsLoading(false);
+        return;
       } else {
         addDebugLog('✅ Using actual grocery list data from webhook');
         addDebugLog('Grocery list data:', webhookResponse);
@@ -630,9 +594,12 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
               <div>
                 <p className="font-semibold text-red-800">Processing Error</p>
                 <p className="text-red-700 text-sm mt-1">{error}</p>
-                <p className="text-red-600 text-sm mt-1">
-                  Using sample data instead.
-                </p>
+                <button
+                  onClick={() => onNavigate('chatbot')}
+                  className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition-colors"
+                >
+                  Back to Meal Planner
+                </button>
               </div>
             </div>
           </div>

@@ -1113,20 +1113,19 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                         setGroceryListData(parsedData);
                         addDebugLog('✅ Grocery list data stored successfully');
                         addDebugLog('Parsed data:', parsedData);
+
+                        // Navigate to the Recipe Ingredients page only after successful parse
+                        onNavigate('recipe-ingredients');
                       } catch (parseError) {
                         addDebugLog('❌ Error parsing webhook response JSON:', parseError.message);
                         addDebugLog('Raw response data:', responseData);
+                        toast.error('Received invalid data from the server. Please try again.');
                       }
-
-                      // Navigate to the Recipe Ingredients page
-                      onNavigate('recipe-ingredients');
                     } else {
                       const errorText = await response.text();
                       addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
                       addDebugLog('Error response:', errorText);
-                      // Still navigate to the page, but show a warning
-                      toast('There was an issue calling the recipe items webhook, but proceeding anyway.', { icon: '⚠️' });
-                      onNavigate('recipe-ingredients');
+                      toast.error('Failed to generate grocery list. The server returned an error. Please try again.');
                     }
 
                   } catch (error) {
@@ -1136,17 +1135,13 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     // Check for different types of errors
                     if (error.name === 'AbortError') {
                       addDebugLog('⏰ Request was aborted due to timeout (90 seconds)');
-                      toast.error('The grocery list generation timed out. Please try again or check if the n8n workflow is running properly.');
-                      return; // Don't navigate on timeout
+                      toast.error('The grocery list generation timed out. Please try again.');
                     } else if (error.message === 'Failed to fetch') {
                       addDebugLog('🚨 This looks like a CORS error. The webhook may need CORS headers.');
-                      toast.error('CORS Error: The webhook needs to allow cross-origin requests.');
+                      toast.error('Could not connect to the server. Please check your connection and try again.');
                     } else {
-                      toast.error('Error calling recipe items webhook. Check debug logs for details.');
+                      toast.error('Error generating grocery list. Please try again.');
                     }
-
-                    // Still navigate to show the page with mock data (except for timeout)
-                    onNavigate('recipe-ingredients');
                   } finally {
                     // Always reset loading state
                     setIsGeneratingGroceryList(false);

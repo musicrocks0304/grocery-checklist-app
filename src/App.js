@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag } from "lucide-react";
+import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
@@ -7,8 +7,9 @@ import RecipeInstructions from "./RecipeInstructions";
 import Sidebar from "./Sidebar";
 import GroceryChecklist from "./GroceryChecklist";
 import InStoreMode from "./InStoreMode";
+import MealCreator from "./MealCreator";
 
-const VALID_SCREENS = ["grocery", "chatbot", "recipe-ingredients", "recipe-instructions", "in-store"];
+const VALID_SCREENS = ["grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions", "in-store"];
 
 // Only show debug panels when ?debug=true is in the URL
 const isDebugMode = () => {
@@ -75,6 +76,7 @@ const App = () => {
     { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
     { id: "in-store", name: "In Store Mode", icon: ShoppingBag },
     { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
+    { id: "meal-creator", name: "AI Meal Creator", icon: Sparkles },
     { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
   ];
 
@@ -109,6 +111,30 @@ const App = () => {
             setSelectedMeals={setSelectedMeals}
             groceryListData={groceryListData}
             setGroceryListData={setGroceryListData}
+            debugMode={debugMode}
+          />
+        </Sidebar>
+      </>
+    );
+  }
+
+  if (currentScreen === "meal-creator") {
+    return (
+      <>
+        <Toaster position="top-center" />
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          currentScreen={currentScreen}
+          setCurrentScreen={navigateToScreen}
+          navigation={navigation}
+        >
+          <MealCreator
+            onBack={() => navigateToScreen("grocery")}
+            onNavigate={navigateToScreen}
+            onToggleSidebar={() => setSidebarOpen(true)}
+            selectedMeals={selectedMeals}
+            setSelectedMeals={setSelectedMeals}
             debugMode={debugMode}
           />
         </Sidebar>
