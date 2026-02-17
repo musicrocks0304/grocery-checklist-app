@@ -113,6 +113,7 @@ const Sidebar = ({
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-2 rounded-lg text-muted hover:text-heading"
+              aria-label="Open menu"
             >
               <Menu size={20} />
             </button>

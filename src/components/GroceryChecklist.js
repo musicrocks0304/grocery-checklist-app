@@ -75,8 +75,9 @@ const GroceryItem = React.memo(({
           e.stopPropagation();
           onRemove(item);
         }}
-        className="opacity-0 group-hover:opacity-100 text-danger hover:text-danger-hover transition-opacity w-6 h-6 flex items-center justify-center flex-shrink-0"
+        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-danger hover:text-danger-hover transition-opacity w-6 h-6 flex items-center justify-center flex-shrink-0"
         title="Remove item from database"
+        aria-label="Remove item from database"
       >
         <Trash2 size={18} />
       </button>
@@ -570,7 +571,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
     return (
       <div className="max-w-4xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
         <div className="flex items-center gap-3 mb-6">
-          <ShoppingCart className="text-green-600" size={28} />
+          <ShoppingCart className="text-primary" size={28} />
           <h1 className="text-2xl font-bold text-heading">
             Weekly Grocery List
           </h1>
@@ -765,8 +766,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             }}
             className={`px-6 py-2 text-white rounded-lg transition-colors flex items-center gap-2 ${
               isSavingList
-                ? "bg-green-400 cursor-not-allowed"
-                : "bg-green-600 hover:bg-green-700"
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-primary hover:bg-primary-hover"
             }`}
           >
             {isSavingList ? (
@@ -1027,7 +1028,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       {/* Confirmation Modal */}
       {itemToRemove && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-surface rounded-xl p-6 max-w-md w-full mx-4">
             <div className="flex items-start gap-3 mb-4">
               <AlertCircle
                 className="text-danger flex-shrink-0 mt-1"
@@ -1164,7 +1165,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   onClick={() => handleTypeFilterChange(type)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     typeFilter === type
-                      ? "bg-green-600 text-white"
+                      ? "bg-primary text-white"
                       : "bg-surface text-body border border-default hover:bg-gray-100"
                   }`}
                 >

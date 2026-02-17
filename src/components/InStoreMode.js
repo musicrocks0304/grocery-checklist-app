@@ -354,6 +354,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
             <button
               onClick={onExit}
               className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-gray-100 transition-colors"
+              aria-label="Go back"
             >
               <ArrowLeft size={24} />
             </button>
@@ -384,6 +385,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           <button
             onClick={handleExit}
             className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-gray-100 transition-colors"
+            aria-label="Go back"
           >
             <ArrowLeft size={24} />
           </button>

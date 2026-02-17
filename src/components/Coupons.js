@@ -196,7 +196,7 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+          <div className="mb-4 p-3 bg-danger-light border border-red-200 rounded-lg flex items-start gap-2">
             <AlertCircle className="text-danger flex-shrink-0 mt-0.5" size={18} />
             <div>
               <p className="text-sm font-medium text-red-800">Failed to load coupons</p>
@@ -232,7 +232,7 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-gray-100 text-body hover:bg-gray-200'
                   }`}
                 >
                   <Icon size={14} />

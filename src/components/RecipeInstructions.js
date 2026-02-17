@@ -901,6 +901,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             className={`p-2 -ml-1 rounded-lg transition-colors ${
               kitchenMode ? 'text-gray-300 hover:bg-gray-700' : 'text-body hover:bg-gray-100'
             }`}
+            aria-label="Go back"
           >
             <ArrowLeft size={22} />
           </button>
@@ -931,6 +932,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
                 : (kitchenMode ? 'text-gray-300 hover:bg-gray-700' : 'text-muted hover:bg-gray-100')
             }`}
             title="All Steps"
+            aria-label="All steps"
           >
             <List size={20} />
           </button>
@@ -944,6 +946,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
                 : 'text-muted hover:bg-gray-100'
             }`}
             title={kitchenMode ? 'Exit Kitchen Mode' : 'Kitchen Mode'}
+            aria-label={kitchenMode ? 'Exit kitchen mode' : 'Enter kitchen mode'}
           >
             {kitchenMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>

@@ -222,7 +222,7 @@ const App = () => {
 
   return (
     <>
-      <Toaster position="top-center" />
+      {toaster}
       <Sidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}

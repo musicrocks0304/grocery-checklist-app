@@ -469,7 +469,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         {/* Confirmation Dialog */}
         {showConfirmDialog && !isAddingToMainList && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-surface rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <div className="bg-surface rounded-xl p-6 max-w-md mx-4 shadow-xl">
               <div className="flex items-center gap-3 mb-4">
                 <AlertCircle className="text-accent" size={24} />
                 <h3 className="text-lg font-semibold text-heading">Confirm Action</h3>
@@ -499,7 +499,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         {/* Loading Dialog */}
         {isAddingToMainList && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-surface rounded-lg p-8 max-w-md mx-4 shadow-xl text-center">
+            <div className="bg-surface rounded-xl p-8 max-w-md mx-4 shadow-xl text-center">
               <div className="flex items-center justify-center space-x-1 mb-4">
                 <div className="animate-bounce h-3 w-3 bg-primary rounded-full" style={{animationDelay: '0ms'}}></div>
                 <div className="animate-bounce h-3 w-3 bg-primary rounded-full" style={{animationDelay: '150ms'}}></div>
@@ -589,7 +589,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         )}
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="mb-6 p-4 bg-danger-light border border-red-200 rounded-lg">
             <div className="flex items-start gap-3">
               <AlertCircle className="text-danger mt-0.5" size={20} />
               <div>

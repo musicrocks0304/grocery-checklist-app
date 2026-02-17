@@ -698,6 +698,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
               <button
                 onClick={onBack}
                 className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                aria-label="Go back"
               >
                 <ArrowLeft size={20} />
               </button>
@@ -797,7 +798,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+                  className={`max-w-[85%] lg:max-w-md px-4 py-3 rounded-2xl ${
                     message.type === 'user'
                       ? 'bg-primary text-white'
                       : 'bg-surface text-heading shadow-md border'
@@ -898,6 +899,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                 className="w-full px-4 py-3 border border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none"
                 rows="2"
                 disabled={isLoading}
+                aria-label="Type your message"
               />
             </div>
             <button
@@ -1146,7 +1148,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                 disabled={isGeneratingGroceryList}
                 className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
                   isGeneratingGroceryList
-                    ? 'bg-green-400 cursor-not-allowed'
+                    ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-primary hover:bg-primary-hover'
                 } text-white`}
               >

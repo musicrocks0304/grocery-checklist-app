@@ -399,7 +399,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
         <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+              <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg transition-colors" aria-label="Go back">
                 <ArrowLeft size={20} />
               </button>
               <Sparkles size={24} />
@@ -479,7 +479,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
             <div className="space-y-4">
               {messages.map((message) => (
                 <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs lg:max-w-lg px-4 py-3 rounded-2xl ${
+                  <div className={`max-w-[85%] lg:max-w-lg px-4 py-3 rounded-2xl ${
                     message.type === 'user'
                       ? 'bg-amber-600 text-white'
                       : 'bg-surface text-heading shadow-md border border-default'
@@ -740,6 +740,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                   className="w-full px-4 py-3 border border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
                   rows="2"
                   disabled={isLoading}
+                  aria-label="Describe what you're craving"
                 />
               </div>
               <button

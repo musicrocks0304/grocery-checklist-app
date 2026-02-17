@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  button:focus-visible {
+    @apply ring-2 ring-focus ring-offset-2 outline-none;
+  }
+}

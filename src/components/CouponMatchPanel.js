@@ -188,6 +188,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
             onClick={onDismiss}
             className="p-1 hover:bg-white/20 rounded transition-colors"
             disabled={isClipping}
+            aria-label="Dismiss coupon matches"
           >
             <X size={20} />
           </button>
