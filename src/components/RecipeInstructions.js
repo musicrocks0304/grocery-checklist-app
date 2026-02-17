@@ -668,13 +668,13 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Recipe Instructions</h2>
-          <p className="text-gray-600">Fetching cooking steps...</p>
+        <div className="bg-surface rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-dark mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold text-heading mb-2">Loading Recipe Instructions</h2>
+          <p className="text-body">Fetching cooking steps...</p>
           <button
             onClick={() => { setShowRecipeSelection(true); setSelectedRecipeId(null); setRecipeData(null); setCurrentStep(0); setCompletedSteps(new Set()); hasInitialized.current = false; }}
-            className="mt-4 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+            className="mt-4 px-4 py-2 text-body bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
           >
             Cancel
           </button>
@@ -686,13 +686,13 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
   if (isLoadingRecipes) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Available Recipes</h2>
-          <p className="text-gray-600">Fetching your selected meals for this week...</p>
+        <div className="bg-surface rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-dark mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold text-heading mb-2">Loading Available Recipes</h2>
+          <p className="text-body">Fetching your selected meals for this week...</p>
           <button
             onClick={handleBackToApp}
-            className="mt-4 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+            className="mt-4 px-4 py-2 text-body bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
           >
             Cancel
           </button>
@@ -704,15 +704,15 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
   if (error && !recipeData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
-          <div className="text-red-500 mb-4">
+        <div className="bg-surface rounded-xl shadow-lg p-8 text-center max-w-md mx-4">
+          <div className="text-danger mb-4">
             <AlertCircle size={48} className="mx-auto" />
           </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Unable to Load Recipe</h2>
-          <p className="text-gray-600 mb-4">There was an error loading the recipe instructions from the webhook.</p>
+          <h2 className="text-xl font-bold text-heading mb-2">Unable to Load Recipe</h2>
+          <p className="text-body mb-4">There was an error loading the recipe instructions from the webhook.</p>
           <button
             onClick={handleBackToApp}
-            className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            className="px-6 py-3 bg-accent-dark text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
           >
             Back to Grocery List
           </button>
@@ -727,21 +727,21 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
         {/* Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="bg-surface shadow-sm border-b border-default">
           <div className="max-w-4xl mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <button
                 onClick={handleBackToApp}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+                className="flex items-center gap-2 text-body hover:text-heading transition-colors"
               >
                 <ArrowLeft size={20} />
                 <span className="font-medium">Back to Grocery List</span>
               </button>
               <div className="text-center">
-                <h1 className="text-lg font-bold text-gray-800">
+                <h1 className="text-lg font-bold text-heading">
                   Select Recipe for Instructions
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted">
                   Choose which recipe you'd like to cook
                 </p>
               </div>
@@ -749,7 +749,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
                 {debugMode && (
                   <button
                     onClick={() => setShowDebug(!showDebug)}
-                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                    className="flex items-center gap-1 text-sm text-body hover:text-heading transition-colors"
                   >
                     <Wifi size={16} />
                     <span className="hidden sm:inline">Debug</span>
@@ -795,23 +795,23 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           {showResumePrompt && savedSessionData && (
             <div className="mb-6 bg-orange-50 border border-orange-200 rounded-xl p-4">
               <div className="flex items-start gap-3">
-                <ChefHat size={24} className="text-orange-500 flex-shrink-0 mt-0.5" />
+                <ChefHat size={24} className="text-accent-dark flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-800">Continue cooking?</h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <h3 className="font-bold text-heading">Continue cooking?</h3>
+                  <p className="text-sm text-body mt-1">
                     You were on step {(savedSessionData.currentStep || 0) + 1} of{' '}
                     {savedSessionData.recipeName || 'your recipe'}
                   </p>
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={handleResumeSession}
-                      className="flex-1 px-4 py-2.5 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors active:scale-[0.98]"
+                      className="flex-1 px-4 py-2.5 bg-accent-dark text-white rounded-lg font-medium hover:bg-amber-700 transition-colors active:scale-[0.98]"
                     >
                       Resume
                     </button>
                     <button
                       onClick={handleDismissResume}
-                      className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg font-medium hover:bg-gray-200 transition-colors active:scale-[0.98]"
+                      className="px-4 py-2.5 bg-gray-100 text-body rounded-lg font-medium hover:bg-gray-200 transition-colors active:scale-[0.98]"
                     >
                       Start Fresh
                     </button>
@@ -823,14 +823,14 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
           {availableRecipes.length === 0 ? (
             <div className="text-center py-12">
-              <ChefHat size={64} className="mx-auto text-gray-400 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">No Recipes Available</h2>
-              <p className="text-gray-500 mb-6">
+              <ChefHat size={64} className="mx-auto text-muted mb-4" />
+              <h2 className="text-xl font-semibold text-body mb-2">No Recipes Available</h2>
+              <p className="text-muted mb-6">
                 You need to select some meals first from the AI Meal Planner.
               </p>
               <button
                 onClick={() => onNavigate('chatbot')}
-                className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                className="px-6 py-3 bg-accent-dark text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
               >
                 Go to Meal Planner
               </button>
@@ -838,39 +838,39 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           ) : (
             <div>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Available Recipes</h2>
-                <p className="text-gray-600">
+                <h2 className="text-2xl font-bold text-heading mb-2">Available Recipes</h2>
+                <p className="text-body">
                   Select a recipe to view step-by-step cooking instructions
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {availableRecipes.map((meal, index) => (
-                  <div key={meal.id || index} className="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
+                  <div key={meal.id || index} className="bg-surface rounded-xl shadow-lg border border-default hover:shadow-xl transition-shadow">
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-4">
-                        <Utensils className="text-orange-500 flex-shrink-0" size={24} />
+                        <Utensils className="text-accent-dark flex-shrink-0" size={24} />
                         {meal.totalTime && (
-                          <div className="flex items-center gap-1 text-sm text-gray-500">
+                          <div className="flex items-center gap-1 text-sm text-muted">
                             <Clock size={16} />
                             {meal.totalTime}
                           </div>
                         )}
                       </div>
 
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                      <h3 className="text-lg font-semibold text-heading mb-2">
                         {meal.name}
                       </h3>
 
                       {meal.description && (
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                        <p className="text-body text-sm mb-4 line-clamp-3">
                           {meal.description}
                         </p>
                       )}
 
                       <button
                         onClick={() => handleRecipeSelect(meal.recipeId || meal.id)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:from-orange-600 hover:to-red-600 transition-colors font-medium"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-lg hover:from-amber-700 hover:to-orange-700 transition-colors font-medium"
                       >
                         <Play size={18} />
                         Start Cooking
@@ -892,14 +892,14 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
     <div className={`min-h-screen ${kitchenMode ? 'bg-gray-900' : 'bg-gradient-to-br from-orange-50 to-red-50'}`}>
       {/* Simplified Sticky Header (Feature 8) */}
       <div className={`sticky top-0 z-20 shadow-sm border-b ${
-        kitchenMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        kitchenMode ? 'bg-gray-800 border-gray-700' : 'bg-surface border-default'
       }`}>
         <div className="max-w-4xl mx-auto px-3 h-14 flex items-center gap-3">
           {/* Back arrow only */}
           <button
             onClick={handleBackToSelection}
             className={`p-2 -ml-1 rounded-lg transition-colors ${
-              kitchenMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'
+              kitchenMode ? 'text-gray-300 hover:bg-gray-700' : 'text-body hover:bg-gray-100'
             }`}
           >
             <ArrowLeft size={22} />
@@ -908,11 +908,11 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           {/* Recipe name + step indicator */}
           <div className="flex-1 min-w-0">
             <h1 className={`font-bold truncate ${
-              kitchenMode ? 'text-white text-base' : 'text-gray-800 text-sm'
+              kitchenMode ? 'text-white text-base' : 'text-heading text-sm'
             }`}>
               {activeRecipeData.recipe_name}
             </h1>
-            <p className={`text-xs ${kitchenMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className={`text-xs ${kitchenMode ? 'text-gray-400' : 'text-muted'}`}>
               Step {currentStep + 1} of {totalSteps}
             </p>
           </div>
@@ -927,8 +927,8 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             onClick={() => setShowStepMenu(prev => !prev)}
             className={`p-2 rounded-lg transition-colors ${
               showStepMenu
-                ? (kitchenMode ? 'text-amber-400 bg-gray-700' : 'text-orange-500 bg-orange-50')
-                : (kitchenMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100')
+                ? (kitchenMode ? 'text-amber-400 bg-gray-700' : 'text-accent-dark bg-orange-50')
+                : (kitchenMode ? 'text-gray-300 hover:bg-gray-700' : 'text-muted hover:bg-gray-100')
             }`}
             title="All Steps"
           >
@@ -941,7 +941,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             className={`p-2 rounded-lg transition-colors ${
               kitchenMode
                 ? 'text-amber-400 bg-gray-700 hover:bg-gray-600'
-                : 'text-gray-500 hover:bg-gray-100'
+                : 'text-muted hover:bg-gray-100'
             }`}
             title={kitchenMode ? 'Exit Kitchen Mode' : 'Kitchen Mode'}
           >
@@ -952,7 +952,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           {debugMode && (
             <button
               onClick={() => setShowDebug(!showDebug)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+              className="flex items-center gap-1 text-sm text-muted hover:text-body"
             >
               <Wifi size={16} />
               {showDebug ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -991,13 +991,13 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
       {/* Step Navigation Menu (slide-down panel with all steps) */}
       {showStepMenu && (
-        <div className={`border-b ${kitchenMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className={`border-b ${kitchenMode ? 'bg-gray-800 border-gray-700' : 'bg-surface border-default'}`}>
           <div className="max-w-4xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between mb-3">
-              <h3 className={`font-bold text-sm ${kitchenMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <h3 className={`font-bold text-sm ${kitchenMode ? 'text-gray-300' : 'text-body'}`}>
                 All Steps
               </h3>
-              <span className={`text-xs ${kitchenMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              <span className={`text-xs ${kitchenMode ? 'text-gray-500' : 'text-muted'}`}>
                 {completedSteps.size}/{totalSteps} done
               </span>
             </div>
@@ -1018,16 +1018,16 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
                             : 'bg-green-50/50 border border-green-100')
                         : (kitchenMode
                             ? 'bg-gray-700/30 border border-gray-700 hover:bg-gray-700/50'
-                            : 'bg-gray-50 border border-gray-100 hover:bg-gray-100')
+                            : 'bg-background border border-gray-100 hover:bg-gray-100')
                   }`}
                 >
                   {/* Step number circle */}
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5 ${
                     index === currentStep
-                      ? (kitchenMode ? 'bg-amber-400 text-gray-900' : 'bg-orange-500 text-white')
+                      ? (kitchenMode ? 'bg-amber-400 text-gray-900' : 'bg-accent-dark text-white')
                       : completedSteps.has(index)
                         ? 'bg-green-500 text-white'
-                        : (kitchenMode ? 'bg-gray-600 text-gray-400' : 'bg-gray-200 text-gray-600')
+                        : (kitchenMode ? 'bg-gray-600 text-gray-400' : 'bg-gray-200 text-body')
                   }`}>
                     {completedSteps.has(index) ? <CheckCircle size={14} /> : index + 1}
                   </div>
@@ -1038,12 +1038,12 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
                       index === currentStep
                         ? (kitchenMode ? 'text-amber-400' : 'text-orange-700')
                         : completedSteps.has(index)
-                          ? (kitchenMode ? 'text-gray-500 line-through' : 'text-gray-400 line-through')
-                          : (kitchenMode ? 'text-gray-300' : 'text-gray-700')
+                          ? (kitchenMode ? 'text-gray-500 line-through' : 'text-muted line-through')
+                          : (kitchenMode ? 'text-gray-300' : 'text-body')
                     }`}>
                       {step.instruction.length > 60 ? step.instruction.substring(0, 60) + '...' : step.instruction}
                     </p>
-                    <p className={`text-xs mt-0.5 ${kitchenMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p className={`text-xs mt-0.5 ${kitchenMode ? 'text-gray-500' : 'text-muted'}`}>
                       {step.time}
                     </p>
                   </div>
@@ -1064,13 +1064,13 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
       )}
 
       {/* Compact Progress Bar with Expandable Drawer (Feature 5) */}
-      <div className={`border-b ${kitchenMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+      <div className={`border-b ${kitchenMode ? 'bg-gray-800 border-gray-700' : 'bg-surface border-default'}`}>
         <div className="max-w-4xl mx-auto px-4 py-2">
           {/* Thin progress bar */}
           <div className={`h-1.5 rounded-full overflow-hidden ${kitchenMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                kitchenMode ? 'bg-amber-400' : 'bg-gradient-to-r from-orange-500 to-red-500'
+                kitchenMode ? 'bg-amber-400' : 'bg-gradient-to-r from-amber-600 to-orange-600'
               }`}
               style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
             />
@@ -1080,7 +1080,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           <button
             onClick={handleToggleStepDrawer}
             className={`w-full flex items-center justify-center gap-2 mt-1.5 py-1 text-sm font-medium transition-colors ${
-              kitchenMode ? 'text-gray-400' : 'text-gray-500'
+              kitchenMode ? 'text-gray-400' : 'text-muted'
             }`}
           >
             <span>Step {currentStep + 1} of {totalSteps}</span>
@@ -1100,12 +1100,12 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
                       index === currentStep
                         ? (kitchenMode
                             ? 'bg-amber-400 text-gray-900 scale-110'
-                            : 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg scale-110')
+                            : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg scale-110')
                         : completedSteps.has(index)
                           ? 'bg-green-500 text-white'
                           : (kitchenMode
                               ? 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                              : 'bg-gray-200 text-gray-600 hover:bg-gray-300')
+                              : 'bg-gray-200 text-body hover:bg-gray-300')
                     }`}
                   >
                     {index + 1}
@@ -1121,7 +1121,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
       {showSwipeHint && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30 pointer-events-none">
           <div className="bg-white/90 rounded-xl px-6 py-3 shadow-lg text-center">
-            <p className="text-gray-700 font-medium flex items-center gap-2">
+            <p className="text-body font-medium flex items-center gap-2">
               <ChevronLeft size={20} /> Swipe left or right to navigate <ChevronRight size={20} />
             </p>
           </div>
@@ -1135,13 +1135,13 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
         className="max-w-4xl mx-auto px-4 py-4"
       >
         <div className={`rounded-xl shadow-lg overflow-hidden ${
-          kitchenMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'
+          kitchenMode ? 'bg-gray-800 border border-gray-700' : 'bg-surface'
         }`}>
           {/* Step Header */}
           <div className={`p-5 ${
             kitchenMode
               ? 'bg-gray-800 border-b border-gray-700'
-              : 'bg-gradient-to-r from-orange-500 to-red-500'
+              : 'bg-gradient-to-r from-amber-600 to-orange-600'
           } text-white`}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -1192,7 +1192,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             <p className={`leading-relaxed font-medium ${
               kitchenMode
                 ? 'text-2xl md:text-3xl text-white'
-                : 'text-xl md:text-2xl text-gray-700'
+                : 'text-xl md:text-2xl text-body'
             }`}>
               {currentInstruction.instruction}
             </p>
@@ -1232,7 +1232,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
           {/* Navigation - Stacked vertically (Feature 2: Large Touch Targets) */}
           <div className={`px-5 py-4 space-y-3 ${
-            kitchenMode ? 'bg-gray-900' : 'bg-gray-50'
+            kitchenMode ? 'bg-gray-900' : 'bg-background'
           }`}>
             {/* Next button (primary, on top) */}
             <button
@@ -1241,10 +1241,10 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
               className={`w-full flex items-center justify-center gap-2 min-h-[56px] rounded-xl
                 font-bold text-lg transition-all active:scale-[0.98] ${
                 isLastStep
-                  ? (kitchenMode ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed')
+                  ? (kitchenMode ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-200 text-muted cursor-not-allowed')
                   : (kitchenMode
                       ? 'bg-amber-500 text-gray-900 hover:bg-amber-400'
-                      : 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600')
+                      : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:from-amber-700 hover:to-orange-700')
               }`}
             >
               Next Step
@@ -1258,7 +1258,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
               className={`w-full flex items-center justify-center gap-2 min-h-[56px] rounded-xl
                 font-medium text-lg transition-all active:scale-[0.98] ${
                 isFirstStep
-                  ? (kitchenMode ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed')
+                  ? (kitchenMode ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-200 text-muted cursor-not-allowed')
                   : (kitchenMode
                       ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                       : 'bg-gray-600 text-white hover:bg-gray-700')
@@ -1289,8 +1289,8 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
                 try { localStorage.removeItem('recipeInstructionState'); } catch {}
                 handleBackToApp();
               }}
-              className="mt-4 w-full min-h-[56px] px-6 py-3 bg-green-600 text-white rounded-xl
-                hover:bg-green-700 transition-colors font-bold text-lg active:scale-[0.98]"
+              className="mt-4 w-full min-h-[56px] px-6 py-3 bg-primary text-white rounded-xl
+                hover:bg-primary-hover transition-colors font-bold text-lg active:scale-[0.98]"
             >
               Back to Grocery List
             </button>
@@ -1300,7 +1300,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
       {/* Floating Timer Pill (Feature 6) */}
       {(timerRunning || timerSeconds > 0) && (
-        <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3
+        <div className={`fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-30 flex items-center gap-3
           px-4 py-3 rounded-full shadow-xl ${
           kitchenMode ? 'bg-gray-800 border border-amber-500/50' : 'bg-white border border-orange-200'
         }`}>
@@ -1318,7 +1318,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             <button
               onClick={() => setCurrentStep(timerStepIndex)}
               className={`text-xs font-medium underline ${
-                kitchenMode ? 'text-gray-400' : 'text-gray-500'
+                kitchenMode ? 'text-gray-400' : 'text-muted'
               }`}
             >
               Step {timerStepIndex + 1}
@@ -1329,7 +1329,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           <button
             onClick={handlePauseResumeTimer}
             className={`p-1.5 rounded-full transition-colors ${
-              kitchenMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+              kitchenMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-body'
             }`}
           >
             {timerRunning ? <Pause size={18} /> : <Play size={18} />}
@@ -1339,7 +1339,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           <button
             onClick={handleCancelTimer}
             className={`p-1.5 rounded-full transition-colors ${
-              kitchenMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-400'
+              kitchenMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-muted'
             }`}
           >
             <X size={16} />

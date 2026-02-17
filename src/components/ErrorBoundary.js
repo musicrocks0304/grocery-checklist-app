@@ -26,26 +26,26 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-red-600" />
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="bg-surface rounded-xl shadow-lg max-w-md w-full p-8 text-center">
+            <div className="w-16 h-16 bg-danger-light rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-danger" />
             </div>
-            <h1 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h1>
-            <p className="text-gray-600 mb-6">
+            <h1 className="text-xl font-bold text-heading mb-2">Something went wrong</h1>
+            <p className="text-body mb-6">
               The app encountered an unexpected error. Try refreshing the page.
             </p>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleReload}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
               >
                 <RotateCcw size={16} />
                 Refresh Page
               </button>
               <button
                 onClick={this.handleDismiss}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-gray-200 text-body rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Try Again
               </button>

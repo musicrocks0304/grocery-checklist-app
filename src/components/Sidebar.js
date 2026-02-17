@@ -23,12 +23,12 @@ const Sidebar = ({
   const mobileTitle = activeNav ? activeNav.name : "Grocery App";
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <div
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}
       >
-        <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50 bg-gradient-to-r from-green-700 to-green-600">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -59,12 +59,12 @@ const Sidebar = ({
                 }}
                 className={`w-full flex items-center gap-4 px-4 py-3.5 text-left rounded-xl font-medium transition-all duration-200 group relative overflow-hidden ${
                   isActive
-                    ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-[1.02]"
+                    ? "bg-gradient-to-r from-green-600 to-green-500 text-white shadow-lg transform scale-[1.02]"
                     : "text-slate-300 hover:text-white hover:bg-slate-700/50 hover:transform hover:scale-[1.01]"
                 }`}
               >
                 {isActive && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-xl blur-sm"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-green-400/20 to-green-300/20 rounded-xl blur-sm"></div>
                 )}
                 <div
                   className={`relative z-10 p-2 rounded-lg transition-all duration-200 ${
@@ -101,22 +101,22 @@ const Sidebar = ({
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Main content */}
       <div className="flex-1 lg:ml-0">
-        <div className="lg:hidden bg-white shadow-sm border-b">
+        <div className="lg:hidden bg-surface shadow-sm border-b border-default">
           <div className="flex items-center justify-between px-4 h-16">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-md text-gray-400 hover:text-gray-600"
+              className="p-2 rounded-lg text-muted hover:text-heading"
             >
               <Menu size={20} />
             </button>
-            <h1 className="text-lg font-semibold text-gray-800">
+            <h1 className="text-lg font-semibold text-heading">
               {mobileTitle}
             </h1>
             <div></div>

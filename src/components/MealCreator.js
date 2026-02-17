@@ -361,13 +361,13 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
     <div className="h-screen flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4">
       {/* Building Overlay */}
       {isBuilding && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-surface rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-600 border-t-transparent"></div>
             </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">Building Your Recipe</h3>
-            <p className="text-gray-600 mb-4">
+            <h3 className="text-xl font-semibold text-heading mb-2">Building Your Recipe</h3>
+            <p className="text-body mb-4">
               The AI is crafting a detailed Blue Apron-style recipe with ingredients, step-by-step instructions, and kid-friendly modifications...
             </p>
             <div className="flex items-center justify-center space-x-1">
@@ -375,28 +375,28 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
               <div className="animate-bounce h-2 w-2 bg-amber-600 rounded-full" style={{animationDelay: '150ms'}}></div>
               <div className="animate-bounce h-2 w-2 bg-amber-600 rounded-full" style={{animationDelay: '300ms'}}></div>
             </div>
-            <p className="text-sm text-gray-500 mt-4">This usually takes 20-40 seconds</p>
+            <p className="text-sm text-muted mt-4">This usually takes 20-40 seconds</p>
           </div>
         </div>
       )}
 
       {/* Saving Overlay */}
       {isSaving && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-surface rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
             <div className="flex items-center justify-center mb-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
             </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">Saving to Recipe Book</h3>
-            <p className="text-gray-600">Normalizing ingredients, creating database entries...</p>
+            <h3 className="text-xl font-semibold text-heading mb-2">Saving to Recipe Book</h3>
+            <p className="text-body">Normalizing ingredients, creating database entries...</p>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="bg-white lg:rounded-lg lg:shadow-lg overflow-hidden flex flex-col flex-1">
+      <div className="bg-surface lg:rounded-lg lg:shadow-lg overflow-hidden flex flex-col flex-1">
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white p-4">
+        <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
@@ -472,7 +472,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
         )}
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-gray-50">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 lg:p-6 bg-background">
 
           {/* ===== PHASE 1 & 2: Chat Messages ===== */}
           {(phase === 1 || phase === 2) && (
@@ -482,7 +482,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                   <div className={`max-w-xs lg:max-w-lg px-4 py-3 rounded-2xl ${
                     message.type === 'user'
                       ? 'bg-amber-600 text-white'
-                      : 'bg-white text-gray-800 shadow-md border'
+                      : 'bg-surface text-heading shadow-md border border-default'
                   }`}>
                     {message.isTyping ? (
                       <div className="flex items-center gap-1">
@@ -504,15 +504,15 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                               <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg border border-amber-200 p-4">
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
-                                    <h4 className="font-bold text-gray-800 text-base">{proposal.name}</h4>
+                                    <h4 className="font-bold text-heading text-base">{proposal.name}</h4>
                                     <div className="flex flex-wrap items-center gap-2 mt-1">
                                       <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{proposal.cuisineStyle}</span>
-                                      <span className="text-xs text-gray-500 flex items-center gap-1"><Clock size={12} /> {proposal.estimatedTotalTime} min</span>
+                                      <span className="text-xs text-muted flex items-center gap-1"><Clock size={12} /> {proposal.estimatedTotalTime} min</span>
                                     </div>
                                   </div>
                                 </div>
-                                <p className="text-sm text-gray-600 mt-2">{proposal.description}</p>
-                                <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
+                                <p className="text-sm text-body mt-2">{proposal.description}</p>
+                                <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted">
                                   <span><strong>Protein:</strong> {proposal.protein}</span>
                                   <span>•</span>
                                   <span><strong>Kid:</strong> {proposal.kidVehicle}</span>
@@ -532,7 +532,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                           </div>
                         )}
 
-                        <div className={`text-xs mt-2 ${message.type === 'user' ? 'text-amber-200' : 'text-gray-500'}`}>
+                        <div className={`text-xs mt-2 ${message.type === 'user' ? 'text-amber-200' : 'text-muted'}`}>
                           {message.timestamp}
                         </div>
                       </div>
@@ -548,15 +548,15 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
           {phase === 3 && fullRecipe && (
             <div className="max-w-2xl mx-auto space-y-4">
               {/* Recipe Header */}
-              <div className="bg-white rounded-xl shadow-md border p-6">
+              <div className="bg-surface rounded-xl shadow-md border border-default p-6">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800">{fullRecipe.recipe_name}</h2>
-                    <p className="text-gray-600 mt-1">{fullRecipe.recipe_description}</p>
+                    <h2 className="text-2xl font-bold text-heading">{fullRecipe.recipe_name}</h2>
+                    <p className="text-body mt-1">{fullRecipe.recipe_description}</p>
                   </div>
                   <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">NEW</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-gray-600">
+                <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-body">
                   <span className="flex items-center gap-1"><Clock size={16} className="text-amber-600" /> {fullRecipe.total_time_minutes || '—'} min total</span>
                   <span className="flex items-center gap-1"><Flame size={16} className="text-orange-500" /> {fullRecipe.prep_time_minutes || '—'} min prep</span>
                   <span className="flex items-center gap-1"><Users size={16} className="text-blue-500" /> Serves {fullRecipe.servings || 4}</span>
@@ -565,21 +565,21 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                 {fullRecipe.tags && fullRecipe.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {fullRecipe.tags.map((tag, i) => (
-                      <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tag}</span>
+                      <span key={i} className="text-xs bg-gray-100 text-body px-2 py-0.5 rounded-full">{tag}</span>
                     ))}
                   </div>
                 )}
               </div>
 
               {/* Ingredients */}
-              <div className="bg-white rounded-xl shadow-md border">
+              <div className="bg-surface rounded-xl shadow-md border border-default">
                 <button
                   onClick={() => toggleSection('ingredients')}
-                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+                  className="w-full flex items-center justify-between p-4 hover:bg-background"
                 >
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-heading flex items-center gap-2">
                     <BookOpen size={20} className="text-green-600" /> Ingredients
-                    <span className="text-sm font-normal text-gray-500">({fullRecipe.ingredients?.length || 0})</span>
+                    <span className="text-sm font-normal text-muted">({fullRecipe.ingredients?.length || 0})</span>
                   </h3>
                   {expandedSections.has('ingredients') ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 </button>
@@ -590,12 +590,12 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                         <h4 className="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-1.5">{category}</h4>
                         <ul className="space-y-1">
                           {ingredients.map((ing, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <li key={i} className="flex items-start gap-2 text-sm text-body">
                               <Check size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
                               <span>
                                 <strong>{ing.quantity} {ing.unit_name}</strong> {ing.ingredient_name}
-                                {ing.preparation_notes && <span className="text-gray-500"> — {ing.preparation_notes}</span>}
-                                {ing.optional && <span className="text-gray-400 italic"> (optional)</span>}
+                                {ing.preparation_notes && <span className="text-muted"> — {ing.preparation_notes}</span>}
+                                {ing.optional && <span className="text-muted italic"> (optional)</span>}
                               </span>
                             </li>
                           ))}
@@ -607,14 +607,14 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
               </div>
 
               {/* Instructions */}
-              <div className="bg-white rounded-xl shadow-md border">
+              <div className="bg-surface rounded-xl shadow-md border border-default">
                 <button
                   onClick={() => toggleSection('instructions')}
-                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+                  className="w-full flex items-center justify-between p-4 hover:bg-background"
                 >
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-heading flex items-center gap-2">
                     <ChefHat size={20} className="text-amber-600" /> Instructions
-                    <span className="text-sm font-normal text-gray-500">({fullRecipe.instructions?.length || 0} steps)</span>
+                    <span className="text-sm font-normal text-muted">({fullRecipe.instructions?.length || 0} steps)</span>
                   </h3>
                   {expandedSections.has('instructions') ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 </button>
@@ -626,9 +626,9 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                           {step.step_number}
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm text-gray-700">{step.instruction_text}</p>
+                          <p className="text-sm text-body">{step.instruction_text}</p>
                           {step.time_minutes && (
-                            <span className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                            <span className="text-xs text-muted flex items-center gap-1 mt-1">
                               <Clock size={12} /> {step.time_minutes} min
                             </span>
                           )}
@@ -641,12 +641,12 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
 
               {/* Kid Plate & Make It Better */}
               {fullRecipe.notes && (
-                <div className="bg-white rounded-xl shadow-md border">
+                <div className="bg-surface rounded-xl shadow-md border border-default">
                   <button
                     onClick={() => toggleSection('notes')}
-                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50"
+                    className="w-full flex items-center justify-between p-4 hover:bg-background"
                   >
-                    <h3 className="text-lg font-semibold text-gray-800">Kid Plate & Tips</h3>
+                    <h3 className="text-lg font-semibold text-heading">Kid Plate & Tips</h3>
                     {expandedSections.has('notes') ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                   </button>
                   {expandedSections.has('notes') && (
@@ -673,14 +673,14 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                 <button
                   onClick={saveRecipe}
                   disabled={isSaving}
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors font-semibold disabled:opacity-50"
                 >
                   <Save size={20} />
                   Save to Recipe Book
                 </button>
                 <button
                   onClick={() => { setPhase(1); setFullRecipe(null); }}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 text-body rounded-xl hover:bg-gray-300 transition-colors"
                 >
                   <ArrowLeft size={18} />
                   Back
@@ -692,13 +692,13 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
           {/* ===== PHASE 4: Save Success ===== */}
           {phase === 4 && saveResult && (
             <div className="max-w-md mx-auto text-center mt-12">
-              <div className="bg-white rounded-xl shadow-lg border p-8">
+              <div className="bg-surface rounded-xl shadow-lg border border-default p-8">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Check size={32} className="text-green-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Recipe Saved!</h2>
-                <p className="text-gray-600 mb-1">"{saveResult.recipeName}"</p>
-                <p className="text-sm text-gray-500 mb-6">Recipe ID: #{saveResult.recipeId} • {saveResult.ingredientsProcessed} ingredients • {saveResult.instructionsProcessed} steps • {saveResult.tagsProcessed} tags</p>
+                <h2 className="text-2xl font-bold text-heading mb-2">Recipe Saved!</h2>
+                <p className="text-body mb-1">"{saveResult.recipeName}"</p>
+                <p className="text-sm text-muted mb-6">Recipe ID: #{saveResult.recipeId} • {saveResult.ingredientsProcessed} ingredients • {saveResult.instructionsProcessed} steps • {saveResult.tagsProcessed} tags</p>
 
                 <div className="space-y-3">
                   <button
@@ -710,14 +710,14 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                   </button>
                   <button
                     onClick={startOver}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-body rounded-xl hover:bg-gray-200 transition-colors"
                   >
                     <Sparkles size={18} />
                     Create Another Recipe
                   </button>
                   <button
                     onClick={() => onNavigate('chatbot')}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-muted hover:text-body transition-colors"
                   >
                     Go to AI Meal Planner →
                   </button>
@@ -729,15 +729,15 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
 
         {/* Input Area (Phase 1 only) */}
         {phase === 1 && (
-          <div className="p-4 lg:p-6 bg-white border-t border-gray-200">
+          <div className="p-4 lg:p-6 bg-surface border-t border-default">
             <div className="flex gap-3">
               <div className="flex-1 relative">
                 <textarea
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyPress}
                   placeholder="Describe what you're craving... (e.g., 'quick chicken pasta, Italian vibes, under 30 min')"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
                   rows="2"
                   disabled={isLoading}
                 />
@@ -745,7 +745,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
               <button
                 onClick={sendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl hover:from-amber-700 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
               >
                 <Send size={20} />
                 Send

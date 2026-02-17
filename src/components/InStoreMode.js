@@ -8,6 +8,7 @@ import {
   PartyPopper,
   Smartphone,
 } from "lucide-react";
+import { EmptyState } from './ui';
 import toast from "react-hot-toast";
 import confetti from "canvas-confetti";
 
@@ -18,8 +19,8 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
       onClick={() => onToggle(item.ItemID.toString())}
       className={`w-full flex items-center gap-4 px-4 py-3 min-h-[56px] rounded-lg transition-all duration-200 active:scale-[0.98] ${
         isChecked
-          ? "bg-gray-50"
-          : "bg-white hover:bg-blue-50"
+          ? "bg-background"
+          : "bg-surface hover:bg-primary-light"
       }`}
     >
       {/* Custom circle checkbox */}
@@ -27,7 +28,7 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
         className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
           isChecked
             ? "bg-green-500 border-green-500"
-            : "border-gray-300"
+            : "border-default"
         }`}
       >
         {isChecked && <Check size={16} className="text-white" />}
@@ -37,8 +38,8 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
       <span
         className={`flex-1 text-left text-lg transition-all duration-200 ${
           isChecked
-            ? "line-through text-gray-400 opacity-50"
-            : "text-gray-800 font-medium"
+            ? "line-through text-muted opacity-50"
+            : "text-heading font-medium"
         }`}
       >
         {item.ItemName}
@@ -49,8 +50,8 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
         <span
           className={`text-sm font-medium px-2 py-1 rounded flex-shrink-0 transition-all duration-200 ${
             isChecked
-              ? "bg-gray-100 text-gray-400"
-              : "bg-blue-50 text-blue-600"
+              ? "bg-gray-100 text-muted"
+              : "bg-primary-light text-primary"
           }`}
         >
           x{item.quantity}
@@ -70,7 +71,7 @@ const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
         allDone
           ? "bg-green-50 border border-green-200"
-          : "bg-gray-50 border border-gray-200"
+          : "bg-background border border-default"
       }`}
     >
       {/* Section complete indicator */}
@@ -82,7 +83,7 @@ const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }
 
       <span
         className={`flex-1 text-left font-bold text-lg ${
-          allDone ? "text-green-700" : "text-gray-800"
+          allDone ? "text-green-700" : "text-heading"
         }`}
       >
         {name}
@@ -93,7 +94,7 @@ const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }
         className={`text-sm font-medium px-2 py-1 rounded-full ${
           allDone
             ? "bg-green-100 text-green-700"
-            : "bg-gray-200 text-gray-600"
+            : "bg-gray-200 text-body"
         }`}
       >
         {checkedCount}/{totalCount}
@@ -101,9 +102,9 @@ const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }
 
       {/* Collapse chevron */}
       {isCollapsed ? (
-        <ChevronDown size={20} className="text-gray-400 flex-shrink-0" />
+        <ChevronDown size={20} className="text-muted flex-shrink-0" />
       ) : (
-        <ChevronUp size={20} className="text-gray-400 flex-shrink-0" />
+        <ChevronUp size={20} className="text-muted flex-shrink-0" />
       )}
     </button>
   );
@@ -346,37 +347,28 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   // No data fallback
   if (!shoppingList || !shoppingList.items || shoppingList.items.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white shadow-sm">
+        <div className="sticky top-0 z-10 bg-surface shadow-sm">
           <div className="flex items-center gap-3 px-4 h-14">
             <button
               onClick={onExit}
-              className="p-2 -ml-2 rounded-lg text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+              className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft size={24} />
             </button>
-            <h1 className="text-lg font-bold text-gray-800">Shopping List</h1>
+            <h1 className="text-lg font-bold text-heading">Shopping List</h1>
           </div>
         </div>
 
         {/* Empty state */}
         <div className="flex-1 flex items-center justify-center p-8">
-          <div className="text-center">
-            <ShoppingBag size={64} className="text-gray-300 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-600 mb-2">
-              No Shopping List
-            </h2>
-            <p className="text-gray-500 mb-6">
-              Save a grocery list first, then come back to start shopping.
-            </p>
-            <button
-              onClick={onExit}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Go to Grocery Selection
-            </button>
-          </div>
+          <EmptyState
+            icon={ShoppingBag}
+            title="No Shopping List"
+            description="Save a grocery list first, then come back to start shopping."
+            action={{ label: "Go to Grocery Selection", onClick: onExit }}
+          />
         </div>
       </div>
     );
@@ -385,18 +377,18 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const groupedItems = getGroupedItems();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-white shadow-sm">
+      <div className="sticky top-0 z-10 bg-surface shadow-sm">
         <div className="flex items-center gap-3 px-4 h-14">
           <button
             onClick={handleExit}
-            className="p-2 -ml-2 rounded-lg text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+            className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-gray-100 transition-colors"
           >
             <ArrowLeft size={24} />
           </button>
 
-          <h1 className="flex-1 text-lg font-bold text-gray-800">
+          <h1 className="flex-1 text-lg font-bold text-heading">
             Shopping List
           </h1>
 
@@ -410,7 +402,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           )}
 
           {/* Progress count */}
-          <span className="text-sm font-semibold text-gray-600 flex-shrink-0">
+          <span className="text-sm font-semibold text-body flex-shrink-0">
             {totalChecked}/{totalItems}
           </span>
         </div>
@@ -424,7 +416,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       {/* Week info */}
       {shoppingList.weekDateRange && (
         <div className="px-4 pt-3 pb-1">
-          <p className="text-sm text-gray-500">{shoppingList.weekDateRange}</p>
+          <p className="text-sm text-muted">{shoppingList.weekDateRange}</p>
         </div>
       )}
 
@@ -459,7 +451,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
 
       {/* All done banner */}
       {allDone && (
-        <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-green-500 to-green-400 p-6 shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-primary to-green-500 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-lg">
           <div className="flex items-center justify-center gap-3 mb-3">
             <PartyPopper size={28} className="text-white" />
             <span className="text-xl font-bold text-white">All Done!</span>
@@ -467,7 +459,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           </div>
           <button
             onClick={onExit}
-            className="w-full py-3 bg-white text-green-600 rounded-lg font-bold text-lg hover:bg-green-50 transition-colors"
+            className="w-full py-3 bg-white text-primary rounded-lg font-bold text-lg hover:bg-primary-light transition-colors"
           >
             Return to Grocery List
           </button>

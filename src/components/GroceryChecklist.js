@@ -31,30 +31,30 @@ const GroceryItem = React.memo(({
   const itemId = item.ItemID.toString();
 
   return (
-    <div className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors group min-h-[52px] relative">
+    <div className="flex items-center gap-3 p-3 hover:bg-background rounded-lg transition-colors group min-h-[52px] relative">
       <input
         type="checkbox"
         id={`item-${item.ItemID}`}
         checked={isSelected}
         onChange={() => onToggle(itemId)}
-        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 flex-shrink-0"
+        className="w-5 h-5 text-primary rounded focus:ring-focus flex-shrink-0"
       />
       <label
         htmlFor={`item-${item.ItemID}`}
         className={`flex-1 cursor-pointer ${isSelected ? "font-medium" : ""}`}
       >
-        <span className="text-gray-700">{item.ItemName}</span>
+        <span className="text-body">{item.ItemName}</span>
       </label>
 
       {/* Always reserve space for quantity dropdown to prevent layout shifts */}
       <div className="flex items-center gap-2 w-20 flex-shrink-0">
         {isSelected ? (
           <>
-            <label className="text-sm text-gray-600">Qty:</label>
+            <label className="text-sm text-body">Qty:</label>
             <select
               value={quantity || 1}
               onChange={(e) => onQuantityChange(itemId, e.target.value)}
-              className="w-16 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-16 px-2 py-1 border border-default rounded focus:outline-none focus:ring-2 focus:ring-focus text-sm"
             >
               {[...Array(10)].map((_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -75,7 +75,7 @@ const GroceryItem = React.memo(({
           e.stopPropagation();
           onRemove(item);
         }}
-        className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-800 transition-opacity w-6 h-6 flex items-center justify-center flex-shrink-0"
+        className="opacity-0 group-hover:opacity-100 text-danger hover:text-danger-hover transition-opacity w-6 h-6 flex items-center justify-center flex-shrink-0"
         title="Remove item from database"
       >
         <Trash2 size={18} />
@@ -551,13 +551,13 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-body">
             Loading grocery items from your database...
           </p>
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-muted">
             Connecting to n8n webhook...
           </p>
         </div>
@@ -568,19 +568,19 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   if (showFinalList) {
     const finalList = getFinalGroceryList();
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
         <div className="flex items-center gap-3 mb-6">
           <ShoppingCart className="text-green-600" size={28} />
-          <h1 className="text-2xl font-bold text-gray-800">
+          <h1 className="text-2xl font-bold text-heading">
             Weekly Grocery List
           </h1>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <p className="text-lg font-semibold text-gray-700">
+        <div className="bg-background p-4 rounded-lg mb-6">
+          <p className="text-lg font-semibold text-body">
             {getWeekDateRange()}
           </p>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-body mt-1">
             Items selected: {selectedItems.size}
           </p>
         </div>
@@ -589,18 +589,18 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([categoryName, items]) => (
             <div key={categoryName} className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3 border-b-2 border-blue-200 pb-1">
+              <h2 className="text-xl font-semibold text-heading mb-3 border-b-2 border-primary-border pb-1">
                 {categoryName}
               </h2>
               <ul className="space-y-2">
                 {items.map((item) => (
                   <li
                     key={item.ItemID}
-                    className="flex items-center gap-2 text-gray-700"
+                    className="flex items-center gap-2 text-body"
                   >
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-primary rounded-full"></div>
                     <span className="flex-1">{item.ItemName}</span>
-                    <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    <span className="text-sm font-medium text-primary bg-primary-light px-2 py-1 rounded">
                       Qty: {item.quantity}
                     </span>
                   </li>
@@ -612,7 +612,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         <div className="mt-8 flex gap-3">
           <button
             onClick={() => setShowFinalList(false)}
-            className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-secondary-hover transition-colors"
           >
             Modify Selection
           </button>
@@ -829,9 +829,9 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
     <div className="max-w-4xl mx-auto">
       {/* Add Item Side Panel */}
       {showAddPanel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-          <div className="bg-white h-full w-96 shadow-xl overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-end z-50">
+          <div className="bg-surface h-full w-full sm:w-96 shadow-xl overflow-y-auto">
+            <div className="bg-gradient-to-r from-green-700 to-green-600 text-white p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Plus size={24} />
@@ -852,7 +852,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             <div className="p-6 space-y-6">
               {/* Item Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-body mb-2">
                   Item Name *
                 </label>
                 <input
@@ -865,14 +865,14 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                     }))
                   }
                   placeholder="Enter item name..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
                   required
                 />
               </div>
 
               {/* Category */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-body mb-2">
                   Category *
                 </label>
                 <select
@@ -883,7 +883,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                       category: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
                   required
                 >
                   <option value="">Select category...</option>
@@ -898,7 +898,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
               {/* Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-body mb-2">
                   Type *
                 </label>
                 <div className="flex gap-4">
@@ -914,9 +914,9 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                           type: e.target.value,
                         }))
                       }
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      className="w-4 h-4 text-primary border-default focus:ring-focus"
                     />
-                    <span className="ml-2 text-sm text-gray-700">Basic</span>
+                    <span className="ml-2 text-sm text-body">Basic</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -930,12 +930,12 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                           type: e.target.value,
                         }))
                       }
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      className="w-4 h-4 text-primary border-default focus:ring-focus"
                     />
-                    <span className="ml-2 text-sm text-gray-700">Periodic</span>
+                    <span className="ml-2 text-sm text-body">Periodic</span>
                   </label>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted mt-1">
                   Basic: Items bought as needed | Periodic: Items bought
                   regularly
                 </p>
@@ -943,7 +943,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
               {/* Store */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-body mb-2">
                   Store *
                 </label>
                 <select
@@ -954,7 +954,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                       store: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
                   required
                 >
                   <option value="">Select store...</option>
@@ -969,7 +969,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
               {/* Grocery Store Section */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-body mb-2">
                   Grocery Store Section *
                 </label>
                 <select
@@ -980,7 +980,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                       groceryStoreSection: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
                   required
                 >
                   <option value="">Select section...</option>
@@ -1000,10 +1000,10 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             </div>
 
             {/* Footer Actions */}
-            <div className="border-t bg-gray-50 p-6 flex gap-3">
+            <div className="border-t bg-background p-6 flex gap-3">
               <button
                 onClick={handleCancelAdd}
-                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                className="flex-1 px-4 py-2 text-body bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Cancel
               </button>
@@ -1015,7 +1015,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   !newItemForm.store ||
                   !newItemForm.groceryStoreSection
                 }
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 Add Item
               </button>
@@ -1026,23 +1026,23 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
       {/* Confirmation Modal */}
       {itemToRemove && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-surface rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-start gap-3 mb-4">
               <AlertCircle
-                className="text-red-600 flex-shrink-0 mt-1"
+                className="text-danger flex-shrink-0 mt-1"
                 size={24}
               />
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-heading">
                   Remove Item from Database?
                 </h3>
-                <p className="mt-2 text-gray-600">
+                <p className="mt-2 text-body">
                   Are you sure you want to permanently remove{" "}
                   <strong>"{itemToRemove.ItemName}"</strong> from the{" "}
                   {itemToRemove.Category} category?
                 </p>
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-sm text-muted">
                   This action will deactivate the item in your database and it
                   won't appear in future grocery lists.
                 </p>
@@ -1051,13 +1051,13 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setItemToRemove(null)}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 text-body bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmRemoveItem}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger-hover transition-colors"
               >
                 Remove Item
               </button>
@@ -1066,11 +1066,11 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         </div>
       )}
 
-      <div className="p-6 bg-white rounded-lg shadow-lg">
+      <div className="p-6 bg-surface rounded-xl shadow-lg border border-default">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Check className="text-blue-600" size={28} />
-            <h1 className="text-2xl font-bold text-gray-800">
+            <Check className="text-primary" size={28} />
+            <h1 className="text-2xl font-bold text-heading">
               Grocery Staples
             </h1>
           </div>
@@ -1080,7 +1080,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             {debugMode && (
               <button
                 onClick={() => setShowDebug(!showDebug)}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                className="flex items-center gap-2 text-sm text-body hover:text-heading transition-colors"
               >
                 <Wifi size={16} />
                 Debug Info
@@ -1128,13 +1128,13 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         )}
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="mb-6 p-4 bg-danger-light border border-red-200 rounded-lg">
             <div className="flex items-start gap-3">
-              <AlertCircle className="text-red-600 mt-0.5" size={20} />
+              <AlertCircle className="text-danger mt-0.5" size={20} />
               <div>
                 <p className="font-semibold text-red-800">Connection Error</p>
                 <p className="text-red-700 text-sm mt-1">{error}</p>
-                <p className="text-red-600 text-sm mt-1">
+                <p className="text-danger text-sm mt-1">
                   Using sample data instead.
                 </p>
               </div>
@@ -1142,21 +1142,21 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           </div>
         )}
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-lg font-medium text-blue-900">
+        <div className="bg-primary-light border border-primary-border rounded-lg p-4 mb-6">
+          <p className="text-lg font-medium text-green-900">
             {getWeekDateRange()}
           </p>
         </div>
 
-        <p className="text-gray-600 mb-6">
+        <p className="text-body mb-6">
           Please select items for this week's grocery list:
         </p>
 
         {/* Grouping and Filtering Controls */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-4">
+        <div className="mb-6 p-4 bg-background rounded-lg space-y-4">
           {/* Item Type Filter Section */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-            <span className="font-medium text-gray-700 whitespace-nowrap">Item Type:</span>
+            <span className="font-medium text-body whitespace-nowrap">Item Type:</span>
             <div className="flex flex-wrap gap-2">
               {["All", "Basic", "Periodic"].map((type) => (
                 <button
@@ -1165,7 +1165,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     typeFilter === type
                       ? "bg-green-600 text-white"
-                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                      : "bg-surface text-body border border-default hover:bg-gray-100"
                   }`}
                 >
                   {type}
@@ -1176,7 +1176,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
           {/* Data Source Filter Section */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-            <span className="font-medium text-gray-700 whitespace-nowrap">Data Source:</span>
+            <span className="font-medium text-body whitespace-nowrap">Data Source:</span>
             <div className="flex flex-wrap gap-2">
               {["All", "Staples", "MealIngredients"].map((source) => (
                 <button
@@ -1184,8 +1184,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   onClick={() => handleDataSourceFilterChange(source)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     dataSourceFilter === source
-                      ? "bg-purple-600 text-white"
-                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                      ? "bg-primary text-white"
+                      : "bg-surface text-body border border-default hover:bg-gray-100"
                   }`}
                 >
                   {source === "MealIngredients" ? "Meals" : source}
@@ -1196,7 +1196,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
           {/* Group By Section */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-            <div className="flex items-center gap-2 text-gray-700">
+            <div className="flex items-center gap-2 text-body">
               <Layers size={20} />
               <span className="font-medium whitespace-nowrap">Group by:</span>
             </div>
@@ -1207,8 +1207,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   onClick={() => handleGroupByChange(mode)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     groupBy === mode
-                      ? "bg-blue-600 text-white"
-                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                      ? "bg-primary text-white"
+                      : "bg-surface text-body border border-default hover:bg-gray-100"
                   }`}
                 >
                   {mode === "GroceryStoreSection" ? "Store Section" : mode}
@@ -1219,7 +1219,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         </div>
 
         {/* Group Tabs */}
-        <div className="mb-6 border-b border-gray-200">
+        <div className="mb-6 border-b border-default">
           <div className="flex flex-wrap gap-2">
             {groups.map((group) => {
               const groupItems = getItemsByGroup(group);
@@ -1230,8 +1230,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   onClick={() => setActiveTab(group)}
                   className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
                     activeTab === group
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-primary text-white"
+                      : "bg-gray-100 text-body hover:bg-gray-200"
                   }`}
                 >
                   {group}
@@ -1247,7 +1247,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         {/* Items for Active Group */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="text-lg font-semibold text-heading">
               {groupBy === "GroceryStoreSection" ? "Store Section" : groupBy}:{" "}
               {activeTab}
             </h2>
@@ -1279,7 +1279,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                     return newMap;
                   });
                 }}
-                className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                className="text-sm text-primary hover:text-primary-hover transition-colors"
               >
                 {currentGroupItems.length > 0 && currentGroupItems.every(item => selectedItems.has(item.ItemID.toString()))
                   ? "Deselect All"
@@ -1287,7 +1287,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
               </button>
               <button
                 onClick={() => setShowAddPanel(true)}
-                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                className="flex items-center gap-1 text-primary hover:text-primary-hover transition-colors"
                 title="Add new item"
               >
                 <Plus size={20} />
@@ -1296,7 +1296,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             </div>
           </div>
 
-          <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg bg-white">
+          <div className="max-h-[60vh] overflow-y-auto overscroll-contain border border-default rounded-lg bg-surface">
             <div className="space-y-1 p-2">
               {currentGroupItems.map((item) => (
                 <GroceryItem
@@ -1314,14 +1314,14 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 text-sm text-gray-600 flex items-center">
+          <div className="flex-1 text-sm text-body flex items-center">
             Selected: {selectedItems.size} item
             {selectedItems.size !== 1 ? "s" : ""}
           </div>
           <button
             onClick={handleSubmit}
             disabled={selectedItems.size === 0}
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+            className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
           >
             Review Selection
           </button>

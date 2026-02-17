@@ -46,6 +46,7 @@ const App = () => {
     setCurrentScreen(screen);
     window.history.pushState({ screen }, "", `#${screen}`);
     setSidebarOpen(false);
+    window.scrollTo(0, 0);
   }, []);
 
   const handleStartShopping = useCallback((data) => {
@@ -67,6 +68,7 @@ const App = () => {
         setCurrentScreen("grocery");
       }
       setSidebarOpen(false);
+      window.scrollTo(0, 0);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -82,10 +84,21 @@ const App = () => {
     { id: "coupons", name: "HEB Coupons", icon: Ticket },
   ];
 
+  const toaster = (
+    <Toaster
+      position="top-center"
+      toastOptions={{
+        style: { fontWeight: 500 },
+        success: { duration: 3000 },
+        error: { duration: 4000 },
+      }}
+    />
+  );
+
   if (currentScreen === "in-store") {
     return (
       <>
-        <Toaster position="top-center" />
+        {toaster}
         <InStoreMode
           inStoreData={inStoreData}
           onExit={() => navigateToScreen("grocery")}
@@ -97,7 +110,7 @@ const App = () => {
   if (currentScreen === "chatbot") {
     return (
       <>
-        <Toaster position="top-center" />
+        {toaster}
         <Sidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
@@ -123,7 +136,7 @@ const App = () => {
   if (currentScreen === "meal-creator") {
     return (
       <>
-        <Toaster position="top-center" />
+        {toaster}
         <Sidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
@@ -147,7 +160,7 @@ const App = () => {
   if (currentScreen === "recipe-ingredients") {
     return (
       <>
-        <Toaster position="top-center" />
+        {toaster}
         <Sidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
@@ -169,7 +182,7 @@ const App = () => {
   if (currentScreen === "recipe-instructions") {
     return (
       <>
-        <Toaster position="top-center" />
+        {toaster}
         <Sidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
@@ -190,7 +203,7 @@ const App = () => {
   if (currentScreen === "coupons") {
     return (
       <>
-        <Toaster position="top-center" />
+        {toaster}
         <Sidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}

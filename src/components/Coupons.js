@@ -25,7 +25,7 @@ const CouponCard = ({ coupon }) => {
   const TypeIcon = typeConfig.icon;
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white">
+    <div className="border border-default rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-surface">
       {/* Image */}
       {coupon.image_url && (
         <div className="w-full h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -47,7 +47,7 @@ const CouponCard = ({ coupon }) => {
           </span>
           {daysLeft !== null && (
             <span className={`text-xs font-medium flex items-center gap-1 ${
-              daysLeft <= 3 ? 'text-red-600' : daysLeft <= 7 ? 'text-amber-600' : 'text-gray-500'
+              daysLeft <= 3 ? 'text-red-600' : daysLeft <= 7 ? 'text-amber-600' : 'text-muted'
             }`}>
               <Calendar size={12} />
               {daysLeft <= 0 ? 'Expired' : daysLeft === 1 ? '1 day left' : `${daysLeft} days`}
@@ -61,20 +61,20 @@ const CouponCard = ({ coupon }) => {
         </div>
 
         {/* Product name */}
-        <h3 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2">
+        <h3 className="text-sm font-semibold text-heading mb-1 line-clamp-2">
           {coupon.product_name}
         </h3>
 
         {/* Description */}
         {coupon.description && coupon.description !== coupon.product_name && (
-          <p className="text-xs text-gray-500 line-clamp-2">
+          <p className="text-xs text-muted line-clamp-2">
             {coupon.description}
           </p>
         )}
 
         {/* Uses limit */}
         {coupon.uses_limit && (
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-muted mt-1">
             {coupon.uses_limit}
           </p>
         )}
@@ -162,10 +162,10 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <div className="max-w-6xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading HEB coupons...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-body">Loading HEB coupons...</p>
         </div>
       </div>
     );
@@ -174,22 +174,22 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4">
+      <div className="bg-surface rounded-xl shadow-lg border border-default p-4 sm:p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="bg-red-600 text-white p-2 rounded-lg">
               <Ticket size={24} />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">HEB Digital Coupons</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-xl sm:text-2xl font-bold text-heading">HEB Digital Coupons</h1>
+              <p className="text-sm text-muted">
                 {couponsData.length} active coupon{couponsData.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 sm:hidden"
+            className="flex items-center gap-1 text-sm text-body hover:text-heading sm:hidden"
           >
             Filters {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
@@ -197,23 +197,23 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
+            <AlertCircle className="text-danger flex-shrink-0 mt-0.5" size={18} />
             <div>
               <p className="text-sm font-medium text-red-800">Failed to load coupons</p>
-              <p className="text-xs text-red-600">{error}</p>
+              <p className="text-xs text-danger">{error}</p>
             </div>
           </div>
         )}
 
         {/* Search */}
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
           <input
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Search coupons... (e.g., chicken, pasta, milk)"
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+            className="w-full pl-10 pr-4 py-2.5 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm"
           />
         </div>
 
@@ -231,13 +231,13 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
                   onClick={() => setFilterType(key)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-green-600 text-white'
+                      ? 'bg-primary text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   <Icon size={14} />
                   {config.label}
-                  <span className={`text-xs ${isActive ? 'text-green-100' : 'text-gray-400'}`}>
+                  <span className={`text-xs ${isActive ? 'text-green-100' : 'text-muted'}`}>
                     ({count})
                   </span>
                 </button>
@@ -247,11 +247,11 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
 
           {/* Sort */}
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600">Sort:</span>
+            <span className="text-sm text-body">Sort:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="text-sm border border-default rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-focus"
             >
               <option value="expiration">Expiring Soonest</option>
               <option value="savings">Highest Savings</option>
@@ -262,7 +262,7 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
 
       {/* Results count */}
       {searchText.trim() || filterType !== 'all' ? (
-        <p className="text-sm text-gray-500 mb-3">
+        <p className="text-sm text-muted mb-3">
           Showing {filteredCoupons.length} of {couponsData.length} coupons
           {searchText.trim() && ` matching "${searchText}"`}
         </p>
@@ -276,10 +276,10 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 bg-white rounded-lg shadow-lg">
+        <div className="text-center py-16 bg-surface rounded-xl shadow-lg border border-default">
           <Ticket size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-600">No coupons found</h3>
-          <p className="text-gray-400 mt-1">
+          <h3 className="text-lg font-semibold text-body">No coupons found</h3>
+          <p className="text-muted mt-1">
             {searchText.trim()
               ? 'Try a different search term.'
               : 'No coupons match the selected filter.'}

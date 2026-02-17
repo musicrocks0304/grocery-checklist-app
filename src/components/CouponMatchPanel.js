@@ -166,9 +166,9 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
   };
 
   return (
-    <div className="mt-6 border-2 border-green-300 rounded-lg overflow-hidden bg-white shadow-lg">
+    <div className="mt-6 border-2 border-primary-border rounded-lg overflow-hidden bg-surface shadow-lg">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-4">
+      <div className="bg-gradient-to-r from-green-700 to-green-600 text-white p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-lg">
@@ -195,18 +195,18 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
       </div>
 
       {/* Selection toolbar */}
-      <div className="border-b bg-green-50 px-4 py-3 flex flex-wrap items-center gap-2">
+      <div className="border-b bg-background px-4 py-3 flex flex-wrap items-center gap-2">
         <button
           onClick={selectAllHighConfidence}
           disabled={isClipping}
-          className="text-xs font-medium px-3 py-1.5 rounded-full bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="text-sm font-medium px-4 py-2 rounded-full bg-primary text-white hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
           Select All High Confidence ({highConfidence})
         </button>
         <button
           onClick={allSelected ? deselectAll : selectAll}
           disabled={isClipping}
-          className="text-xs font-medium px-3 py-1.5 rounded-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed transition-colors"
+          className="text-sm font-medium px-4 py-2 rounded-full bg-surface text-body border border-default hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed transition-colors"
         >
           {allSelected ? 'Deselect All' : 'Select All'}
         </button>
@@ -214,7 +214,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
         {/* Selected count and savings */}
         {selectedCount > 0 && (
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-body">
               {selectedCount} selected
             </span>
             {selectedSavings > 0 && (
@@ -230,10 +230,10 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
       {/* Clip progress / results banner */}
       {clipError && (
         <div className="px-4 py-3 bg-red-50 border-b border-red-200 flex items-start gap-2">
-          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={16} />
+          <AlertCircle className="text-danger flex-shrink-0 mt-0.5" size={16} />
           <div>
             <p className="text-sm font-medium text-red-800">Clipping failed</p>
-            <p className="text-xs text-red-600">{clipError}</p>
+            <p className="text-xs text-danger">{clipError}</p>
           </div>
         </div>
       )}
@@ -254,25 +254,25 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
       )}
 
       {/* Match cards grouped by grocery item */}
-      <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
+      <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto overscroll-contain">
         {Object.entries(groupedByItem).map(([itemName, itemMatches]) => {
           const isExpanded = expandedItems.has(itemName) || Object.keys(groupedByItem).length <= 3;
 
           return (
-            <div key={itemName} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div key={itemName} className="border border-default rounded-lg overflow-hidden">
               {/* Grocery item header */}
               <button
                 onClick={() => toggleItem(itemName)}
-                className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                className="w-full flex items-center justify-between p-3 bg-background hover:bg-gray-100 transition-colors text-left"
               >
                 <div className="flex items-center gap-2">
-                  <Check size={16} className="text-green-600" />
-                  <span className="font-medium text-gray-800">{itemName}</span>
-                  <span className="text-xs text-gray-400">
+                  <Check size={16} className="text-primary" />
+                  <span className="font-medium text-heading">{itemName}</span>
+                  <span className="text-xs text-muted">
                     ({itemMatches.length} coupon{itemMatches.length !== 1 ? 's' : ''})
                   </span>
                 </div>
-                {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                {isExpanded ? <ChevronUp size={16} className="text-muted" /> : <ChevronDown size={16} className="text-muted" />}
               </button>
 
               {/* Matched coupons */}
@@ -299,14 +299,14 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
                               checked={isSelected}
                               onChange={() => toggleCouponSelection(hashId)}
                               disabled={isClipping}
-                              className="w-4 h-4 text-green-600 rounded focus:ring-green-500 cursor-pointer disabled:cursor-not-allowed"
+                              className="w-5 h-5 text-primary rounded focus:ring-focus cursor-pointer disabled:cursor-not-allowed"
                             />
                           </label>
                         )}
 
                         {/* Coupon image thumbnail */}
                         {match.image_url && (
-                          <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-gray-100">
+                          <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden bg-background">
                             <img
                               src={match.image_url}
                               alt=""
@@ -318,7 +318,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className="font-medium text-sm text-gray-800 truncate">
+                            <span className="font-medium text-sm text-heading truncate">
                               {match.coupon_name}
                             </span>
                             <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${conf.bg} ${conf.text}`}>
@@ -328,12 +328,12 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
                           <p className="text-sm font-semibold text-green-700 mb-0.5">
                             {match.discount}
                             {match.savings_amount && parseFloat(match.savings_amount) > 0 && (
-                              <span className="text-xs font-normal text-gray-500 ml-2">
+                              <span className="text-xs font-normal text-muted ml-2">
                                 (save ${parseFloat(match.savings_amount).toFixed(2)})
                               </span>
                             )}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted">
                             {match.reason}
                           </p>
                         </div>
@@ -361,8 +361,8 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
       </div>
 
       {/* Footer with Clip button */}
-      <div className="border-t bg-gray-50 p-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-gray-500 flex items-center gap-1">
+      <div className="border-t bg-background p-3 flex items-center justify-between gap-3">
+        <p className="text-xs text-muted flex items-center gap-1">
           <AlertCircle size={12} />
           Matches are AI-suggested. Verify before clipping.
         </p>
@@ -371,7 +371,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
           <button
             onClick={onDismiss}
             disabled={isClipping}
-            className="text-sm text-gray-600 hover:text-gray-800 font-medium disabled:text-gray-400"
+            className="text-sm text-body hover:text-heading font-medium disabled:text-muted"
           >
             Dismiss
           </button>
@@ -379,7 +379,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
           <button
             onClick={handleClipSelected}
             disabled={selectedCount === 0 || isClipping}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
           >
             {isClipping ? (
               <>
@@ -422,7 +422,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
                       <span className="w-2 h-2 rounded-full bg-gray-300"></span>
                     )}
                   </span>
-                  <span className="text-gray-700 truncate flex-1">
+                  <span className="text-body truncate flex-1">
                     {match ? match.coupon_name : couponId}
                   </span>
                   <span className={`font-medium ${statusStyle.text}`}>
