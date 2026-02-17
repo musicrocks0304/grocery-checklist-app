@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Ticket } from "lucide-react";
+import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
@@ -81,7 +81,6 @@ const App = () => {
     { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
     { id: "meal-creator", name: "AI Meal Creator", icon: Sparkles },
     { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
-    { id: "coupons", name: "HEB Coupons", icon: Ticket },
   ];
 
   const toaster = (
