@@ -41,6 +41,30 @@ export const ENDPOINTS = {
   // Clip Server
   clipServerApi: `${CLIP_SERVER_URL}/api/clip`,
   clipServerProgress: `${CLIP_SERVER_URL}/api/clip-progress`,
+
+  // HEB Cart Builder — session management
+  hebSessionStart: `${CLIP_SERVER_URL}/api/heb/session/start`,
+  hebSessionStatus: `${CLIP_SERVER_URL}/api/heb/session/status`,
+  hebSessionEnd: `${CLIP_SERVER_URL}/api/heb/session/end`,
+
+  // HEB Cart Builder — product search & cart
+  hebSearch: `${CLIP_SERVER_URL}/api/heb/search`,
+  hebSearchBatch: `${CLIP_SERVER_URL}/api/heb/search-batch`,
+  hebFrequent: `${CLIP_SERVER_URL}/api/heb/frequent`,
+  hebCart: `${CLIP_SERVER_URL}/api/heb/cart`,
+  hebAddToCart: `${CLIP_SERVER_URL}/api/heb/add-to-cart`,
+  hebProduct: `${CLIP_SERVER_URL}/api/heb/product`,
+  hebBuildCart: `${CLIP_SERVER_URL}/api/heb/build-cart`,
+  hebBuildProgress: `${CLIP_SERVER_URL}/api/heb/build-progress`,
+
+  // HEB Cart Builder — product matches
+  hebMatchesAll: `${CLIP_SERVER_URL}/api/heb/matches/all`,
+  hebMatches: `${CLIP_SERVER_URL}/api/heb/matches`,
+  hebMatchConfirm: `${CLIP_SERVER_URL}/api/heb/matches/confirm`,
+  hebMatchReject: `${CLIP_SERVER_URL}/api/heb/matches/reject`,
+
+  // HEB Cart Builder — AI smart matching (n8n)
+  hebSmartMatch: `${API_BASE_URL}/smart_match_grocery`,
 };
 
 /**

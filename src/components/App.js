@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles } from "lucide-react";
+import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Store } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
@@ -9,8 +9,9 @@ import GroceryChecklist from "./GroceryChecklist";
 import InStoreMode from "./InStoreMode";
 import MealCreator from "./MealCreator";
 import Coupons from "./Coupons";
+import HebCart from "./HebCart";
 
-const VALID_SCREENS = ["grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions", "in-store", "coupons"];
+const VALID_SCREENS = ["grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions", "in-store", "coupons", "heb-cart"];
 
 // Only show debug panels when ?debug=true is in the URL
 const isDebugMode = () => {
@@ -81,6 +82,7 @@ const App = () => {
     { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
     { id: "meal-creator", name: "AI Meal Creator", icon: Sparkles },
     { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
+    { id: "heb-cart", name: "HEB Cart Builder", icon: Store },
   ];
 
   const toaster = (
@@ -211,6 +213,26 @@ const App = () => {
           navigation={navigation}
         >
           <Coupons
+            onNavigate={navigateToScreen}
+            onToggleSidebar={() => setSidebarOpen(true)}
+          />
+        </Sidebar>
+      </>
+    );
+  }
+
+  if (currentScreen === "heb-cart") {
+    return (
+      <>
+        {toaster}
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          currentScreen={currentScreen}
+          setCurrentScreen={navigateToScreen}
+          navigation={navigation}
+        >
+          <HebCart
             onNavigate={navigateToScreen}
             onToggleSidebar={() => setSidebarOpen(true)}
           />

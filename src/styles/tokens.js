@@ -150,4 +150,5 @@ export const SCREEN_THEME = {
   'recipe-ingredients': THEMES.green,
   'recipe-instructions': THEMES.amber,
   'meal-creator': THEMES.amber,
+  'heb-cart': THEMES.green,
 };
