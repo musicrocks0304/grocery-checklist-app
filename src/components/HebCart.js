@@ -1032,6 +1032,13 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
     }
   }, [sessionStatus, step]);
 
+  // --- Pre-load weekly items when entering the match step ---
+  useEffect(() => {
+    if (step === 'match' && groceryItems.length === 0 && !loadingGroceries) {
+      loadGroceryItems();
+    }
+  }, [step, groceryItems.length, loadingGroceries, loadGroceryItems]);
+
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6">
       {/* Header */}
