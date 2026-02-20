@@ -625,14 +625,19 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
         return;
       }
 
-      // Fetch frequently purchased products for context
-      setMatchProgress('Getting your frequently purchased items...');
+      // Fetch cached frequently purchased products (no browser session needed)
+      setMatchProgress('Loading your frequently purchased items...');
       let frequentProducts = [];
       try {
-        const freqRes = await fetch(ENDPOINTS.hebFrequent);
+        const freqRes = await fetch(ENDPOINTS.hebFrequentCached);
         if (freqRes.ok) {
           const freqData = await freqRes.json();
           frequentProducts = freqData.products || [];
+          if (frequentProducts.length > 0) {
+            console.log(`[heb-cart] Loaded ${frequentProducts.length} cached frequent products`);
+          } else {
+            console.log('[heb-cart] No cached frequent products — run scrape:frequent to populate');
+          }
         }
       } catch {} // non-critical
 
@@ -697,15 +702,6 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
             discount: item.couponDiscount,
             clipped: item.couponClipped,
           } : null,
-          frequentProducts: frequentProducts.map(fp => ({
-            name: fp.name,
-            id: fp.id,
-            skuId: fp.skuId,
-            price: fp.price,
-            category: fp.category,
-            productUrl: fp.productUrl,
-            imageUrl: fp.imageUrl,
-          })),
           searchResults: (searchResultsMap[searchQueries[idx]]?.products || []).map(sr => ({
             name: sr.name,
             id: sr.id,
@@ -719,12 +715,23 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
           })),
         }));
 
+        // Send frequent products at batch level (not per-item) to save tokens
+        const batchFrequentProducts = frequentProducts.map(fp => ({
+          name: fp.name,
+          id: fp.id,
+          skuId: fp.skuId,
+          price: fp.price,
+          category: fp.category,
+          productUrl: fp.productUrl,
+          imageUrl: fp.imageUrl,
+        }));
+
         // Step 3: Call AI Smart Match
         try {
           const aiRes = await apiFetch(ENDPOINTS.hebSmartMatch, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: batchItems }),
+            body: JSON.stringify({ items: batchItems, frequentProducts: batchFrequentProducts }),
           });
 
           if (aiRes.ok) {
@@ -733,7 +740,34 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
             const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
             const aiMatches = resultObj?.matches || [];
 
-            for (const m of aiMatches) {
+            // Log server-side validation drops (if any)
+            if (resultObj?.droppedCount > 0) {
+              console.warn(`[heb-cart] Server dropped ${resultObj.droppedCount} hallucinated match(es):`, resultObj.droppedMatches);
+            }
+
+            // Client-side validation: ensure every match references a real product
+            const allValidProductIds = new Set();
+            for (const query of searchQueries) {
+              const products = searchResultsMap[query]?.products || [];
+              for (const p of products) {
+                if (p.id) allValidProductIds.add(String(p.id));
+              }
+            }
+            for (const fp of frequentProducts) {
+              if (fp.id) allValidProductIds.add(String(fp.id));
+            }
+
+            const validatedAiMatches = aiMatches.filter(m => {
+              if (!m.hebProductId) return false;
+              return allValidProductIds.has(String(m.hebProductId));
+            });
+
+            if (validatedAiMatches.length < aiMatches.length) {
+              const dropped = aiMatches.length - validatedAiMatches.length;
+              console.warn(`[heb-cart] Client-side validation dropped ${dropped} match(es) with unknown product IDs`);
+            }
+
+            for (const m of validatedAiMatches) {
               newMatches[m.groceryItemId] = {
                 hebProductId: m.hebProductId,
                 hebSkuId: m.hebSkuId,

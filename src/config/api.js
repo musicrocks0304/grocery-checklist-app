@@ -51,6 +51,7 @@ export const ENDPOINTS = {
   hebSearch: `${CLIP_SERVER_URL}/api/heb/search`,
   hebSearchBatch: `${CLIP_SERVER_URL}/api/heb/search-batch`,
   hebFrequent: `${CLIP_SERVER_URL}/api/heb/frequent`,
+  hebFrequentCached: `${CLIP_SERVER_URL}/api/heb/frequent-cached`,
   hebCart: `${CLIP_SERVER_URL}/api/heb/cart`,
   hebAddToCart: `${CLIP_SERVER_URL}/api/heb/add-to-cart`,
   hebProduct: `${CLIP_SERVER_URL}/api/heb/product`,
