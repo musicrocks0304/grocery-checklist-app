@@ -65,6 +65,12 @@ export const ENDPOINTS = {
 
   // HEB Cart Builder — AI smart matching (n8n)
   hebSmartMatch: `${API_BASE_URL}/smart_match_grocery`,
+
+  // HEB Cart Builder — weekly list + coupon data
+  hebWeeklyItems: `${CLIP_SERVER_URL}/api/heb/weekly-items`,
+
+  // Coupon match persistence (n8n)
+  saveCouponMatches: `${API_BASE_URL}/save_coupon_matches`,
 };
 
 /**

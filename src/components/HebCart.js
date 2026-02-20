@@ -5,6 +5,7 @@ import {
   CheckCircle2, XCircle, SkipForward, ArrowRight, Eye, Star,
 } from 'lucide-react';
 import { ENDPOINTS, apiFetch } from '../config/api';
+import { getWeekDateRange } from '../utils/weekDates';
 import toast from 'react-hot-toast';
 
 // ─── Step indicator ─────────────────────────────────────────────
@@ -133,8 +134,11 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
     low: 'bg-red-100 text-red-700',
   };
 
+  const isCouponMatch = match?.matchSource === 'coupon';
+
   return (
     <div className={`border rounded-lg p-3 transition-all ${
+      isCouponMatch ? 'border-l-4 border-l-green-500 border-green-200 bg-green-50/30' :
       isConfirmed ? 'border-green-300 bg-green-50/50' :
       hasMatch ? 'border-default bg-surface' :
       'border-amber-200 bg-amber-50/50'
@@ -144,6 +148,11 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-semibold text-heading truncate">{item.ItemName}</span>
+            {item.Quantity > 1 && (
+              <span className="text-xs font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                x{item.Quantity}
+              </span>
+            )}
             <span className="text-xs text-muted bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">
               {item.Category}
             </span>
@@ -171,6 +180,11 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
                   {match.matchSource === 'frequently_purchased' && (
                     <span className="text-xs text-blue-600 flex items-center gap-0.5">
                       <Star size={10} /> Repeat buy
+                    </span>
+                  )}
+                  {isCouponMatch && item.couponSavings && (
+                    <span className="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full font-medium">
+                      Save ${Number(item.couponSavings).toFixed(2)}{item.couponClipped ? ' | Clipped' : ''}
                     </span>
                   )}
                 </div>
@@ -440,7 +454,6 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
   const [searchItem, setSearchItem] = useState(null); // item being searched
   const [buildProgress, setBuildProgress] = useState([]);
   const [buildSummary, setBuildSummary] = useState(null);
-  // eslint-disable-next-line no-unused-vars
   const [loadingGroceries, setLoadingGroceries] = useState(false);
   const eventSourceRef = useRef(null);
 
@@ -528,23 +541,29 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
     }
   }, [sessionStatus]);
 
-  // --- Load grocery items + existing matches ---
+  // --- Load weekly grocery items + coupon data + existing matches ---
   const loadGroceryItems = useCallback(async () => {
     setLoadingGroceries(true);
-    setMatchProgress('Loading your grocery list...');
+    setMatchProgress('Loading your weekly grocery list...');
     try {
-      // Fetch active grocery items
-      const groceryRes = await apiFetch(ENDPOINTS.fetchGroceryItems, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-        mode: 'cors',
-      });
-      if (!groceryRes.ok) throw new Error('Failed to load grocery list');
-      const groceryData = await groceryRes.json();
-      const items = Array.isArray(groceryData) ? groceryData : [];
+      // Fetch current week's grocery list with coupon data
+      const weekDateRange = getWeekDateRange();
+      const weeklyRes = await fetch(
+        `${ENDPOINTS.hebWeeklyItems}?weekDateRange=${encodeURIComponent(weekDateRange)}`
+      );
+      if (!weeklyRes.ok) throw new Error('Failed to load weekly grocery list');
+      const weeklyData = await weeklyRes.json();
+      const items = weeklyData.items || [];
+
+      if (items.length === 0) {
+        setGroceryItems([]);
+        setMatches({});
+        return { items: [], savedMatches: {} };
+      }
+
       setGroceryItems(items);
 
-      // Load existing saved matches
+      // Load existing saved matches for these items
       setMatchProgress('Loading saved product matches...');
       const matchRes = await fetch(ENDPOINTS.hebMatchesAll);
       let savedMatches = {};
@@ -590,7 +609,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
     try {
       const { items, savedMatches } = await loadGroceryItems();
       if (items.length === 0) {
-        toast.error('No active grocery items found');
+        toast.error('No items found for this week. Save your grocery list first!');
         setIsMatching(false);
         return;
       }
@@ -636,13 +655,21 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
           `Searching HEB for items ${batchStart}-${batchEnd} of ${needsMatch.length} (3 parallel workers)...`
         );
 
+        // Build search queries — use coupon product name if available (more specific)
+        const searchQueries = batch.map(item => {
+          if (item.couponProductName) {
+            return item.couponProductName.split(',')[0].trim().substring(0, 60);
+          }
+          return item.ItemName;
+        });
+
         let searchResultsMap = {};
         try {
           const batchSearchRes = await fetch(ENDPOINTS.hebSearchBatch, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              queries: batch.map(item => item.ItemName),
+              queries: searchQueries,
               maxResults: 8,
             }),
           });
@@ -659,10 +686,17 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
           `AI matching items ${batchStart}-${batchEnd} of ${needsMatch.length}...`
         );
 
-        const batchItems = batch.map(item => ({
+        const batchItems = batch.map((item, idx) => ({
           groceryItemId: item.ItemID,
           groceryItemName: item.ItemName,
           category: item.Category,
+          quantity: item.Quantity || 1,
+          coupon: item.couponHashId ? {
+            productName: item.couponProductName,
+            savings: item.couponSavings,
+            discount: item.couponDiscount,
+            clipped: item.couponClipped,
+          } : null,
           frequentProducts: frequentProducts.map(fp => ({
             name: fp.name,
             id: fp.id,
@@ -672,7 +706,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
             productUrl: fp.productUrl,
             imageUrl: fp.imageUrl,
           })),
-          searchResults: (searchResultsMap[item.ItemName]?.products || []).map(sr => ({
+          searchResults: (searchResultsMap[searchQueries[idx]]?.products || []).map(sr => ({
             name: sr.name,
             id: sr.id,
             skuId: sr.skuId,
@@ -975,7 +1009,19 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
   const estimatedTotal = useMemo(() => {
     return groceryItems.reduce((sum, item) => {
       const m = matches[item.ItemID];
-      return sum + (m?.hebPrice ? Number(m.hebPrice) : 0);
+      const qty = item.Quantity || 1;
+      return sum + (m?.hebPrice ? Number(m.hebPrice) * qty : 0);
+    }, 0);
+  }, [groceryItems, matches]);
+
+  const couponSavingsTotal = useMemo(() => {
+    return groceryItems.reduce((sum, item) => {
+      const m = matches[item.ItemID];
+      if (m?.matchSource === 'coupon' && item.couponSavings) {
+        const qty = item.Quantity || 1;
+        return sum + (Number(item.couponSavings) * qty);
+      }
+      return sum;
     }, 0);
   }, [groceryItems, matches]);
 
@@ -1042,10 +1088,26 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
               <p className="text-body font-medium">{matchProgress}</p>
               <p className="text-sm text-muted mt-1">This may take a minute...</p>
             </div>
+          ) : groceryItems.length === 0 && !loadingGroceries ? (
+            <div className="text-center py-8 space-y-3">
+              <AlertCircle size={40} className="text-amber-500 mx-auto" />
+              <p className="text-body font-medium">No weekly grocery list found</p>
+              <p className="text-sm text-muted">
+                Save your grocery list from the Weekly Grocery Selection screen first.
+              </p>
+              <button
+                onClick={() => onNavigate?.('grocery')}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors"
+              >
+                <ShoppingCart size={16} />
+                Go to Grocery Checklist
+              </button>
+            </div>
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-body">
-                Click below to start the AI matching process. Items with previously confirmed matches will be reused automatically.
+                AI will match your {groceryItems.length > 0 ? `${groceryItems.length} weekly items` : 'grocery list'} to HEB products.
+                {groceryItems.some(i => i.couponHashId) && ' Items with clipped coupons will be prioritized.'}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3">
@@ -1099,6 +1161,12 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                {couponSavingsTotal > 0 && (
+                  <div className="text-right">
+                    <p className="text-xs text-muted">Coupon Savings</p>
+                    <p className="text-sm font-bold text-green-600">-${couponSavingsTotal.toFixed(2)}</p>
+                  </div>
+                )}
                 {estimatedTotal > 0 && (
                   <div className="text-right">
                     <p className="text-xs text-muted">Estimated Total</p>
@@ -1157,9 +1225,14 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
               <p className="text-sm font-medium text-heading">
                 {matchStats.matched} items ready
               </p>
-              {estimatedTotal > 0 && (
-                <p className="text-xs text-muted">~${estimatedTotal.toFixed(2)} estimated</p>
-              )}
+              <div className="flex items-center gap-2">
+                {estimatedTotal > 0 && (
+                  <span className="text-xs text-muted">~${estimatedTotal.toFixed(2)}</span>
+                )}
+                {couponSavingsTotal > 0 && (
+                  <span className="text-xs text-green-600 font-medium">(-${couponSavingsTotal.toFixed(2)} coupons)</span>
+                )}
+              </div>
             </div>
             <button
               onClick={handleBuildCart}

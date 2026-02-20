@@ -719,6 +719,22 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                       console.log('[coupon-match] Parsed matches count:', matches.length);
                       if (matches.length > 0) {
                         setCouponMatches(matches);
+
+                        // Persist coupon matches to DB (fire-and-forget)
+                        apiFetch(ENDPOINTS.saveCouponMatches, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            weekDateRange: weekData.displayRange,
+                            matches: matches.map(m => ({
+                              groceryItemName: m.grocery_item,
+                              couponHashId: m.coupon_hash_id,
+                              confidence: m.confidence,
+                              matchReason: m.reason,
+                            })),
+                          }),
+                        }).catch(err => console.warn('[coupon-persist]', err.message));
+
                         addDebugLog(`✅ Found ${matches.length} coupon matches`);
                         toast.success(`Found ${matches.length} coupon matches! Scroll down to view.`);
                         // Auto-scroll to coupon panel after a brief delay for render
