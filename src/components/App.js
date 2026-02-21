@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Store } from "lucide-react";
+import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Store, Tag } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
@@ -10,8 +10,9 @@ import InStoreMode from "./InStoreMode";
 import MealCreator from "./MealCreator";
 import Coupons from "./Coupons";
 import HebCart from "./HebCart";
+import SmartDeals from "./SmartDeals";
 
-const VALID_SCREENS = ["grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions", "in-store", "coupons", "heb-cart"];
+const VALID_SCREENS = ["grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions", "in-store", "coupons", "heb-cart", "smart-deals"];
 
 // Only show debug panels when ?debug=true is in the URL
 const isDebugMode = () => {
@@ -83,6 +84,7 @@ const App = () => {
     { id: "meal-creator", name: "AI Meal Creator", icon: Sparkles },
     { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
     { id: "heb-cart", name: "HEB Cart Builder", icon: Store },
+    { id: "smart-deals", name: "Smart Deals", icon: Tag },
   ];
 
   const toaster = (
@@ -213,6 +215,26 @@ const App = () => {
           navigation={navigation}
         >
           <Coupons
+            onNavigate={navigateToScreen}
+            onToggleSidebar={() => setSidebarOpen(true)}
+          />
+        </Sidebar>
+      </>
+    );
+  }
+
+  if (currentScreen === "smart-deals") {
+    return (
+      <>
+        {toaster}
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          currentScreen={currentScreen}
+          setCurrentScreen={navigateToScreen}
+          navigation={navigation}
+        >
+          <SmartDeals
             onNavigate={navigateToScreen}
             onToggleSidebar={() => setSidebarOpen(true)}
           />

@@ -982,18 +982,20 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
     const itemsToAdd = groceryItems
       .map(item => {
         const match = matches[item.ItemID];
-        if (!match || !match.hebProductUrl) return null;
+        if (!match || !match.hebProductUrl || !match.userConfirmed) return null;
         return {
           groceryItemId: item.ItemID,
           groceryItemName: item.ItemName,
           productUrl: match.hebProductUrl,
           hebProductId: match.hebProductId,
+          hebSkuId: match.hebSkuId || null,
+          quantity: item.Quantity || 1,
         };
       })
       .filter(Boolean);
 
     if (itemsToAdd.length === 0) {
-      toast.error('No items to add. Confirm at least one match.');
+      toast.error('No confirmed items to add. Accept at least one match first.');
       return;
     }
 
@@ -1311,7 +1313,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
           <div className="sticky bottom-4 bg-surface rounded-xl shadow-xl border border-default p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-heading">
-                {matchStats.matched} items ready
+                {matchStats.confirmed} items confirmed
               </p>
               <div className="flex items-center gap-2">
                 {estimatedTotal > 0 && (
@@ -1324,15 +1326,15 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
             </div>
             <button
               onClick={handleBuildCart}
-              disabled={matchStats.matched === 0}
+              disabled={matchStats.confirmed === 0}
               className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-colors ${
-                matchStats.matched > 0
+                matchStats.confirmed > 0
                   ? 'bg-primary text-white hover:bg-primary-hover'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
               <ShoppingCart size={18} />
-              Build HEB Cart
+              Build HEB Cart ({matchStats.confirmed})
               <ArrowRight size={16} />
             </button>
           </div>
@@ -1344,7 +1346,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
         <BuildProgressPanel
           progress={buildProgress}
           summary={buildSummary}
-          totalItems={groceryItems.filter(i => matches[i.ItemID]?.hebProductUrl).length}
+          totalItems={groceryItems.filter(i => matches[i.ItemID]?.userConfirmed && matches[i.ItemID]?.hebProductUrl).length}
         />
       )}
 

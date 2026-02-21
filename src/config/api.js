@@ -72,6 +72,12 @@ export const ENDPOINTS = {
 
   // Coupon match persistence (n8n)
   saveCouponMatches: `${API_BASE_URL}/save_coupon_matches`,
+
+  // Smart Deals — frequent products vs active coupons (n8n)
+  smartDeals: `${API_BASE_URL}/smart_deals`,
+
+  // Add item to weekly list (clip server)
+  hebAddWeeklyItem: `${CLIP_SERVER_URL}/api/heb/add-weekly-item`,
 };
 
 /**
