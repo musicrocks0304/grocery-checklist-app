@@ -5,6 +5,7 @@ import {
   ChevronDown, ChevronUp, Plus, Menu, Filter,
 } from 'lucide-react';
 import { ENDPOINTS, CLIP_SERVER_URL, apiFetch } from '../config/api';
+import { getWeekDates } from '../utils/weekDates';
 
 const CONFIDENCE_STYLES = {
   high: { bg: 'bg-green-100', text: 'text-green-700', label: 'High Match' },
@@ -212,6 +213,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
     setAddingToList(prev => new Map(prev).set(dealId, 'adding'));
 
     try {
+      const weekData = getWeekDates();
       const response = await fetch(ENDPOINTS.hebAddWeeklyItem, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -219,6 +221,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
           itemName: deal.frequentProduct.name,
           brand: deal.frequentProduct.brand || null,
           category: deal.frequentProduct.category || null,
+          weekDateRange: weekData.displayRange,
         }),
       });
 
