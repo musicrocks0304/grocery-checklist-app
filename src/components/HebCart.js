@@ -602,6 +602,68 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
   }, []);
 
   // --- Smart Match (AI) ---
+  // Helper: process AI match response, validate, save, and update state
+  const processAiMatches = useCallback((resultObj, validProductIds, frequentProducts, matchesAccum) => {
+    const aiMatches = resultObj?.matches || [];
+
+    if (resultObj?.droppedCount > 0) {
+      console.warn(`[heb-cart] Server dropped ${resultObj.droppedCount} hallucinated match(es):`, resultObj.droppedMatches);
+    }
+
+    // Client-side validation: ensure every match references a real product
+    const allValidIds = new Set([...validProductIds]);
+    for (const fp of frequentProducts) {
+      if (fp.id) allValidIds.add(String(fp.id));
+    }
+
+    const validated = aiMatches.filter(m => {
+      if (!m.hebProductId) return false;
+      return allValidIds.has(String(m.hebProductId));
+    });
+
+    if (validated.length < aiMatches.length) {
+      console.warn(`[heb-cart] Client-side validation dropped ${aiMatches.length - validated.length} match(es) with unknown product IDs`);
+    }
+
+    for (const m of validated) {
+      matchesAccum[m.groceryItemId] = {
+        hebProductId: m.hebProductId,
+        hebSkuId: m.hebSkuId,
+        hebProductName: m.hebProductName,
+        hebProductUrl: m.hebProductUrl,
+        hebImageUrl: m.hebImageUrl,
+        hebPrice: m.hebPrice,
+        hebCategory: m.hebCategory,
+        confidence: m.confidence,
+        matchSource: m.matchSource,
+        matchReason: m.matchReason,
+        userConfirmed: false,
+      };
+
+      // Save to DB (fire and forget)
+      fetch(ENDPOINTS.hebMatches, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groceryItemId: m.groceryItemId,
+          groceryItemName: m.groceryItemName,
+          hebProductId: m.hebProductId,
+          hebSkuId: m.hebSkuId,
+          hebProductName: m.hebProductName,
+          hebProductUrl: m.hebProductUrl,
+          hebImageUrl: m.hebImageUrl,
+          hebPrice: m.hebPrice,
+          hebCategory: m.hebCategory,
+          matchSource: m.matchSource,
+          confidence: m.confidence,
+          matchReason: m.matchReason,
+        }),
+      }).catch(() => {});
+    }
+
+    return validated.length;
+  }, []);
+
   const runSmartMatch = useCallback(async () => {
     setIsMatching(true);
     setMatchProgress('Loading grocery list...');
@@ -614,7 +676,6 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
         return;
       }
 
-      // Determine which items need AI matching (no confirmed match)
       const needsMatch = items.filter(item => !savedMatches[item.ItemID]?.userConfirmed);
       const alreadyMatched = items.filter(item => savedMatches[item.ItemID]?.userConfirmed);
 
@@ -633,112 +694,35 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
         if (freqRes.ok) {
           const freqData = await freqRes.json();
           frequentProducts = freqData.products || [];
-          if (frequentProducts.length > 0) {
-            console.log(`[heb-cart] Loaded ${frequentProducts.length} cached frequent products`);
-          } else {
-            console.log('[heb-cart] No cached frequent products — run scrape:frequent to populate');
-          }
+          console.log(`[heb-cart] Loaded ${frequentProducts.length} cached frequent products`);
         }
       } catch {} // non-critical
 
-      // Batch items for AI matching (up to 10 at a time to avoid token limits)
-      const BATCH_SIZE = 10;
-      const batches = [];
-      for (let i = 0; i < needsMatch.length; i += BATCH_SIZE) {
-        batches.push(needsMatch.slice(i, i + BATCH_SIZE));
-      }
+      const batchFrequentProducts = frequentProducts.map(fp => ({
+        name: fp.name, id: fp.id, skuId: fp.skuId, price: fp.price,
+        category: fp.category, productUrl: fp.productUrl, imageUrl: fp.imageUrl,
+      }));
 
       const newMatches = { ...savedMatches };
+      const frequentProductIds = new Set(frequentProducts.map(fp => String(fp.id)).filter(Boolean));
 
-      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
-        const batch = batches[batchIdx];
-        const batchStart = batchIdx * BATCH_SIZE + 1;
-        const batchEnd = Math.min((batchIdx + 1) * BATCH_SIZE, needsMatch.length);
+      // ────────────────────────────────────────────────────────────────
+      // PHASE 1: Match against cached frequently purchased products (instant, no browser)
+      // ────────────────────────────────────────────────────────────────
+      setMatchProgress(
+        `Matching ${needsMatch.length} items against ${frequentProducts.length} frequently purchased products...`
+      );
 
-        // Step 1: Batch search HEB for all items in this batch (parallel on server)
-        setMatchProgress(
-          `Searching HEB for items ${batchStart}-${batchEnd} of ${needsMatch.length} (3 parallel workers)...`
-        );
+      const BATCH_SIZE = 10;
+      const phase1Batches = [];
+      for (let i = 0; i < needsMatch.length; i += BATCH_SIZE) {
+        phase1Batches.push(needsMatch.slice(i, i + BATCH_SIZE));
+      }
 
-        // Build search queries — use generic item name as primary search
-        // Coupon product names are often too specific (e.g. "H-E-B Natural Lean Ground Turkey, 93% Lean")
-        // and may not return results, so search with the generic grocery item name instead.
-        const searchQueries = batch.map(item => item.ItemName);
-
-        // Also prepare coupon-specific searches for items that have coupons
-        const couponQueries = [];
-        const couponQueryIndexes = [];
-        batch.forEach((item, idx) => {
-          if (item.couponProductName) {
-            const couponSearch = item.couponProductName.split(',')[0].trim().substring(0, 60);
-            if (couponSearch.toLowerCase() !== item.ItemName.toLowerCase()) {
-              couponQueries.push(couponSearch);
-              couponQueryIndexes.push(idx);
-            }
-          }
-        });
-
-        let searchResultsMap = {};
-        try {
-          // Primary search with generic item names
-          const batchSearchRes = await fetch(ENDPOINTS.hebSearchBatch, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              queries: searchQueries,
-              maxResults: 12,
-            }),
-          });
-          if (batchSearchRes.ok) {
-            const batchSearchData = await batchSearchRes.json();
-            searchResultsMap = batchSearchData.results || {};
-          }
-
-          // Secondary search with coupon product names (if any)
-          if (couponQueries.length > 0) {
-            const couponSearchRes = await fetch(ENDPOINTS.hebSearchBatch, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                queries: couponQueries,
-                maxResults: 6,
-              }),
-            });
-            if (couponSearchRes.ok) {
-              const couponSearchData = await couponSearchRes.json();
-              const couponResults = couponSearchData.results || {};
-
-              // Merge coupon search results into the primary results
-              couponQueries.forEach((cq, i) => {
-                const itemName = searchQueries[couponQueryIndexes[i]];
-                const existing = searchResultsMap[itemName]?.products || [];
-                const couponProducts = couponResults[cq]?.products || [];
-
-                // Add coupon search results that aren't already in the primary results
-                const existingIds = new Set(existing.map(p => String(p.id)));
-                const newProducts = couponProducts.filter(p => !existingIds.has(String(p.id)));
-
-                if (newProducts.length > 0) {
-                  searchResultsMap[itemName] = {
-                    ...searchResultsMap[itemName],
-                    success: true,
-                    products: [...existing, ...newProducts],
-                  };
-                  console.log(`[heb-cart] Added ${newProducts.length} coupon search results for "${itemName}" from coupon query "${cq}"`);
-                }
-              });
-            }
-          }
-        } catch (err) {
-          console.error('[heb-cart] Batch search error:', err.message);
-        }
-
-        // Step 2: Build AI match request
-        setMatchProgress(
-          `AI matching items ${batchStart}-${batchEnd} of ${needsMatch.length}...`
-        );
-
-        const batchItems = batch.map((item, idx) => ({
+      let phase1Matched = 0;
+      for (let batchIdx = 0; batchIdx < phase1Batches.length; batchIdx++) {
+        const batch = phase1Batches[batchIdx];
+        const batchItems = batch.map(item => ({
           groceryItemId: item.ItemID,
           groceryItemName: item.ItemName,
           category: item.Category,
@@ -749,31 +733,9 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
             discount: item.couponDiscount,
             clipped: item.couponClipped,
           } : null,
-          searchResults: (searchResultsMap[searchQueries[idx]]?.products || []).map(sr => ({
-            name: sr.name,
-            id: sr.id,
-            skuId: sr.skuId,
-            price: sr.price,
-            brand: sr.brand,
-            inStock: sr.inStock,
-            productUrl: sr.productUrl,
-            imageUrl: sr.imageUrl,
-            category: sr.category,
-          })),
+          searchResults: [], // No live search — match against frequent products only
         }));
 
-        // Send frequent products at batch level (not per-item) to save tokens
-        const batchFrequentProducts = frequentProducts.map(fp => ({
-          name: fp.name,
-          id: fp.id,
-          skuId: fp.skuId,
-          price: fp.price,
-          category: fp.category,
-          productUrl: fp.productUrl,
-          imageUrl: fp.imageUrl,
-        }));
-
-        // Step 3: Call AI Smart Match
         try {
           const aiRes = await apiFetch(ENDPOINTS.hebSmartMatch, {
             method: 'POST',
@@ -783,87 +745,125 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
 
           if (aiRes.ok) {
             const aiData = await aiRes.json();
-            // n8n returns array, take first item
             const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
-            const aiMatches = resultObj?.matches || [];
-
-            // Log server-side validation drops (if any)
-            if (resultObj?.droppedCount > 0) {
-              console.warn(`[heb-cart] Server dropped ${resultObj.droppedCount} hallucinated match(es):`, resultObj.droppedMatches);
-            }
-
-            // Client-side validation: ensure every match references a real product
-            const allValidProductIds = new Set();
-            for (const query of searchQueries) {
-              const products = searchResultsMap[query]?.products || [];
-              for (const p of products) {
-                if (p.id) allValidProductIds.add(String(p.id));
-              }
-            }
-            for (const fp of frequentProducts) {
-              if (fp.id) allValidProductIds.add(String(fp.id));
-            }
-
-            const validatedAiMatches = aiMatches.filter(m => {
-              if (!m.hebProductId) return false;
-              return allValidProductIds.has(String(m.hebProductId));
-            });
-
-            if (validatedAiMatches.length < aiMatches.length) {
-              const dropped = aiMatches.length - validatedAiMatches.length;
-              console.warn(`[heb-cart] Client-side validation dropped ${dropped} match(es) with unknown product IDs`);
-            }
-
-            for (const m of validatedAiMatches) {
-              newMatches[m.groceryItemId] = {
-                hebProductId: m.hebProductId,
-                hebSkuId: m.hebSkuId,
-                hebProductName: m.hebProductName,
-                hebProductUrl: m.hebProductUrl,
-                hebImageUrl: m.hebImageUrl,
-                hebPrice: m.hebPrice,
-                hebCategory: m.hebCategory,
-                confidence: m.confidence,
-                matchSource: m.matchSource,
-                matchReason: m.matchReason,
-                userConfirmed: false,
-              };
-
-              // Save to DB (fire and forget)
-              fetch(ENDPOINTS.hebMatches, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  groceryItemId: m.groceryItemId,
-                  groceryItemName: m.groceryItemName,
-                  hebProductId: m.hebProductId,
-                  hebSkuId: m.hebSkuId,
-                  hebProductName: m.hebProductName,
-                  hebProductUrl: m.hebProductUrl,
-                  hebImageUrl: m.hebImageUrl,
-                  hebPrice: m.hebPrice,
-                  hebCategory: m.hebCategory,
-                  matchSource: m.matchSource,
-                  confidence: m.confidence,
-                  matchReason: m.matchReason,
-                }),
-              }).catch(() => {}); // Non-critical, fire and forget
-            }
-
-            // Update matches progressively so user sees results appearing
+            const count = processAiMatches(resultObj, frequentProductIds, frequentProducts, newMatches);
+            phase1Matched += count;
             setMatches(prev => ({ ...prev, ...newMatches }));
+
+            setMatchProgress(
+              `Phase 1: Matched ${phase1Matched} of ${needsMatch.length} from purchase history...`
+            );
           }
         } catch (err) {
-          console.error('[heb-cart] AI match batch error:', err.message);
-          toast.error(`AI matching failed for batch ${batchIdx + 1}: ${err.message}`);
+          console.error(`[heb-cart] Phase 1 AI match error (batch ${batchIdx + 1}):`, err.message);
         }
+      }
+
+      console.log(`[heb-cart] Phase 1 complete: ${phase1Matched} matched from frequent products`);
+
+      // ────────────────────────────────────────────────────────────────
+      // PHASE 2: Live search for unmatched items (single worker, slow & careful)
+      // ────────────────────────────────────────────────────────────────
+      const unmatchedItems = needsMatch.filter(item => !newMatches[item.ItemID]);
+
+      if (unmatchedItems.length > 0 && sessionStatus === 'connected') {
+        setMatchProgress(
+          `${phase1Matched} matched from history. Searching HEB for ${unmatchedItems.length} remaining items...`
+        );
+
+        // Search one at a time to avoid WAF (single query per request)
+        for (let i = 0; i < unmatchedItems.length; i += BATCH_SIZE) {
+          const batch = unmatchedItems.slice(i, Math.min(i + BATCH_SIZE, unmatchedItems.length));
+          const searchQueries = batch.map(item => item.ItemName);
+
+          setMatchProgress(
+            `Searching HEB for items ${i + 1}-${Math.min(i + BATCH_SIZE, unmatchedItems.length)} of ${unmatchedItems.length} remaining...`
+          );
+
+          let searchResultsMap = {};
+          try {
+            const batchSearchRes = await fetch(ENDPOINTS.hebSearchBatch, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ queries: searchQueries, maxResults: 12 }),
+            });
+            if (batchSearchRes.ok) {
+              const batchSearchData = await batchSearchRes.json();
+              searchResultsMap = batchSearchData.results || {};
+            }
+          } catch (err) {
+            console.error('[heb-cart] Phase 2 search error:', err.message);
+          }
+
+          // Check if searches actually returned results
+          const totalSearchResults = Object.values(searchResultsMap).reduce(
+            (sum, r) => sum + (r.products?.length || 0), 0
+          );
+
+          if (totalSearchResults === 0) {
+            console.log('[heb-cart] Phase 2: All searches returned 0 results (WAF likely blocking). Skipping remaining.');
+            break; // Don't waste time on more searches
+          }
+
+          // Build AI match request with search results
+          const batchItems = batch.map((item, idx) => ({
+            groceryItemId: item.ItemID,
+            groceryItemName: item.ItemName,
+            category: item.Category,
+            quantity: item.Quantity || 1,
+            coupon: item.couponHashId ? {
+              productName: item.couponProductName,
+              savings: item.couponSavings,
+              discount: item.couponDiscount,
+              clipped: item.couponClipped,
+            } : null,
+            searchResults: (searchResultsMap[searchQueries[idx]]?.products || []).map(sr => ({
+              name: sr.name, id: sr.id, skuId: sr.skuId, price: sr.price,
+              brand: sr.brand, inStock: sr.inStock, productUrl: sr.productUrl,
+              imageUrl: sr.imageUrl, category: sr.category,
+            })),
+          }));
+
+          // Collect valid search product IDs for client-side validation
+          const searchProductIds = new Set();
+          for (const query of searchQueries) {
+            for (const p of (searchResultsMap[query]?.products || [])) {
+              if (p.id) searchProductIds.add(String(p.id));
+            }
+          }
+
+          setMatchProgress(
+            `AI matching ${unmatchedItems.length - i > BATCH_SIZE ? BATCH_SIZE : unmatchedItems.length - i} remaining items with search results...`
+          );
+
+          try {
+            const aiRes = await apiFetch(ENDPOINTS.hebSmartMatch, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ items: batchItems, frequentProducts: batchFrequentProducts }),
+            });
+
+            if (aiRes.ok) {
+              const aiData = await aiRes.json();
+              const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
+              const allValidIds = new Set([...searchProductIds, ...frequentProductIds]);
+              processAiMatches(resultObj, allValidIds, frequentProducts, newMatches);
+              setMatches(prev => ({ ...prev, ...newMatches }));
+            }
+          } catch (err) {
+            console.error(`[heb-cart] Phase 2 AI match error:`, err.message);
+          }
+        }
+      } else if (unmatchedItems.length > 0) {
+        console.log(`[heb-cart] ${unmatchedItems.length} items unmatched but no browser session — skipping live search`);
       }
 
       setMatches(newMatches);
 
-      const matchCount = Object.keys(newMatches).length;
+      const matchCount = Object.values(newMatches).filter(m => m.hebProductId).length;
       const confirmedCount = Object.values(newMatches).filter(m => m.userConfirmed).length;
-      toast.success(`Smart matching complete! ${matchCount} matches (${confirmedCount} pre-confirmed)`);
+      const totalNeeded = needsMatch.length + alreadyMatched.length;
+      toast.success(`Smart matching complete! ${matchCount} of ${totalNeeded} matched (${confirmedCount} pre-confirmed)`);
       setStep('review');
     } catch (err) {
       toast.error(`Smart matching failed: ${err.message}`);
@@ -871,7 +871,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
       setIsMatching(false);
       setMatchProgress('');
     }
-  }, [loadGroceryItems]);
+  }, [loadGroceryItems, processAiMatches, sessionStatus]);
 
   // --- Confirm / Reject / Manual Select ---
   const handleConfirm = useCallback(async (itemId, match) => {
