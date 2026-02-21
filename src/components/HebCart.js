@@ -660,27 +660,74 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
           `Searching HEB for items ${batchStart}-${batchEnd} of ${needsMatch.length} (3 parallel workers)...`
         );
 
-        // Build search queries — use coupon product name if available (more specific)
-        const searchQueries = batch.map(item => {
+        // Build search queries — use generic item name as primary search
+        // Coupon product names are often too specific (e.g. "H-E-B Natural Lean Ground Turkey, 93% Lean")
+        // and may not return results, so search with the generic grocery item name instead.
+        const searchQueries = batch.map(item => item.ItemName);
+
+        // Also prepare coupon-specific searches for items that have coupons
+        const couponQueries = [];
+        const couponQueryIndexes = [];
+        batch.forEach((item, idx) => {
           if (item.couponProductName) {
-            return item.couponProductName.split(',')[0].trim().substring(0, 60);
+            const couponSearch = item.couponProductName.split(',')[0].trim().substring(0, 60);
+            if (couponSearch.toLowerCase() !== item.ItemName.toLowerCase()) {
+              couponQueries.push(couponSearch);
+              couponQueryIndexes.push(idx);
+            }
           }
-          return item.ItemName;
         });
 
         let searchResultsMap = {};
         try {
+          // Primary search with generic item names
           const batchSearchRes = await fetch(ENDPOINTS.hebSearchBatch, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               queries: searchQueries,
-              maxResults: 8,
+              maxResults: 12,
             }),
           });
           if (batchSearchRes.ok) {
             const batchSearchData = await batchSearchRes.json();
             searchResultsMap = batchSearchData.results || {};
+          }
+
+          // Secondary search with coupon product names (if any)
+          if (couponQueries.length > 0) {
+            const couponSearchRes = await fetch(ENDPOINTS.hebSearchBatch, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                queries: couponQueries,
+                maxResults: 6,
+              }),
+            });
+            if (couponSearchRes.ok) {
+              const couponSearchData = await couponSearchRes.json();
+              const couponResults = couponSearchData.results || {};
+
+              // Merge coupon search results into the primary results
+              couponQueries.forEach((cq, i) => {
+                const itemName = searchQueries[couponQueryIndexes[i]];
+                const existing = searchResultsMap[itemName]?.products || [];
+                const couponProducts = couponResults[cq]?.products || [];
+
+                // Add coupon search results that aren't already in the primary results
+                const existingIds = new Set(existing.map(p => String(p.id)));
+                const newProducts = couponProducts.filter(p => !existingIds.has(String(p.id)));
+
+                if (newProducts.length > 0) {
+                  searchResultsMap[itemName] = {
+                    ...searchResultsMap[itemName],
+                    success: true,
+                    products: [...existing, ...newProducts],
+                  };
+                  console.log(`[heb-cart] Added ${newProducts.length} coupon search results for "${itemName}" from coupon query "${cq}"`);
+                }
+              });
+            }
           }
         } catch (err) {
           console.error('[heb-cart] Batch search error:', err.message);

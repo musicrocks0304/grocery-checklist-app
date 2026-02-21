@@ -19,6 +19,8 @@ const BUILD_WEBHOOK_URL = ENDPOINTS.mealCreatorBuild;
 const SAVE_WEBHOOK_URL = ENDPOINTS.mealCreatorSave;
 const ADD_TO_WEEK_WEBHOOK_URL = ENDPOINTS.callGroceryAgent;
 
+const CHAT_HISTORY_URL = ENDPOINTS.chatHistory;
+
 const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSelectedMeals, debugMode = false }) => {
   const [sessionId] = useState(getCreatorSessionId());
   const [phase, setPhase] = useState(1); // 1=describe, 2=building, 3=preview, 4=saved
@@ -40,6 +42,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
   const [expandedSections, setExpandedSections] = useState(new Set(['ingredients', 'instructions', 'notes']));
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef(null);
 
   const addDebugLog = (message, data = null) => {
@@ -47,6 +50,124 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
     setDebugInfo(prev => [...prev, { timestamp, message, data }]);
     console.log(`[Creator ${timestamp}] ${message}`, data || '');
   };
+
+  // Parse AI response for meal creator (handles proposals)
+  const parseCreatorAIContent = (contentString) => {
+    try {
+      const parsed = JSON.parse(contentString);
+      if (parsed && parsed.responseType === 'recipe_proposals' && parsed.proposals) {
+        return {
+          content: parsed.message || "Here are some ideas! Pick one and I'll build the full recipe.",
+          proposals: parsed.proposals,
+        };
+      }
+      if (parsed && parsed.message) {
+        return { content: parsed.message, proposals: [] };
+      }
+      return { content: typeof parsed === 'string' ? parsed : JSON.stringify(parsed), proposals: [] };
+    } catch {
+      return { content: contentString, proposals: [] };
+    }
+  };
+
+  // Load conversation history from Postgres on mount (same endpoint as ChatBot)
+  useEffect(() => {
+    const loadCreatorHistory = async () => {
+      if (!sessionId) return;
+      setIsLoadingHistory(true);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await apiFetch(
+          `${CHAT_HISTORY_URL}?sessionId=${encodeURIComponent(sessionId)}`,
+          { headers: { Accept: 'application/json' }, signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          addDebugLog('Chat history fetch failed:', response.status);
+          return;
+        }
+
+        const responseText = await response.text();
+        if (!responseText || responseText.trim() === '') {
+          addDebugLog('No previous creator history found');
+          return;
+        }
+
+        const historyRows = JSON.parse(responseText);
+        if (!Array.isArray(historyRows) || historyRows.length === 0) {
+          addDebugLog('No previous creator history found');
+          return;
+        }
+
+        addDebugLog('Loading creator history:', { rowCount: historyRows.length });
+
+        const restoredMessages = [];
+        restoredMessages.push({
+          id: 1,
+          type: 'bot',
+          content: "Hi! I'm your recipe creator. Tell me what you're craving and I'll invent something new for your family. Describe a cuisine, protein, mood, or anything — I'll come up with 2-3 original ideas!",
+          timestamp: 'restored',
+        });
+
+        let msgId = 1000;
+        historyRows.forEach((row) => {
+          const msg = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
+          if (!msg || !msg.type) return;
+
+          const content = msg.content || (msg.data && msg.data.content) || '';
+          msgId++;
+
+          if (msg.type === 'human') {
+            restoredMessages.push({
+              id: msgId,
+              type: 'user',
+              content,
+              timestamp: 'restored',
+            });
+          } else if (msg.type === 'ai') {
+            let aiContent = content;
+            // Unwrap n8n AI Agent output wrapper
+            try {
+              const wrapper = JSON.parse(aiContent);
+              if (wrapper && wrapper.output) {
+                aiContent = JSON.stringify(wrapper.output);
+              }
+            } catch {
+              // Not a wrapper, use as-is
+            }
+            const parsed = parseCreatorAIContent(aiContent);
+            restoredMessages.push({
+              id: msgId,
+              type: 'bot',
+              content: parsed.content,
+              proposals: parsed.proposals,
+              timestamp: 'restored',
+            });
+          }
+        });
+
+        setMessages(restoredMessages);
+        toast.success('Previous conversation restored', {
+          duration: 2000,
+          style: { fontSize: '14px' },
+        });
+        addDebugLog('Creator history restored:', { messageCount: restoredMessages.length });
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          addDebugLog('Creator history fetch timed out');
+        } else {
+          addDebugLog('Error loading creator history:', error.message);
+        }
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadCreatorHistory();
+  }, [sessionId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -324,8 +445,17 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
     setProposals([]);
     setFullRecipe(null);
     setSaveResult(null);
-    // Clear creator session for fresh conversation
-    localStorage.removeItem('creatorSessionId');
+    // Create a fresh session ID for new conversation
+    const newSessionId = `creator_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('creatorSessionId', newSessionId);
+    // Reset messages to initial greeting
+    setMessages([{
+      id: 1,
+      type: 'bot',
+      content: "Hi! I'm your recipe creator. Tell me what you're craving and I'll invent something new for your family. Describe a cuisine, protein, mood, or anything — I'll come up with 2-3 original ideas!",
+      timestamp: new Date().toLocaleTimeString()
+    }]);
+    // Reload to pick up the new session ID
     window.location.reload();
   };
 
@@ -473,6 +603,14 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-4 lg:p-6 bg-background">
+
+          {/* History loading indicator */}
+          {isLoadingHistory && (
+            <div className="flex items-center justify-center gap-2 py-4 text-sm text-amber-600">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+              Loading conversation history...
+            </div>
+          )}
 
           {/* ===== PHASE 1 & 2: Chat Messages ===== */}
           {(phase === 1 || phase === 2) && (

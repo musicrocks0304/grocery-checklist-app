@@ -7,10 +7,13 @@ import {
   ShoppingBag,
   PartyPopper,
   Smartphone,
+  Loader2,
 } from "lucide-react";
 import { EmptyState } from './ui';
 import toast from "react-hot-toast";
 import confetti from "canvas-confetti";
+import { getWeekDates } from "../utils/weekDates";
+import { ENDPOINTS, apiFetch } from "../config/api";
 
 // Memoized individual shopping item with large tap target
 const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
@@ -128,27 +131,89 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [collapsedSections, setCollapsedSections] = useState(new Set());
   const [shoppingList, setShoppingList] = useState(null);
+  const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const wakeLockRef = useRef(null);
   const celebratedRef = useRef(false);
 
-  // Resolve shopping list from prop or localStorage
+  // Resolve shopping list from prop, localStorage, or auto-fetch from backend
   useEffect(() => {
+    // Priority 1: Data passed from "Start Shopping" button
     if (inStoreData && inStoreData.items && inStoreData.items.length > 0) {
       setShoppingList(inStoreData);
-    } else {
-      const stored = localStorage.getItem("inStoreShoppingList");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (parsed && parsed.items && parsed.items.length > 0) {
+      return;
+    }
+
+    // Priority 2: Check localStorage for cached data from this week
+    const stored = localStorage.getItem("inStoreShoppingList");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.items && parsed.items.length > 0) {
+          // Check if the stored list is for the current week
+          const weekData = getWeekDates();
+          if (parsed.weekDateRange === weekData.displayRange) {
             setShoppingList(parsed);
+            return;
           }
-        } catch {
-          // Invalid JSON, ignore
+          // Stale week — clear it and fetch fresh
+          localStorage.removeItem("inStoreShoppingList");
+          localStorage.removeItem("inStoreCheckedItems");
         }
+      } catch {
+        // Invalid JSON, ignore
       }
     }
+
+    // Priority 3: Auto-fetch current week's selected items from backend
+    const fetchCurrentWeekItems = async () => {
+      setIsAutoLoading(true);
+      try {
+        const weekData = getWeekDates();
+        const url = new URL(ENDPOINTS.fetchGroceryItems);
+        url.searchParams.append("weekStartDate", weekData.startDate);
+        url.searchParams.append("weekEndDate", weekData.endDate);
+        url.searchParams.append("weekDateRange", weekData.displayRange);
+        url.searchParams.append("timestamp", new Date().toISOString());
+
+        const response = await apiFetch(url.toString(), {
+          method: "GET",
+          mode: "cors",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!Array.isArray(data) || data.length === 0) return;
+
+        // Filter to only selected items (IsSelected === 1)
+        const selectedItems = data
+          .filter((item) => item.IsSelected === 1)
+          .map((item) => ({
+            ...item,
+            quantity: item.QuantitySelected || 1,
+          }));
+
+        if (selectedItems.length === 0) return;
+
+        const listData = {
+          items: selectedItems,
+          savedAt: new Date().toISOString(),
+          weekDateRange: weekData.displayRange,
+        };
+
+        setShoppingList(listData);
+        // Cache it so it loads instantly next time
+        localStorage.setItem("inStoreShoppingList", JSON.stringify(listData));
+      } catch (err) {
+        console.error("[in-store] Auto-fetch failed:", err.message);
+      } finally {
+        setIsAutoLoading(false);
+      }
+    };
+
+    fetchCurrentWeekItems();
   }, [inStoreData]);
 
   // Load checked items from localStorage, invalidate if list changed
@@ -344,6 +409,32 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     onExit();
   }, [totalChecked, totalItems, onExit]);
 
+  // Loading state while auto-fetching
+  if (isAutoLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="sticky top-0 z-10 bg-surface shadow-sm">
+          <div className="flex items-center gap-3 px-4 h-14">
+            <button
+              onClick={onExit}
+              className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-gray-100 transition-colors"
+              aria-label="Go back"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-lg font-bold text-heading">Shopping List</h1>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="text-center">
+            <Loader2 size={32} className="animate-spin text-primary mx-auto mb-3" />
+            <p className="text-body">Loading this week's grocery list...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // No data fallback
   if (!shoppingList || !shoppingList.items || shoppingList.items.length === 0) {
     return (
@@ -367,7 +458,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           <EmptyState
             icon={ShoppingBag}
             title="No Shopping List"
-            description="Save a grocery list first, then come back to start shopping."
+            description="No items selected for this week yet. Add items to your grocery list first."
             action={{ label: "Go to Grocery Selection", onClick: onExit }}
           />
         </div>
