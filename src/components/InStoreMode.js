@@ -49,17 +49,15 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
       </span>
 
       {/* Quantity badge */}
-      {item.quantity > 1 && (
-        <span
-          className={`text-sm font-medium px-2 py-1 rounded flex-shrink-0 transition-all duration-200 ${
-            isChecked
-              ? "bg-gray-100 text-muted"
-              : "bg-primary-light text-primary"
-          }`}
-        >
-          x{item.quantity}
-        </span>
-      )}
+      <span
+        className={`text-sm font-medium px-2 py-1 rounded flex-shrink-0 transition-all duration-200 ${
+          isChecked
+            ? "bg-gray-100 text-muted"
+            : "bg-primary-light text-primary"
+        }`}
+      >
+        x{item.quantity || 1}
+      </span>
     </button>
   );
 });
