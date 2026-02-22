@@ -430,6 +430,90 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
         setSelectedMeals(prev => [...prev, newMeal]);
         toast.success(`Added to this week's meals!`);
         addDebugLog('Added to weekly_selections:', saveResult.recipeId);
+
+        // Now extract ingredients and insert them into WeeklyGroceryList
+        // so they appear under the "Meals" filter on the Grocery Selection screen
+        try {
+          addDebugLog('Extracting recipe ingredients for grocery list...');
+          const recipeId = String(saveResult.recipeId);
+          const ingredientPayload = {
+            recipe_ids: JSON.stringify([recipeId]),
+            session_id: sessionId,
+            timestamp: new Date().toISOString(),
+            meal_count: '1',
+            meals: JSON.stringify([{
+              id: recipeId,
+              name: saveResult.recipeName,
+              description: fullRecipe?.recipe_description || ''
+            }]),
+            week_start_date: weekData.startDate,
+            week_end_date: weekData.endDate,
+            week_display_range: weekData.displayRange
+          };
+
+          const ingredientResponse = await apiFetch(ENDPOINTS.getRecipeItems, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(ingredientPayload),
+            mode: 'cors'
+          });
+
+          if (ingredientResponse.ok) {
+            const ingredientData = await ingredientResponse.json();
+            addDebugLog('Got recipe ingredients:', ingredientData);
+
+            // Transform into the format /meal_ingredients expects
+            const rawIngredients = ingredientData[0]?.output?.ingredients || ingredientData?.output?.ingredients || [];
+            if (rawIngredients.length > 0) {
+              let itemId = 1;
+              const transformedIngredients = rawIngredients.map(ing => ({
+                ItemID: itemId++,
+                ItemName: ing.name,
+                Category: ing.category || 'General',
+                Store: 'HEB',
+                GroceryStoreSection: ing.category || 'General',
+                IsSelected: 1,
+                QuantitySelected: ing.purchaseQuantity || '1'
+              }));
+
+              const mealIngredientsPayload = {
+                ingredients: JSON.stringify(transformedIngredients),
+                totalItems: transformedIngredients.length.toString(),
+                selectedMeals: JSON.stringify([{
+                  id: recipeId,
+                  name: saveResult.recipeName,
+                  description: fullRecipe?.recipe_description || ''
+                }]),
+                weekStartDate: weekData.startDate,
+                weekEndDate: weekData.endDate,
+                weekDateRange: weekData.displayRange,
+                timestamp: new Date().toISOString(),
+                source: 'meal_creator_add_to_week'
+              };
+
+              const insertResponse = await apiFetch(ENDPOINTS.mealIngredients, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(mealIngredientsPayload),
+                mode: 'cors'
+              });
+
+              if (insertResponse.ok) {
+                addDebugLog(`Inserted ${transformedIngredients.length} ingredients into grocery list`);
+              } else {
+                addDebugLog('Failed to insert meal ingredients:', insertResponse.status);
+              }
+            } else {
+              addDebugLog('No ingredients returned from recipe extraction');
+            }
+          } else {
+            addDebugLog('Failed to extract recipe ingredients:', ingredientResponse.status);
+          }
+        } catch (ingredientError) {
+          // Don't fail the whole operation if ingredient extraction fails
+          addDebugLog('Error extracting/inserting ingredients:', ingredientError.message);
+          console.error('Ingredient extraction error:', ingredientError);
+        }
       } else {
         toast.error('Failed to add meal to this week. Please try again.');
         addDebugLog('Webhook returned non-OK:', response.status);
