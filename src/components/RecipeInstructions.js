@@ -316,8 +316,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
         }
 
         setError(errorMessage);
-        setRecipeData(sampleRecipeData);
-        addDebugLog('Using sample data as fallback due to error');
+        addDebugLog('Error loading recipe instructions');
       } finally {
         setIsLoading(false);
         addDebugLog('Loading state set to false');
@@ -709,13 +708,21 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             <AlertCircle size={48} className="mx-auto" />
           </div>
           <h2 className="text-xl font-bold text-heading mb-2">Unable to Load Recipe</h2>
-          <p className="text-body mb-4">There was an error loading the recipe instructions from the webhook.</p>
-          <button
-            onClick={handleBackToApp}
-            className="px-6 py-3 bg-accent-dark text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
-          >
-            Back to Grocery List
-          </button>
+          <p className="text-body mb-4">There was an error loading the recipe instructions.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => { hasInitialized.current = false; setError(null); setShowRecipeSelection(true); setSelectedRecipeId(null); }}
+              className="px-5 py-3 bg-gray-100 text-body rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            >
+              Back to Recipes
+            </button>
+            <button
+              onClick={() => { hasInitialized.current = false; setError(null); }}
+              className="px-5 py-3 bg-accent-dark text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
