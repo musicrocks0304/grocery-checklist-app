@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Store, Tag } from "lucide-react";
 import { Toaster } from "react-hot-toast";
+import { getWeekDates } from "../utils/weekDates";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
 import RecipeInstructions from "./RecipeInstructions";
@@ -27,7 +28,15 @@ const App = () => {
     return VALID_SCREENS.includes(hash) ? hash : "grocery";
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedMeals, setSelectedMeals] = useState([]);
+  const [selectedMeals, setSelectedMeals] = useState(() => {
+    try {
+      const weekKey = `selectedMeals_${getWeekDates().startDate}`;
+      const stored = localStorage.getItem(weekKey);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [groceryListData, setGroceryListData] = useState(null);
   const [inStoreData, setInStoreData] = useState(null);
   const hasUnsavedChangesRef = useRef(false);
@@ -35,6 +44,18 @@ const App = () => {
   const setHasUnsavedChanges = useCallback((value) => {
     hasUnsavedChangesRef.current = value;
   }, []);
+
+  // Persist selectedMeals to localStorage (keyed by week so it auto-resets)
+  useEffect(() => {
+    try {
+      const weekKey = `selectedMeals_${getWeekDates().startDate}`;
+      if (selectedMeals.length > 0) {
+        localStorage.setItem(weekKey, JSON.stringify(selectedMeals));
+      } else {
+        localStorage.removeItem(weekKey);
+      }
+    } catch { /* ignore storage errors */ }
+  }, [selectedMeals]);
 
   // Navigate with unsaved-changes confirmation and browser history push
   const navigateToScreen = useCallback((screen) => {
