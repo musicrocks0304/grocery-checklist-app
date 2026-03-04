@@ -81,16 +81,65 @@ export const ENDPOINTS = {
 };
 
 /**
- * Authenticated fetch wrapper. Adds X-API-Key header to every request.
- * Drop-in replacement for window.fetch — same signature, same return value.
+ * Authenticated fetch wrapper with retry and timeout.
+ *
+ * Options (in addition to standard fetch options):
+ *   retries:  number of retries on 5xx/network errors (default: 2)
+ *   timeout:  request timeout in ms (default: 30000)
+ *
+ * Retries use exponential backoff: 1s, 2s, 4s, ...
+ * 4xx responses are NOT retried (client errors).
  */
-export function apiFetch(url, options = {}) {
+export async function apiFetch(url, options = {}) {
+  const { retries = 2, timeout = 30000, ...fetchOptions } = options;
   const apiKey = process.env.REACT_APP_API_KEY;
   const headers = {
-    ...(options.headers || {}),
+    ...(fetchOptions.headers || {}),
     ...(apiKey ? { 'X-API-Key': apiKey } : {}),
   };
-  return fetch(url, { ...options, headers });
+
+  let lastError;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    // Wait before retry (skip first attempt)
+    if (attempt > 0) {
+      const delay = Math.pow(2, attempt - 1) * 1000;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const response = await fetch(url, {
+        ...fetchOptions,
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      // Don't retry client errors (4xx)
+      if (response.status >= 400 && response.status < 500) {
+        return response;
+      }
+
+      // Retry server errors (5xx)
+      if (!response.ok && attempt < retries) {
+        lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= retries) {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 export { API_BASE_URL, CLIP_SERVER_URL };
