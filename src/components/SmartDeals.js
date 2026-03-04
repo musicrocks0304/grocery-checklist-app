@@ -59,8 +59,16 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
       const data = await response.json();
       // n8n respondToWebhook wraps in array
       const result = Array.isArray(data) ? data[0] : data;
-      setDeals(result.deals || []);
-      setTotalSavings(result.totalSavings || 0);
+      // Filter out deals with expired coupons (can come from cache)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const activeDeals = (result.deals || []).filter(d => {
+        if (!d.coupon.expirationDate) return true;
+        return new Date(d.coupon.expirationDate) >= today;
+      });
+      const activeSavings = activeDeals.reduce((sum, d) => sum + (d.coupon.savingsAmount || 0), 0);
+      setDeals(activeDeals);
+      setTotalSavings(Math.round(activeSavings * 100) / 100);
     } catch (err) {
       console.error('[smart-deals] Fetch error:', err.message);
       setError(err.message);
