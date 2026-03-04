@@ -15,7 +15,7 @@ import {
 import toast from "react-hot-toast";
 import { getWeekDateRange, getWeekDates } from "../utils/weekDates";
 import CouponMatchPanel from "./CouponMatchPanel";
-import { ENDPOINTS, apiFetch } from "../config/api";
+import { ENDPOINTS, apiFetch, showApiError } from "../config/api";
 import { GROCERY_SAMPLE_DATA } from "../utils/fallbackData";
 
 
@@ -263,6 +263,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       } catch (error) {
         addDebugLog("❌ Error in fetchGroceryData:", error.message);
         setError(error.message);
+        showApiError(error, () => fetchGroceryData());
         // Fallback to sample data if webhook fails
         setGroceryData(GROCERY_SAMPLE_DATA);
         setActiveTab(getGroups(GROCERY_SAMPLE_DATA, groupBy)[0]);

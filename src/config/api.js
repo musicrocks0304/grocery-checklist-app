@@ -1,3 +1,5 @@
+import toast from 'react-hot-toast';
+
 /**
  * Centralized API configuration.
  * All webhook URLs and API endpoints are defined here.
@@ -140,6 +142,41 @@ export async function apiFetch(url, options = {}) {
   }
 
   throw lastError;
+}
+
+/**
+ * Show an error toast with optional retry. Call from components after apiFetch fails.
+ *
+ * Usage:
+ *   try { await apiFetch(url); }
+ *   catch (err) { showApiError(err, () => loadData()); }
+ */
+export function showApiError(error, onRetry) {
+  const isTimeout = error.name === 'AbortError';
+  const isNetwork = error.message === 'Failed to fetch';
+
+  let message = 'Something went wrong';
+  if (isTimeout) message = 'Request timed out';
+  else if (isNetwork) message = 'Network error — check your connection';
+
+  if (onRetry) {
+    toast.error(
+      (t) => (
+        <span>
+          {message}{' '}
+          <button
+            onClick={() => { toast.dismiss(t.id); onRetry(); }}
+            style={{ marginLeft: 8, textDecoration: 'underline', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+          >
+            Retry
+          </button>
+        </span>
+      ),
+      { duration: 6000 }
+    );
+  } else {
+    toast.error(message, { duration: 4000 });
+  }
 }
 
 export { API_BASE_URL, CLIP_SERVER_URL };
