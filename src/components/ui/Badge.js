@@ -3,7 +3,7 @@ import React from 'react';
 /**
  * Shared Badge / Tag / Pill component.
  *
- * Variants: primary, accent, danger, neutral, purple
+ * Variants: primary, accent, danger, neutral, purple, blue, orange
  *
  * Usage:
  *   <Badge variant="primary">Basic</Badge>
@@ -11,13 +11,13 @@ import React from 'react';
  */
 
 const VARIANT_CLASSES = {
-  primary: 'bg-primary-light text-green-700',
-  accent: 'bg-amber-100 text-amber-700',
-  danger: 'bg-red-100 text-red-700',
-  neutral: 'bg-gray-100 text-gray-700',
-  purple: 'bg-purple-100 text-purple-700',
-  blue: 'bg-blue-100 text-blue-700',
-  orange: 'bg-orange-100 text-orange-700',
+  primary: 'bg-primary-light text-primary',
+  accent: 'bg-accent-light text-accent',
+  danger: 'bg-danger-light text-danger',
+  neutral: 'bg-background text-body',
+  purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  orange: 'bg-accent-light text-accent',
 };
 
 const Badge = ({ variant = 'neutral', className = '', children, ...props }) => {
@@ -25,7 +25,7 @@ const Badge = ({ variant = 'neutral', className = '', children, ...props }) => {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${variantClass} ${className}`}
+      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors duration-200 ${variantClass} ${className}`}
       {...props}
     >
       {children}

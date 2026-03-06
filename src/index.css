@@ -3,7 +3,99 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Backgrounds */
+    --color-background: #FAFAF7;
+    --color-surface: #FFFFFF;
+    --color-surface-elevated: #FFFFFF;
+    --color-border: #E8E4DF;
+
+    /* Primary — Sage Green */
+    --color-primary: #5B8A72;
+    --color-primary-hover: #4A7360;
+    --color-primary-light: #E8F0EC;
+    --color-primary-border: #B8D4C6;
+
+    /* Accent — Terracotta */
+    --color-accent: #C17849;
+    --color-accent-hover: #A8653B;
+    --color-accent-light: #FBF0E8;
+
+    /* Danger */
+    --color-danger: #C94040;
+    --color-danger-hover: #A83535;
+    --color-danger-light: #FEF0F0;
+
+    /* Text */
+    --color-text-primary: #2D3436;
+    --color-text-secondary: #636E72;
+    --color-text-muted: #9BA4A8;
+
+    /* Sidebar */
+    --color-sidebar-bg: #F5F3F0;
+    --color-sidebar-hover: #EBE8E4;
+    --color-sidebar-active: #E8F0EC;
+    --color-sidebar-text: #2D3436;
+    --color-sidebar-text-muted: #9BA4A8;
+    --color-sidebar-border: #E8E4DF;
+  }
+
+  .dark {
+    /* Backgrounds */
+    --color-background: #1A1D21;
+    --color-surface: #252830;
+    --color-surface-elevated: #2E3139;
+    --color-border: #3A3D44;
+
+    /* Primary — Lighter Sage */
+    --color-primary: #7CB896;
+    --color-primary-hover: #6BA685;
+    --color-primary-light: #1E2E26;
+    --color-primary-border: #3D5A49;
+
+    /* Accent — Lighter Terracotta */
+    --color-accent: #E09565;
+    --color-accent-hover: #D0844F;
+    --color-accent-light: #2E241E;
+
+    /* Danger */
+    --color-danger: #E05555;
+    --color-danger-hover: #CC4444;
+    --color-danger-light: #2E1E1E;
+
+    /* Text */
+    --color-text-primary: #F0EDE8;
+    --color-text-secondary: #A8A29E;
+    --color-text-muted: #6B6560;
+
+    /* Sidebar */
+    --color-sidebar-bg: #1E2124;
+    --color-sidebar-hover: #2A2D32;
+    --color-sidebar-active: #1E2E26;
+    --color-sidebar-text: #F0EDE8;
+    --color-sidebar-text-muted: #6B6560;
+    --color-sidebar-border: #3A3D44;
+  }
+
+  html {
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   button:focus-visible {
     @apply ring-2 ring-focus ring-offset-2 outline-none;
+  }
+
+  /* Selection color */
+  ::selection {
+    background-color: var(--color-primary-light);
+    color: var(--color-text-primary);
   }
 }

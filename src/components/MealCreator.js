@@ -21,7 +21,7 @@ const ADD_TO_WEEK_WEBHOOK_URL = ENDPOINTS.callGroceryAgent;
 
 const CHAT_HISTORY_URL = ENDPOINTS.chatHistory;
 
-const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSelectedMeals, debugMode = false }) => {
+const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debugMode = false }) => {
   const [sessionId] = useState(getCreatorSessionId());
   const [phase, setPhase] = useState(1); // 1=describe, 2=building, 3=preview, 4=saved
   const [messages, setMessages] = useState([
@@ -576,18 +576,18 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
       {/* Building Overlay */}
       {isBuilding && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
+          <div className="bg-surface rounded-2xl p-8 shadow-warm-xl max-w-md mx-4 text-center">
             <div className="flex items-center justify-center mb-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-600 border-t-transparent"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent"></div>
             </div>
-            <h3 className="text-xl font-semibold text-heading mb-2">Building Your Recipe</h3>
+            <h3 className="text-xl font-semibold text-heading font-display mb-2">Building Your Recipe</h3>
             <p className="text-body mb-4">
               The AI is crafting a detailed Blue Apron-style recipe with ingredients, step-by-step instructions, and kid-friendly modifications...
             </p>
             <div className="flex items-center justify-center space-x-1">
-              <div className="animate-bounce h-2 w-2 bg-amber-600 rounded-full" style={{animationDelay: '0ms'}}></div>
-              <div className="animate-bounce h-2 w-2 bg-amber-600 rounded-full" style={{animationDelay: '150ms'}}></div>
-              <div className="animate-bounce h-2 w-2 bg-amber-600 rounded-full" style={{animationDelay: '300ms'}}></div>
+              <div className="animate-bounce h-2 w-2 bg-accent rounded-full" style={{animationDelay: '0ms'}}></div>
+              <div className="animate-bounce h-2 w-2 bg-accent rounded-full" style={{animationDelay: '150ms'}}></div>
+              <div className="animate-bounce h-2 w-2 bg-accent rounded-full" style={{animationDelay: '300ms'}}></div>
             </div>
             <p className="text-sm text-muted mt-4">This usually takes 20-40 seconds</p>
           </div>
@@ -597,7 +597,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
       {/* Saving Overlay */}
       {isSaving && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
+          <div className="bg-surface rounded-2xl p-8 shadow-warm-xl max-w-md mx-4 text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
             </div>
@@ -608,22 +608,22 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
       )}
 
       {/* Main Content */}
-      <div className="bg-surface lg:rounded-lg lg:shadow-lg overflow-hidden flex flex-col flex-1">
+      <div className="bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden flex flex-col flex-1 transition-colors duration-200">
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-4">
+        <div className="bg-accent text-white p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-lg transition-colors" aria-label="Go back">
+              <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-xl transition-colors" aria-label="Go back">
                 <ArrowLeft size={20} />
               </button>
               <Sparkles size={24} />
-              <h1 className="text-xl font-bold">AI Meal Creator</h1>
+              <h1 className="text-xl font-bold font-display">AI Meal Creator</h1>
             </div>
             <div className="flex items-center gap-2">
               {debugMode && (
                 <button
                   onClick={() => setShowDebug(!showDebug)}
-                  className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
+                  className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-xl transition-colors"
                 >
                   <Wifi size={16} />
                   <span className="hidden sm:inline">Debug</span>
@@ -631,7 +631,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
               )}
               <button
                 onClick={startOver}
-                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
+                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-xl transition-colors"
               >
                 <RotateCcw size={16} />
                 <span className="hidden sm:inline">New</span>
@@ -690,8 +690,8 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
 
           {/* History loading indicator */}
           {isLoadingHistory && (
-            <div className="flex items-center justify-center gap-2 py-4 text-sm text-amber-600">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+            <div className="flex items-center justify-center gap-2 py-4 text-sm text-accent">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent"></div>
               Loading conversation history...
             </div>
           )}
@@ -703,17 +703,17 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                 <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] lg:max-w-lg px-4 py-3 rounded-2xl ${
                     message.type === 'user'
-                      ? 'bg-amber-600 text-white'
+                      ? 'bg-accent text-white'
                       : 'bg-surface text-heading shadow-md border border-default'
                   }`}>
                     {message.isTyping ? (
                       <div className="flex items-center gap-1">
                         <div className="flex gap-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                          <div className="w-2 h-2 bg-muted rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                          <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                         </div>
-                        <Sparkles size={16} className="text-amber-500 ml-2" />
+                        <Sparkles size={16} className="text-accent ml-2" />
                       </div>
                     ) : (
                       <div>
@@ -723,12 +723,12 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                         {message.proposals && message.proposals.length > 0 && (
                           <div className="mt-3 space-y-3">
                             {message.proposals.map((proposal, index) => (
-                              <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg border border-amber-200 p-4">
+                              <div key={index} className="bg-accent-light rounded-2xl border border-accent-border p-4">
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
                                     <h4 className="font-bold text-heading text-base">{proposal.name}</h4>
                                     <div className="flex flex-wrap items-center gap-2 mt-1">
-                                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{proposal.cuisineStyle}</span>
+                                      <span className="text-xs bg-accent-light text-accent px-2 py-0.5 rounded-full">{proposal.cuisineStyle}</span>
                                       <span className="text-xs text-muted flex items-center gap-1"><Clock size={12} /> {proposal.estimatedTotalTime} min</span>
                                     </div>
                                   </div>
@@ -744,7 +744,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                                 <button
                                   onClick={() => buildRecipe(proposal)}
                                   disabled={isBuilding}
-                                  className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+                                  className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors disabled:opacity-50"
                                 >
                                   <ChefHat size={16} />
                                   Build This Recipe
@@ -754,7 +754,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                           </div>
                         )}
 
-                        <div className={`text-xs mt-2 ${message.type === 'user' ? 'text-amber-200' : 'text-muted'}`}>
+                        <div className={`text-xs mt-2 ${message.type === 'user' ? 'text-accent-light' : 'text-muted'}`}>
                           {message.timestamp}
                         </div>
                       </div>
@@ -770,37 +770,37 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
           {phase === 3 && fullRecipe && (
             <div className="max-w-2xl mx-auto space-y-4">
               {/* Recipe Header */}
-              <div className="bg-surface rounded-xl shadow-md border border-default p-6">
+              <div className="bg-surface rounded-2xl shadow-warm border border-default p-6 transition-colors duration-200">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-heading">{fullRecipe.recipe_name}</h2>
+                    <h2 className="text-2xl font-bold text-heading font-display">{fullRecipe.recipe_name}</h2>
                     <p className="text-body mt-1">{fullRecipe.recipe_description}</p>
                   </div>
-                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">NEW</span>
+                  <span className="text-xs bg-accent-light text-accent px-2 py-1 rounded-full font-medium">NEW</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-body">
-                  <span className="flex items-center gap-1"><Clock size={16} className="text-amber-600" /> {fullRecipe.total_time_minutes || '—'} min total</span>
-                  <span className="flex items-center gap-1"><Flame size={16} className="text-orange-500" /> {fullRecipe.prep_time_minutes || '—'} min prep</span>
+                  <span className="flex items-center gap-1"><Clock size={16} className="text-accent" /> {fullRecipe.total_time_minutes || '—'} min total</span>
+                  <span className="flex items-center gap-1"><Flame size={16} className="text-accent" /> {fullRecipe.prep_time_minutes || '—'} min prep</span>
                   <span className="flex items-center gap-1"><Users size={16} className="text-blue-500" /> Serves {fullRecipe.servings || 4}</span>
-                  <span className="px-2 py-0.5 bg-gray-100 rounded text-xs font-medium capitalize">{fullRecipe.difficulty_level || 'medium'}</span>
+                  <span className="px-2 py-0.5 bg-background rounded text-xs font-medium capitalize">{fullRecipe.difficulty_level || 'medium'}</span>
                 </div>
                 {fullRecipe.tags && fullRecipe.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     {fullRecipe.tags.map((tag, i) => (
-                      <span key={i} className="text-xs bg-gray-100 text-body px-2 py-0.5 rounded-full">{tag}</span>
+                      <span key={i} className="text-xs bg-background text-body px-2 py-0.5 rounded-full">{tag}</span>
                     ))}
                   </div>
                 )}
               </div>
 
               {/* Ingredients */}
-              <div className="bg-surface rounded-xl shadow-md border border-default">
+              <div className="bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
                 <button
                   onClick={() => toggleSection('ingredients')}
                   className="w-full flex items-center justify-between p-4 hover:bg-background"
                 >
                   <h3 className="text-lg font-semibold text-heading flex items-center gap-2">
-                    <BookOpen size={20} className="text-green-600" /> Ingredients
+                    <BookOpen size={20} className="text-primary" /> Ingredients
                     <span className="text-sm font-normal text-muted">({fullRecipe.ingredients?.length || 0})</span>
                   </h3>
                   {expandedSections.has('ingredients') ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -809,11 +809,11 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                   <div className="px-4 pb-4">
                     {Object.entries(groupedIngredients).map(([category, ingredients]) => (
                       <div key={category} className="mb-3">
-                        <h4 className="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-1.5">{category}</h4>
+                        <h4 className="text-sm font-semibold text-accent uppercase tracking-wide mb-1.5">{category}</h4>
                         <ul className="space-y-1">
                           {ingredients.map((ing, i) => (
                             <li key={i} className="flex items-start gap-2 text-sm text-body">
-                              <Check size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                              <Check size={14} className="text-primary mt-0.5 flex-shrink-0" />
                               <span>
                                 <strong>{ing.quantity} {ing.unit_name}</strong> {ing.ingredient_name}
                                 {ing.preparation_notes && <span className="text-muted"> — {ing.preparation_notes}</span>}
@@ -829,13 +829,13 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
               </div>
 
               {/* Instructions */}
-              <div className="bg-surface rounded-xl shadow-md border border-default">
+              <div className="bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
                 <button
                   onClick={() => toggleSection('instructions')}
                   className="w-full flex items-center justify-between p-4 hover:bg-background"
                 >
                   <h3 className="text-lg font-semibold text-heading flex items-center gap-2">
-                    <ChefHat size={20} className="text-amber-600" /> Instructions
+                    <ChefHat size={20} className="text-accent" /> Instructions
                     <span className="text-sm font-normal text-muted">({fullRecipe.instructions?.length || 0} steps)</span>
                   </h3>
                   {expandedSections.has('instructions') ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -844,7 +844,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                   <div className="px-4 pb-4 space-y-3">
                     {fullRecipe.instructions?.map((step) => (
                       <div key={step.step_number} className="flex gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-accent-light text-accent flex items-center justify-center font-bold text-sm">
                           {step.step_number}
                         </div>
                         <div className="flex-1">
@@ -863,7 +863,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
 
               {/* Kid Plate & Make It Better */}
               {fullRecipe.notes && (
-                <div className="bg-surface rounded-xl shadow-md border border-default">
+                <div className="bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
                   <button
                     onClick={() => toggleSection('notes')}
                     className="w-full flex items-center justify-between p-4 hover:bg-background"
@@ -902,7 +902,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                 </button>
                 <button
                   onClick={() => { setPhase(1); setFullRecipe(null); }}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-200 text-body rounded-xl hover:bg-gray-300 transition-colors"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-default text-body rounded-xl hover:bg-background transition-colors"
                 >
                   <ArrowLeft size={18} />
                   Back
@@ -914,25 +914,25 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
           {/* ===== PHASE 4: Save Success ===== */}
           {phase === 4 && saveResult && (
             <div className="max-w-md mx-auto text-center mt-12">
-              <div className="bg-surface rounded-xl shadow-lg border border-default p-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check size={32} className="text-green-600" />
+              <div className="bg-surface rounded-2xl shadow-warm border border-default p-8">
+                <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check size={32} className="text-primary" />
                 </div>
-                <h2 className="text-2xl font-bold text-heading mb-2">Recipe Saved!</h2>
+                <h2 className="text-2xl font-bold text-heading font-display mb-2">Recipe Saved!</h2>
                 <p className="text-body mb-1">"{saveResult.recipeName}"</p>
                 <p className="text-sm text-muted mb-6">Recipe ID: #{saveResult.recipeId} • {saveResult.ingredientsProcessed} ingredients • {saveResult.instructionsProcessed} steps • {saveResult.tagsProcessed} tags</p>
 
                 <div className="space-y-3">
                   <button
                     onClick={addToThisWeek}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors font-semibold"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors font-semibold"
                   >
                     <Plus size={20} />
                     Add to This Week's Meals
                   </button>
                   <button
                     onClick={startOver}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-body rounded-xl hover:bg-gray-200 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-background text-body rounded-xl hover:bg-default transition-colors"
                   >
                     <Sparkles size={18} />
                     Create Another Recipe
@@ -959,7 +959,7 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyPress}
                   placeholder="Describe what you're craving... (e.g., 'quick chicken pasta, Italian vibes, under 30 min')"
-                  className="w-full px-4 py-3 border border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
                   rows="2"
                   disabled={isLoading}
                   aria-label="Describe what you're craving"
@@ -968,15 +968,15 @@ const MealCreator = ({ onBack, onNavigate, onToggleSidebar, selectedMeals, setSe
               <button
                 onClick={sendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className="px-6 py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-xl hover:from-amber-700 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
               >
                 <Send size={20} />
                 Send
               </button>
             </div>
             {isLoading && (
-              <div className="flex items-center justify-center gap-2 text-sm text-amber-600 mt-3">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+              <div className="flex items-center justify-center gap-2 text-sm text-accent mt-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent"></div>
                 Inventing recipes...
               </div>
             )}

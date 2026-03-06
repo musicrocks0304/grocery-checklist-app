@@ -553,7 +553,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
+      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-body">
@@ -570,15 +570,15 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   if (showFinalList) {
     const finalList = getFinalGroceryList();
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
+      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="flex items-center gap-3 mb-6">
           <ShoppingCart className="text-primary" size={28} />
-          <h1 className="text-2xl font-bold text-heading">
+          <h1 className="text-2xl font-bold text-heading font-display">
             Weekly Grocery List
           </h1>
         </div>
 
-        <div className="bg-background p-4 rounded-lg mb-6">
+        <div className="bg-background p-4 rounded-xl mb-6">
           <p className="text-lg font-semibold text-body">
             {getWeekDateRange()}
           </p>
@@ -614,7 +614,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         <div className="mt-8 flex gap-3">
           <button
             onClick={() => setShowFinalList(false)}
-            className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-secondary-hover transition-colors"
+            className="px-6 py-2 bg-secondary text-white rounded-xl hover:bg-secondary-hover transition-colors"
           >
             Modify Selection
           </button>
@@ -781,9 +781,9 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 setIsSavingList(false);
               }
             }}
-            className={`px-6 py-2 text-white rounded-lg transition-colors flex items-center gap-2 ${
+            className={`px-6 py-2 text-white rounded-xl transition-colors flex items-center gap-2 ${
               isSavingList
-                ? "bg-gray-400 cursor-not-allowed"
+                ? "bg-muted cursor-not-allowed"
                 : "bg-primary hover:bg-primary-hover"
             }`}
           >
@@ -811,7 +811,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   weekDateRange: getWeekDateRange(),
                 });
               }}
-              className="px-6 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg hover:from-orange-600 hover:to-amber-600 transition-all flex items-center gap-2 font-medium shadow-md"
+              className="px-6 py-2 bg-accent text-white rounded-xl hover:bg-accent-hover transition-all flex items-center gap-2 font-medium shadow-warm"
             >
               <ShoppingBag size={20} />
               Start Shopping
@@ -821,9 +821,9 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
         {/* Coupon matching status */}
         {isMatchingCoupons && (
-          <div className="mt-4 flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
-            <p className="text-sm text-green-700">Finding coupon matches for your grocery list...</p>
+          <div className="mt-4 flex items-center gap-3 p-3 bg-primary-light border border-primary-border rounded-xl">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div>
+            <p className="text-sm text-primary">Finding coupon matches for your grocery list...</p>
           </div>
         )}
 
@@ -848,8 +848,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       {/* Add Item Side Panel */}
       {showAddPanel && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-end z-50">
-          <div className="bg-surface h-full w-full sm:w-96 shadow-xl overflow-y-auto">
-            <div className="bg-gradient-to-r from-green-700 to-green-600 text-white p-6">
+          <div className="bg-surface h-full w-full sm:w-96 shadow-warm-lg overflow-y-auto">
+            <div className="bg-primary text-white p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Plus size={24} />
@@ -857,7 +857,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 </div>
                 <button
                   onClick={handleCancelAdd}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                  className="p-2 hover:bg-white/20 rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -1021,7 +1021,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             <div className="border-t bg-background p-6 flex gap-3">
               <button
                 onClick={handleCancelAdd}
-                className="flex-1 px-4 py-2 text-body bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                className="flex-1 px-4 py-2 text-body bg-default rounded-xl hover:bg-background transition-colors"
               >
                 Cancel
               </button>
@@ -1033,7 +1033,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   !newItemForm.store ||
                   !newItemForm.groceryStoreSection
                 }
-                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors"
               >
                 Add Item
               </button>
@@ -1045,7 +1045,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       {/* Confirmation Modal */}
       {itemToRemove && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-xl p-6 max-w-md w-full mx-4">
+          <div className="bg-surface rounded-2xl p-6 max-w-md w-full mx-4">
             <div className="flex items-start gap-3 mb-4">
               <AlertCircle
                 className="text-danger flex-shrink-0 mt-1"
@@ -1069,13 +1069,13 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setItemToRemove(null)}
-                className="px-4 py-2 text-body bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                className="px-4 py-2 text-body bg-default rounded-xl hover:bg-background transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmRemoveItem}
-                className="px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger-hover transition-colors"
+                className="px-4 py-2 bg-danger text-white rounded-xl hover:bg-danger-hover transition-colors"
               >
                 Remove Item
               </button>
@@ -1084,11 +1084,11 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         </div>
       )}
 
-      <div className="p-6 bg-surface rounded-xl shadow-lg border border-default">
+      <div className="p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Check className="text-primary" size={28} />
-            <h1 className="text-2xl font-bold text-heading">
+            <h1 className="text-2xl font-bold text-heading font-display">
               Grocery Staples
             </h1>
           </div>
@@ -1110,7 +1110,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
         {/* Debug Panel */}
         {showDebug && (
-          <div className="mb-6 p-4 bg-gray-900 text-white rounded-lg shadow-lg">
+          <div className="mb-6 p-4 bg-gray-900 text-white rounded-xl shadow-warm">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
               <Wifi size={20} />
               Debug Information
@@ -1146,12 +1146,12 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         )}
 
         {error && (
-          <div className="mb-6 p-4 bg-danger-light border border-red-200 rounded-lg">
+          <div className="mb-6 p-4 bg-danger-light border border-danger rounded-xl">
             <div className="flex items-start gap-3">
               <AlertCircle className="text-danger mt-0.5" size={20} />
               <div>
-                <p className="font-semibold text-red-800">Connection Error</p>
-                <p className="text-red-700 text-sm mt-1">{error}</p>
+                <p className="font-semibold text-danger">Connection Error</p>
+                <p className="text-danger text-sm mt-1">{error}</p>
                 <p className="text-danger text-sm mt-1">
                   Using sample data instead.
                 </p>
@@ -1160,8 +1160,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           </div>
         )}
 
-        <div className="bg-primary-light border border-primary-border rounded-lg p-4 mb-6">
-          <p className="text-lg font-medium text-green-900">
+        <div className="bg-primary-light border border-primary-border rounded-xl p-4 mb-6">
+          <p className="text-lg font-medium text-primary">
             {getWeekDateRange()}
           </p>
         </div>
@@ -1171,7 +1171,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         </p>
 
         {/* Grouping and Filtering Controls */}
-        <div className="mb-6 p-4 bg-background rounded-lg space-y-4">
+        <div className="mb-6 p-4 bg-background rounded-xl space-y-4">
           {/* Item Type Filter Section */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
             <span className="font-medium text-body whitespace-nowrap">Item Type:</span>
@@ -1180,10 +1180,10 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 <button
                   key={type}
                   onClick={() => handleTypeFilterChange(type)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
                     typeFilter === type
                       ? "bg-primary text-white"
-                      : "bg-surface text-body border border-default hover:bg-gray-100"
+                      : "bg-surface text-body border border-default hover:bg-background"
                   }`}
                 >
                   {type}
@@ -1200,10 +1200,10 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 <button
                   key={source}
                   onClick={() => handleDataSourceFilterChange(source)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
                     dataSourceFilter === source
                       ? "bg-primary text-white"
-                      : "bg-surface text-body border border-default hover:bg-gray-100"
+                      : "bg-surface text-body border border-default hover:bg-background"
                   }`}
                 >
                   {source === "MealIngredients" ? "Meals" : source}
@@ -1223,10 +1223,10 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 <button
                   key={mode}
                   onClick={() => handleGroupByChange(mode)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
                     groupBy === mode
                       ? "bg-primary text-white"
-                      : "bg-surface text-body border border-default hover:bg-gray-100"
+                      : "bg-surface text-body border border-default hover:bg-background"
                   }`}
                 >
                   {mode === "GroceryStoreSection" ? "Store Section" : mode}
@@ -1246,10 +1246,10 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 <button
                   key={group}
                   onClick={() => setActiveTab(group)}
-                  className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
+                  className={`px-4 py-2 font-medium rounded-t-xl transition-colors ${
                     activeTab === group
                       ? "bg-primary text-white"
-                      : "bg-gray-100 text-body hover:bg-gray-200"
+                      : "bg-background text-body hover:bg-default"
                   }`}
                 >
                   {group}
@@ -1314,7 +1314,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             </div>
           </div>
 
-          <div className="max-h-[60vh] overflow-y-auto overscroll-contain border border-default rounded-lg bg-surface">
+          <div className="max-h-[60vh] overflow-y-auto overscroll-contain border border-default rounded-xl bg-surface">
             <div className="space-y-1 p-2">
               {currentGroupItems.map((item) => (
                 <GroceryItem
@@ -1339,7 +1339,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           <button
             onClick={handleSubmit}
             disabled={selectedItems.size === 0}
-            className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+            className="px-8 py-3 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors font-medium"
           >
             Review Selection
           </button>

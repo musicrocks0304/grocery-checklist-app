@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Store, Tag } from "lucide-react";
+import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Store, Tag, BookOpen, Receipt } from "lucide-react";
 import { Toaster } from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
+import { pageTransition } from "../utils/animations";
+import { ThemeProvider } from "../contexts/ThemeContext";
+import AppShell from "./AppShell";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
 import RecipeInstructions from "./RecipeInstructions";
-import Sidebar from "./Sidebar";
 import GroceryChecklist from "./GroceryChecklist";
 import InStoreMode from "./InStoreMode";
 import MealCreator from "./MealCreator";
@@ -21,13 +24,25 @@ const isDebugMode = () => {
   return params.get("debug") === "true";
 };
 
+// Full navigation list for the desktop sidebar
+const navigation = [
+  { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
+  { id: "in-store", name: "In Store Mode", icon: ShoppingBag },
+  { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
+  { id: "meal-creator", name: "AI Meal Creator", icon: Sparkles },
+  { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
+  { id: "recipe-ingredients", name: "Ingredients", icon: BookOpen },
+  { id: "heb-cart", name: "HEB Cart Builder", icon: Store },
+  { id: "smart-deals", name: "Smart Deals", icon: Tag },
+  { id: "coupons", name: "Coupons", icon: Receipt },
+];
+
 const App = () => {
   const [debugMode] = useState(isDebugMode);
   const [currentScreen, setCurrentScreen] = useState(() => {
     const hash = window.location.hash.replace("#", "");
     return VALID_SCREENS.includes(hash) ? hash : "grocery";
   });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedMeals, setSelectedMeals] = useState(() => {
     try {
       const weekKey = `selectedMeals_${getWeekDates().startDate}`;
@@ -68,7 +83,6 @@ const App = () => {
     }
     setCurrentScreen(screen);
     window.history.pushState({ screen }, "", `#${screen}`);
-    setSidebarOpen(false);
     window.scrollTo(0, 0);
   }, []);
 
@@ -90,7 +104,6 @@ const App = () => {
       } else {
         setCurrentScreen("grocery");
       }
-      setSidebarOpen(false);
       window.scrollTo(0, 0);
     };
 
@@ -98,210 +111,132 @@ const App = () => {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  const navigation = [
-    { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
-    { id: "in-store", name: "In Store Mode", icon: ShoppingBag },
-    { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
-    { id: "meal-creator", name: "AI Meal Creator", icon: Sparkles },
-    { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
-    { id: "heb-cart", name: "HEB Cart Builder", icon: Store },
-    { id: "smart-deals", name: "Smart Deals", icon: Tag },
-  ];
-
   const toaster = (
     <Toaster
       position="top-center"
       toastOptions={{
-        style: { fontWeight: 500 },
+        style: {
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+          fontWeight: 500,
+          borderRadius: '1rem',
+          background: 'var(--color-surface)',
+          color: 'var(--color-text-primary)',
+          border: '1px solid var(--color-border)',
+        },
         success: { duration: 3000 },
         error: { duration: 4000 },
       }}
     />
   );
 
-  if (currentScreen === "in-store") {
-    return (
-      <>
-        {toaster}
-        <InStoreMode
-          inStoreData={inStoreData}
-          onExit={() => navigateToScreen("grocery")}
-        />
-      </>
-    );
-  }
-
-  if (currentScreen === "chatbot") {
-    return (
-      <>
-        {toaster}
-        <Sidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          currentScreen={currentScreen}
-          setCurrentScreen={navigateToScreen}
-          navigation={navigation}
-        >
+  // Render the active screen content
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case "chatbot":
+        return (
           <ChatBot
             onBack={() => navigateToScreen("grocery")}
             onNavigate={navigateToScreen}
-            onToggleSidebar={() => setSidebarOpen(true)}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
             groceryListData={groceryListData}
             setGroceryListData={setGroceryListData}
             debugMode={debugMode}
           />
-        </Sidebar>
-      </>
-    );
-  }
-
-  if (currentScreen === "meal-creator") {
-    return (
-      <>
-        {toaster}
-        <Sidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          currentScreen={currentScreen}
-          setCurrentScreen={navigateToScreen}
-          navigation={navigation}
-        >
+        );
+      case "meal-creator":
+        return (
           <MealCreator
             onBack={() => navigateToScreen("grocery")}
             onNavigate={navigateToScreen}
-            onToggleSidebar={() => setSidebarOpen(true)}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
             debugMode={debugMode}
           />
-        </Sidebar>
-      </>
-    );
-  }
-
-  if (currentScreen === "recipe-ingredients") {
-    return (
-      <>
-        {toaster}
-        <Sidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          currentScreen={currentScreen}
-          setCurrentScreen={navigateToScreen}
-          navigation={navigation}
-        >
+        );
+      case "recipe-ingredients":
+        return (
           <RecipeIngredients
             selectedMeals={selectedMeals}
             onNavigate={navigateToScreen}
             groceryListData={groceryListData}
             debugMode={debugMode}
           />
-        </Sidebar>
-      </>
-    );
-  }
-
-  if (currentScreen === "recipe-instructions") {
-    return (
-      <>
-        {toaster}
-        <Sidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          currentScreen={currentScreen}
-          setCurrentScreen={navigateToScreen}
-          navigation={navigation}
-        >
+        );
+      case "recipe-instructions":
+        return (
           <RecipeInstructions
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             debugMode={debugMode}
           />
-        </Sidebar>
-      </>
-    );
-  }
-
-  if (currentScreen === "coupons") {
-    return (
-      <>
-        {toaster}
-        <Sidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          currentScreen={currentScreen}
-          setCurrentScreen={navigateToScreen}
-          navigation={navigation}
-        >
+        );
+      case "coupons":
+        return (
           <Coupons
             onNavigate={navigateToScreen}
-            onToggleSidebar={() => setSidebarOpen(true)}
           />
-        </Sidebar>
-      </>
-    );
-  }
-
-  if (currentScreen === "smart-deals") {
-    return (
-      <>
-        {toaster}
-        <Sidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          currentScreen={currentScreen}
-          setCurrentScreen={navigateToScreen}
-          navigation={navigation}
-        >
+        );
+      case "smart-deals":
+        return (
           <SmartDeals
             onNavigate={navigateToScreen}
-            onToggleSidebar={() => setSidebarOpen(true)}
           />
-        </Sidebar>
-      </>
-    );
-  }
-
-  if (currentScreen === "heb-cart") {
-    return (
-      <>
-        {toaster}
-        <Sidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          currentScreen={currentScreen}
-          setCurrentScreen={navigateToScreen}
-          navigation={navigation}
-        >
+        );
+      case "heb-cart":
+        return (
           <HebCart
             onNavigate={navigateToScreen}
-            onToggleSidebar={() => setSidebarOpen(true)}
           />
-        </Sidebar>
-      </>
+        );
+      default:
+        return (
+          <GroceryChecklist
+            onNavigate={navigateToScreen}
+            onUnsavedChanges={setHasUnsavedChanges}
+            onStartShopping={handleStartShopping}
+            debugMode={debugMode}
+          />
+        );
+    }
+  };
+
+  // InStoreMode renders fullscreen without navigation chrome
+  if (currentScreen === "in-store") {
+    return (
+      <ThemeProvider>
+        {toaster}
+        <InStoreMode
+          inStoreData={inStoreData}
+          onExit={() => navigateToScreen("grocery")}
+        />
+      </ThemeProvider>
     );
   }
 
   return (
-    <>
+    <ThemeProvider>
       {toaster}
-      <Sidebar
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
+      <AppShell
         currentScreen={currentScreen}
-        setCurrentScreen={navigateToScreen}
+        onNavigate={navigateToScreen}
         navigation={navigation}
       >
-        <GroceryChecklist
-          onNavigate={navigateToScreen}
-          onUnsavedChanges={setHasUnsavedChanges}
-          onStartShopping={handleStartShopping}
-          debugMode={debugMode}
-        />
-      </Sidebar>
-    </>
+        <div className="lg:ml-64">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentScreen}
+              initial={pageTransition.initial}
+              animate={pageTransition.animate}
+              exit={pageTransition.exit}
+              transition={pageTransition.transition}
+            >
+              {renderScreen()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </AppShell>
+    </ThemeProvider>
   );
 };
 

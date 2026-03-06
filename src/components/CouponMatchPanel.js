@@ -3,18 +3,18 @@ import { X, Check, AlertCircle, Sparkles, ChevronDown, ChevronUp, Scissors, Chec
 import { CLIP_SERVER_URL } from '../config/api';
 
 const CONFIDENCE_STYLES = {
-  high: { bg: 'bg-green-100', text: 'text-green-700', label: 'High Match', border: 'border-green-200' },
-  medium: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Possible', border: 'border-yellow-200' },
-  low: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Maybe', border: 'border-gray-200' },
+  high: { bg: 'bg-primary-light', text: 'text-primary', label: 'High Match', border: 'border-primary-border' },
+  medium: { bg: 'bg-accent-light', text: 'text-accent', label: 'Possible', border: 'border-accent' },
+  low: { bg: 'bg-background', text: 'text-body', label: 'Maybe', border: 'border-default' },
 };
 
 const CLIP_STATUS_STYLES = {
-  pending: { icon: null, text: 'text-gray-400', label: 'Waiting...' },
+  pending: { icon: null, text: 'text-muted', label: 'Waiting...' },
   clipping: { icon: Loader, text: 'text-blue-600', label: 'Clipping...' },
-  clipped: { icon: CheckCircle, text: 'text-green-600', label: 'Clipped!' },
-  already_clipped: { icon: CheckCircle, text: 'text-green-500', label: 'Already clipped' },
-  failed: { icon: XCircle, text: 'text-red-600', label: 'Failed' },
-  skipped: { icon: null, text: 'text-gray-400', label: 'Skipped' },
+  clipped: { icon: CheckCircle, text: 'text-primary', label: 'Clipped!' },
+  already_clipped: { icon: CheckCircle, text: 'text-primary', label: 'Already clipped' },
+  failed: { icon: XCircle, text: 'text-danger', label: 'Failed' },
+  skipped: { icon: null, text: 'text-muted', label: 'Skipped' },
 };
 
 const CouponMatchPanel = ({ matches, onDismiss }) => {
@@ -166,19 +166,19 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
   };
 
   return (
-    <div className="mt-6 border-2 border-primary-border rounded-lg overflow-hidden bg-surface shadow-lg">
+    <div className="mt-6 border-2 border-primary-border rounded-2xl overflow-hidden bg-surface shadow-warm transition-colors duration-200">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-700 to-green-600 text-white p-4">
+      <div className="bg-primary text-white p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-lg">
+            <div className="bg-white/20 p-2 rounded-xl">
               <Sparkles size={24} />
             </div>
             <div>
-              <h3 className="text-lg font-bold">
+              <h3 className="text-lg font-display font-bold">
                 Coupon Matches Found!
               </h3>
-              <p className="text-sm text-green-100">
+              <p className="text-sm text-white/70">
                 {totalMatches} coupon{totalMatches !== 1 ? 's' : ''} match your grocery list
                 {highConfidence > 0 && ` (${highConfidence} high confidence)`}
               </p>
@@ -207,7 +207,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
         <button
           onClick={allSelected ? deselectAll : selectAll}
           disabled={isClipping}
-          className="text-sm font-medium px-4 py-2 rounded-full bg-surface text-body border border-default hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed transition-colors"
+          className="text-sm font-medium px-4 py-2 rounded-full bg-surface text-body border border-default hover:bg-background disabled:bg-default disabled:cursor-not-allowed transition-colors"
         >
           {allSelected ? 'Deselect All' : 'Select All'}
         </button>
@@ -219,7 +219,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
               {selectedCount} selected
             </span>
             {selectedSavings > 0 && (
-              <span className="text-sm font-semibold text-green-700 flex items-center gap-1">
+              <span className="text-sm font-semibold text-primary flex items-center gap-1">
                 <DollarSign size={14} />
                 {selectedSavings.toFixed(2)} potential savings
               </span>
@@ -230,22 +230,22 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
 
       {/* Clip progress / results banner */}
       {clipError && (
-        <div className="px-4 py-3 bg-red-50 border-b border-red-200 flex items-start gap-2">
+        <div className="px-4 py-3 bg-danger-light border-b border-danger flex items-start gap-2">
           <AlertCircle className="text-danger flex-shrink-0 mt-0.5" size={16} />
           <div>
-            <p className="text-sm font-medium text-red-800">Clipping failed</p>
+            <p className="text-sm font-medium text-danger">Clipping failed</p>
             <p className="text-xs text-danger">{clipError}</p>
           </div>
         </div>
       )}
 
       {clipResults && !isClipping && (
-        <div className="px-4 py-3 bg-green-50 border-b border-green-200">
+        <div className="px-4 py-3 bg-primary-light border-b border-primary-border">
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle size={16} className="text-green-600" />
-            <span className="text-sm font-semibold text-green-800">Clipping Complete!</span>
+            <CheckCircle size={16} className="text-primary" />
+            <span className="text-sm font-semibold text-primary">Clipping Complete!</span>
           </div>
-          <p className="text-xs text-green-700">
+          <p className="text-xs text-primary">
             {clipResults.clipped} clipped successfully
             {clipResults.already_clipped > 0 && `, ${clipResults.already_clipped} already clipped`}
             {clipResults.failed > 0 && `, ${clipResults.failed} failed`}
@@ -260,11 +260,11 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
           const isExpanded = expandedItems.has(itemName) || Object.keys(groupedByItem).length <= 3;
 
           return (
-            <div key={itemName} className="border border-default rounded-lg overflow-hidden">
+            <div key={itemName} className="border border-default rounded-xl overflow-hidden">
               {/* Grocery item header */}
               <button
                 onClick={() => toggleItem(itemName)}
-                className="w-full flex items-center justify-between p-3 bg-background hover:bg-gray-100 transition-colors text-left"
+                className="w-full flex items-center justify-between p-3 bg-background hover:bg-background transition-colors text-left"
               >
                 <div className="flex items-center gap-2">
                   <Check size={16} className="text-primary" />
@@ -278,7 +278,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
 
               {/* Matched coupons */}
               {isExpanded && (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-default">
                   {itemMatches.map((match, idx) => {
                     const conf = CONFIDENCE_STYLES[match.confidence] || CONFIDENCE_STYLES.low;
                     const hashId = match.coupon_hash_id;
@@ -290,7 +290,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
                     return (
                       <div
                         key={idx}
-                        className={`p-3 flex items-start gap-3 transition-colors ${isSelected ? 'bg-green-50' : ''}`}
+                        className={`p-3 flex items-start gap-3 transition-colors ${isSelected ? 'bg-primary-light' : ''}`}
                       >
                         {/* Checkbox */}
                         {hashId && (
@@ -326,7 +326,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
                               {conf.label}
                             </span>
                           </div>
-                          <p className="text-sm font-semibold text-green-700 mb-0.5">
+                          <p className="text-sm font-semibold text-primary mb-0.5">
                             {match.discount}
                             {match.savings_amount && parseFloat(match.savings_amount) > 0 && (
                               <span className="text-xs font-normal text-muted ml-2">
@@ -380,7 +380,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
           <button
             onClick={handleClipSelected}
             disabled={selectedCount === 0 || isClipping}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
           >
             {isClipping ? (
               <>
@@ -420,7 +420,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
                         className={`${statusStyle.text} ${status === 'clipping' ? 'animate-spin' : ''}`}
                       />
                     ) : (
-                      <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+                      <span className="w-2 h-2 rounded-full bg-muted"></span>
                     )}
                   </span>
                   <span className="text-body truncate flex-1">

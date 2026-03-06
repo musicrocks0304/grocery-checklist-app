@@ -4,7 +4,7 @@ import React from 'react';
  * Shared Card / Panel component.
  *
  * Variants:
- *   elevated — shadow + border (default)
+ *   elevated — warm shadow + border (default)
  *   flat     — border only, no shadow
  *
  * Usage:
@@ -13,8 +13,8 @@ import React from 'react';
  */
 
 const VARIANT_CLASSES = {
-  elevated: 'bg-surface rounded-xl shadow-lg border border-default',
-  flat: 'bg-surface rounded-xl border border-default',
+  elevated: 'bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200',
+  flat: 'bg-surface rounded-2xl border border-default transition-colors duration-200',
 };
 
 const Card = ({ variant = 'elevated', className = '', children, ...props }) => {

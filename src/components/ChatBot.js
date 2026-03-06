@@ -17,7 +17,7 @@ const getSessionId = () => {
 const CHATBOT_WEBHOOK_URL = ENDPOINTS.callGroceryAgent;
 const CHAT_HISTORY_URL = ENDPOINTS.chatHistory;
 
-const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals, groceryListData, setGroceryListData, debugMode = false }) => {
+const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals, groceryListData, setGroceryListData, debugMode = false }) => {
   // Session management
   const [sessionId] = useState(getSessionId());
 
@@ -671,11 +671,11 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
       {/* Loading Overlay */}
       {isGeneratingGroceryList && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-lg p-8 shadow-2xl max-w-md mx-4 text-center">
+          <div className="bg-surface rounded-2xl p-8 shadow-warm-xl max-w-md mx-4 text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
             </div>
-            <h3 className="text-xl font-semibold text-heading mb-2">Creating Your Grocery List</h3>
+            <h3 className="text-xl font-semibold text-heading font-display mb-2">Creating Your Grocery List</h3>
             <p className="text-body mb-4">
               Our AI is analyzing your selected meals and aggregating all the ingredients...
             </p>
@@ -690,20 +690,20 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
       )}
 
       {/* Main Chat Area */}
-      <div className={`bg-surface lg:rounded-lg lg:shadow-lg overflow-hidden transition-all flex flex-col ${showMealsPanel ? 'lg:flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'} ${showMealsPanel ? 'lg:mr-0' : ''}`}>
+      <div className={`bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden transition-all transition-colors duration-200 flex flex-col ${showMealsPanel ? 'lg:flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'} ${showMealsPanel ? 'lg:mr-0' : ''}`}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-700 to-green-600 text-white p-4">
+        <div className="bg-primary text-white p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <button
                 onClick={onBack}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/20 rounded-xl transition-colors"
                 aria-label="Go back"
               >
                 <ArrowLeft size={20} />
               </button>
               <ChefHat size={24} />
-              <h1 className="text-xl font-bold">AI Meal Planner</h1>
+              <h1 className="text-xl font-bold font-display">AI Meal Planner</h1>
             </div>
 
             <div className="flex items-center gap-2">
@@ -711,7 +711,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
               <button
                 onClick={() => !isGeneratingGroceryList && setShowMealsPanel(!showMealsPanel)}
                 disabled={isGeneratingGroceryList}
-                className={`flex items-center gap-1 text-sm px-2 py-1 rounded-lg transition-colors ${isGeneratingGroceryList ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/20'}`}
+                className={`flex items-center gap-1 text-sm px-2 py-1 rounded-xl transition-colors ${isGeneratingGroceryList ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/20'}`}
               >
                 <ShoppingCart size={16} />
                 <span className="hidden sm:inline">Meal Plans</span> ({selectedMeals.length})
@@ -721,7 +721,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
               {debugMode && (
                 <button
                   onClick={() => setShowDebug(!showDebug)}
-                  className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-lg transition-colors"
+                  className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-xl transition-colors"
                 >
                   <Wifi size={16} />
                   <span className="hidden sm:inline">Debug</span>
@@ -737,7 +737,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                     window.location.reload();
                   }
                 }}
-                className="text-xs hover:bg-white/20 px-2 py-1 rounded transition-colors"
+                className="text-xs hover:bg-white/20 px-2 py-1 rounded-xl transition-colors"
                 title="Start new session"
               >
                 New
@@ -807,9 +807,9 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                   {message.isTyping ? (
                     <div className="flex items-center gap-1">
                       <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                        <div className="w-2 h-2 bg-muted rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                        <div className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                       </div>
                       <Sparkles size={16} className="text-primary ml-2" />
                     </div>
@@ -825,7 +825,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                             const isCollapsed = !collapsedCards.has(cardKey); // Cards are collapsed by default
 
                             return (
-                              <div key={index} className="bg-background rounded-lg border border-default">
+                              <div key={index} className="bg-background rounded-2xl border border-default">
                                 {/* Card Header - Always Visible */}
                                 <div className="p-3">
                                   <div className="flex items-start justify-between">
@@ -834,7 +834,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                                         <h4 className="font-semibold text-heading">{meal.name}</h4>
                                         <button
                                           onClick={() => toggleCardCollapse(message.id, index)}
-                                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                          className="p-1 hover:bg-background rounded transition-colors"
                                           title={isCollapsed ? "Expand details" : "Collapse details"}
                                         >
                                           {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
@@ -846,7 +846,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                                         addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
                                         setShowMealsPanel(true);
                                       }}
-                                      className="ml-3 flex items-center gap-1 px-3 py-1 bg-primary text-white text-sm rounded-lg hover:bg-primary-hover transition-colors"
+                                      className="ml-3 flex items-center gap-1 px-3 py-1 bg-primary text-white text-sm rounded-xl hover:bg-primary-hover transition-colors"
                                     >
                                       <Plus size={14} />
                                       Add to Plan
@@ -873,7 +873,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
 
                       <div
                         className={`text-xs mt-2 ${
-                          message.type === 'user' ? 'text-green-200' : 'text-muted'
+                          message.type === 'user' ? 'text-primary-light' : 'text-muted'
                         }`}
                       >
                         {message.timestamp}
@@ -905,7 +905,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             <button
               onClick={sendMessage}
               disabled={!inputMessage.trim() || isLoading}
-              className="px-6 py-3 bg-gradient-to-r from-green-700 to-green-600 text-white rounded-xl hover:from-green-800 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
             >
               <Send size={20} />
               Send
@@ -928,8 +928,8 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
           <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setShowMealsPanel(false)} />
 
           {/* Meals Panel - Mobile Modal / Desktop Sidebar */}
-          <div className="fixed lg:relative inset-y-0 right-0 lg:inset-auto w-full max-w-sm lg:max-w-none lg:w-96 bg-surface lg:rounded-lg shadow-2xl lg:shadow-lg overflow-hidden flex flex-col z-50 lg:z-auto transform transition-transform duration-300 ease-in-out">
-          <div className="bg-gradient-to-r from-green-700 to-green-600 text-white p-4">
+          <div className="fixed lg:relative inset-y-0 right-0 lg:inset-auto w-full max-w-sm lg:max-w-none lg:w-96 bg-surface lg:rounded-2xl shadow-warm-xl lg:shadow-warm overflow-hidden flex flex-col z-50 lg:z-auto transform transition-transform duration-300 ease-in-out">
+          <div className="bg-primary text-white p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ChefHat size={20} />
@@ -972,7 +972,7 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
             ) : (
               <div className="space-y-3">
                 {selectedMeals.map((meal) => (
-                  <div key={meal.id} className="border border-default rounded-lg bg-surface">
+                  <div key={meal.id} className="border border-default rounded-2xl bg-surface transition-colors duration-200">
                     <div className="p-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -1146,9 +1146,9 @@ const ChatBot = ({ onBack, onNavigate, onToggleSidebar, selectedMeals: parentSel
                   }
                 }}
                 disabled={isGeneratingGroceryList}
-                className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                className={`w-full px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 ${
                   isGeneratingGroceryList
-                    ? 'bg-gray-400 cursor-not-allowed'
+                    ? 'bg-muted cursor-not-allowed'
                     : 'bg-primary hover:bg-primary-hover'
                 } text-white`}
               >

@@ -2,6 +2,23 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
+// Mock matchMedia for ThemeContext (not available in JSDOM)
+beforeAll(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+});
+
 // Mock fetch globally to prevent real API calls
 beforeEach(() => {
   global.fetch = jest.fn().mockResolvedValue({

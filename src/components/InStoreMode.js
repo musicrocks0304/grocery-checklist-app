@@ -20,7 +20,7 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
   return (
     <button
       onClick={() => onToggle(item.ItemID.toString())}
-      className={`w-full flex items-center gap-4 px-4 py-3 min-h-[56px] rounded-lg transition-all duration-200 active:scale-[0.98] ${
+      className={`w-full flex items-center gap-4 px-4 py-3 min-h-[56px] rounded-xl transition-all duration-200 active:scale-[0.98] ${
         isChecked
           ? "bg-background"
           : "bg-surface hover:bg-primary-light"
@@ -30,7 +30,7 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
       <div
         className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
           isChecked
-            ? "bg-green-500 border-green-500"
+            ? "bg-primary border-primary"
             : "border-default"
         }`}
       >
@@ -50,9 +50,9 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
 
       {/* Quantity badge */}
       <span
-        className={`text-sm font-medium px-2 py-1 rounded flex-shrink-0 transition-all duration-200 ${
+        className={`text-sm font-medium px-2 py-1 rounded-lg flex-shrink-0 transition-all duration-200 ${
           isChecked
-            ? "bg-gray-100 text-muted"
+            ? "bg-background text-muted"
             : "bg-primary-light text-primary"
         }`}
       >
@@ -69,22 +69,22 @@ const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }
   return (
     <button
       onClick={onToggle}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 ${
         allDone
-          ? "bg-green-50 border border-green-200"
+          ? "bg-primary-light border border-primary-border"
           : "bg-background border border-default"
       }`}
     >
       {/* Section complete indicator */}
       {allDone && (
-        <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
           <Check size={14} className="text-white" />
         </div>
       )}
 
       <span
         className={`flex-1 text-left font-bold text-lg ${
-          allDone ? "text-green-700" : "text-heading"
+          allDone ? "text-primary" : "text-heading"
         }`}
       >
         {name}
@@ -94,8 +94,8 @@ const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }
       <span
         className={`text-sm font-medium px-2 py-1 rounded-full ${
           allDone
-            ? "bg-green-100 text-green-700"
-            : "bg-gray-200 text-body"
+            ? "bg-primary-light text-primary"
+            : "bg-default text-body"
         }`}
       >
         {checkedCount}/{totalCount}
@@ -116,9 +116,9 @@ const ProgressBar = ({ checked, total }) => {
   const percentage = total > 0 ? (checked / total) * 100 : 0;
 
   return (
-    <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+    <div className="h-1.5 bg-default rounded-full overflow-hidden">
       <div
-        className="h-full bg-green-500 rounded-full transition-all duration-300 ease-out"
+        className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
         style={{ width: `${percentage}%` }}
       />
     </div>
@@ -415,12 +415,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           <div className="flex items-center gap-3 px-4 h-14">
             <button
               onClick={onExit}
-              className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-gray-100 transition-colors"
+              className="p-2 -ml-2 rounded-xl text-body hover:text-heading hover:bg-background transition-colors"
               aria-label="Go back"
             >
               <ArrowLeft size={24} />
             </button>
-            <h1 className="text-lg font-bold text-heading">Shopping List</h1>
+            <h1 className="text-lg font-bold font-display text-heading">Shopping List</h1>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-8">
@@ -442,12 +442,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           <div className="flex items-center gap-3 px-4 h-14">
             <button
               onClick={onExit}
-              className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-gray-100 transition-colors"
+              className="p-2 -ml-2 rounded-xl text-body hover:text-heading hover:bg-background transition-colors"
               aria-label="Go back"
             >
               <ArrowLeft size={24} />
             </button>
-            <h1 className="text-lg font-bold text-heading">Shopping List</h1>
+            <h1 className="text-lg font-bold font-display text-heading">Shopping List</h1>
           </div>
         </div>
 
@@ -479,7 +479,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
             <ArrowLeft size={24} />
           </button>
 
-          <h1 className="flex-1 text-lg font-bold text-heading">
+          <h1 className="flex-1 text-lg font-bold font-display text-heading">
             Shopping List
           </h1>
 
@@ -487,7 +487,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           {wakeLockActive && (
             <Smartphone
               size={16}
-              className="text-green-500 flex-shrink-0"
+              className="text-primary flex-shrink-0"
               title="Screen will stay awake"
             />
           )}
@@ -542,7 +542,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
 
       {/* All done banner */}
       {allDone && (
-        <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-primary to-green-500 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 z-10 bg-primary p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-warm">
           <div className="flex items-center justify-center gap-3 mb-3">
             <PartyPopper size={28} className="text-white" />
             <span className="text-xl font-bold text-white">All Done!</span>
@@ -550,7 +550,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           </div>
           <button
             onClick={onExit}
-            className="w-full py-3 bg-white text-primary rounded-lg font-bold text-lg hover:bg-primary-light transition-colors"
+            className="w-full py-3 bg-surface text-primary rounded-xl font-bold text-lg hover:bg-primary-light transition-colors"
           >
             Return to Grocery List
           </button>

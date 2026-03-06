@@ -24,13 +24,13 @@ const EmptyState = ({
 }) => {
   return (
     <div className={`text-center py-12 ${className}`}>
-      {Icon && <Icon size={56} className="mx-auto text-gray-300 mb-4" />}
-      {title && <h2 className="text-xl font-semibold text-body mb-2">{title}</h2>}
+      {Icon && <Icon size={56} className="mx-auto text-muted mb-4" />}
+      {title && <h2 className="text-xl font-semibold text-heading font-display mb-2">{title}</h2>}
       {description && <p className="text-muted mb-6 max-w-sm mx-auto">{description}</p>}
       {action && (
         <button
           onClick={action.onClick}
-          className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium"
+          className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-hover transition-all duration-200 font-medium min-h-[44px] active:scale-[0.97]"
         >
           {action.label}
         </button>

@@ -2,27 +2,15 @@
  * Design Tokens — Grocery Checklist App
  *
  * Two visual themes:
- *   "green"  — shopping & planning screens (Grocery, ChatBot, Coupons, In-Store, RecipeIngredients)
+ *   "green"  — shopping & planning screens (Grocery, ChatBot, Coupons, In-Store, RecipeIngredients, HebCart)
  *   "amber"  — cooking screens (RecipeInstructions, MealCreator)
+ *
+ * Colors resolve via CSS custom properties (see index.css) for automatic dark mode support.
  *
  * Usage:
  *   import { THEMES, TOKENS } from '../styles/tokens';
  *   const t = THEMES.green;       // or THEMES.amber
  *   <div className={t.headerGradient}>
- *
- * Tailwind custom classes (defined in tailwind.config.js extend.colors):
- *   bg-primary, text-primary, border-primary          → green-600
- *   bg-primary-light, border-primary-border            → green-50 / green-200
- *   bg-secondary, text-secondary                      → gray-600
- *   bg-accent, text-accent                             → amber-500
- *   bg-danger, text-danger                             → red-600
- *   bg-surface                                         → white
- *   bg-background                                      → gray-50
- *   text-heading                                       → gray-800
- *   text-body                                          → gray-600
- *   text-muted                                         → gray-500
- *   border-default                                     → gray-200
- *   ring-focus                                         → green-500
  */
 
 // ---------------------------------------------------------------------------
@@ -30,8 +18,8 @@
 // ---------------------------------------------------------------------------
 export const TOKENS = {
   // Typography
-  pageTitle: 'text-xl sm:text-2xl font-bold text-heading',
-  sectionHeader: 'text-lg font-semibold text-heading',
+  pageTitle: 'text-xl sm:text-2xl font-bold text-heading font-display',
+  sectionHeader: 'text-lg font-semibold text-heading font-display',
   body: 'text-base text-body',
   label: 'text-sm font-medium text-body',
   caption: 'text-sm text-muted',
@@ -39,46 +27,49 @@ export const TOKENS = {
 
   // Layout
   pageBackground: 'bg-background',
-  cardBase: 'bg-surface rounded-xl shadow-lg border border-default',
-  cardFlat: 'bg-surface rounded-xl border border-default',
+  cardBase: 'bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200',
+  cardFlat: 'bg-surface rounded-2xl border border-default transition-colors duration-200',
   containerPadding: 'p-4 sm:p-6',
   maxWidth: 'max-w-4xl mx-auto',
   maxWidthWide: 'max-w-6xl mx-auto',
 
+  // Touch targets
+  touchTarget: 'min-h-[44px] min-w-[44px]',
+
   // Buttons — base classes (combine with variant)
-  btnBase: 'inline-flex items-center justify-center gap-2 font-medium transition-colors',
-  btnSm: 'px-3 py-1.5 text-sm rounded-lg',
-  btnMd: 'px-4 py-2 text-sm rounded-lg',
-  btnLg: 'px-6 py-3 text-base rounded-lg',
+  btnBase: 'inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 active:scale-[0.97]',
+  btnSm: 'px-3 py-1.5 text-sm rounded-xl',
+  btnMd: 'px-4 py-2 text-sm rounded-xl min-h-[44px]',
+  btnLg: 'px-6 py-3 text-base rounded-xl min-h-[44px]',
 
   // Button variants (theme-independent)
-  btnSecondary: 'bg-secondary text-white hover:bg-secondary-hover',
+  btnSecondary: 'bg-surface text-body border border-default hover:bg-background',
   btnDanger: 'bg-danger text-white hover:bg-danger-hover',
-  btnGhost: 'bg-transparent text-body hover:bg-gray-100',
-  btnOutline: 'bg-white text-body border border-default hover:bg-gray-50',
-  btnDisabled: 'bg-gray-400 text-white cursor-not-allowed',
+  btnGhost: 'bg-transparent text-body hover:bg-background',
+  btnOutline: 'bg-surface text-body border border-default hover:bg-background',
+  btnDisabled: 'bg-muted text-white cursor-not-allowed',
 
   // Inputs
-  input: 'w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm',
-  select: 'px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm',
-  checkbox: 'w-4 h-4 text-primary rounded focus:ring-focus',
+  input: 'w-full px-3 py-2 border border-default rounded-xl bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm transition-colors duration-200',
+  select: 'px-3 py-2 border border-default rounded-xl bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm transition-colors duration-200',
+  checkbox: 'w-5 h-5 text-primary rounded focus:ring-focus',
 
   // Feedback
   spinnerLg: 'animate-spin rounded-full h-12 w-12 border-4 border-t-transparent',
   spinnerSm: 'animate-spin rounded-full h-4 w-4 border-2 border-t-transparent',
-  errorBanner: 'p-4 bg-danger-light border border-red-200 rounded-xl',
-  successBanner: 'p-4 bg-primary-light border border-primary-border rounded-xl',
+  errorBanner: 'p-4 bg-danger-light border border-danger rounded-2xl transition-colors duration-200',
+  successBanner: 'p-4 bg-primary-light border border-primary-border rounded-2xl transition-colors duration-200',
 
   // Modals
   overlay: 'fixed inset-0 bg-black/50 z-50',
-  modalCard: 'bg-surface rounded-xl shadow-2xl p-6 max-w-md w-full mx-4',
+  modalCard: 'bg-surface rounded-2xl shadow-warm-xl p-6 max-w-md w-full mx-4 transition-colors duration-200',
 
   // Badges / pills
-  badge: 'inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full',
+  badge: 'inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full',
 
   // Empty state
-  emptyIcon: 'mx-auto text-gray-300 mb-4',
-  emptyTitle: 'text-xl font-semibold text-body mb-2',
+  emptyIcon: 'mx-auto text-muted mb-4',
+  emptyTitle: 'text-xl font-semibold text-heading font-display mb-2',
   emptyBody: 'text-muted mb-6',
 };
 
@@ -89,26 +80,26 @@ export const THEMES = {
   green: {
     name: 'green',
     // Header
-    headerGradient: 'bg-gradient-to-r from-green-700 to-green-600 text-white',
+    headerGradient: 'bg-primary text-white',
     // Primary button
     btnPrimary: 'bg-primary text-white hover:bg-primary-hover',
     // Active filter / tab
     filterActive: 'bg-primary text-white',
-    filterInactive: 'bg-white text-body border border-default hover:bg-gray-100',
+    filterInactive: 'bg-surface text-body border border-default hover:bg-background',
     // Tab active
     tabActive: 'bg-primary text-white',
-    tabInactive: 'bg-gray-100 text-body hover:bg-gray-200',
+    tabInactive: 'bg-background text-body hover:bg-surface',
     // Week date banner
-    dateBanner: 'bg-primary-light border border-primary-border rounded-xl p-4',
-    dateBannerText: 'text-lg font-medium text-green-900',
+    dateBanner: 'bg-primary-light border border-primary-border rounded-2xl p-4 transition-colors duration-200',
+    dateBannerText: 'text-lg font-medium text-heading font-display',
     // Spinner color
     spinnerColor: 'border-primary',
     // Chat bubble (user)
     chatBubbleUser: 'bg-primary text-white',
-    // Focus ring (already in Tailwind as ring-focus)
+    // Focus ring
     focusRing: 'focus:ring-focus',
     // Info banner in header
-    headerInfoBox: 'bg-white/20 rounded-lg p-3',
+    headerInfoBox: 'bg-white/20 rounded-xl p-3',
     // Progress bar
     progressBar: 'bg-primary',
   },
@@ -116,28 +107,28 @@ export const THEMES = {
   amber: {
     name: 'amber',
     // Header
-    headerGradient: 'bg-gradient-to-r from-amber-600 to-orange-600 text-white',
+    headerGradient: 'bg-accent text-white',
     // Primary button
-    btnPrimary: 'bg-accent-dark text-white hover:bg-amber-700',
+    btnPrimary: 'bg-accent text-white hover:bg-accent-hover',
     // Active filter / tab
-    filterActive: 'bg-accent-dark text-white',
-    filterInactive: 'bg-white text-body border border-default hover:bg-gray-100',
+    filterActive: 'bg-accent text-white',
+    filterInactive: 'bg-surface text-body border border-default hover:bg-background',
     // Tab active
-    tabActive: 'bg-accent-dark text-white',
-    tabInactive: 'bg-gray-100 text-body hover:bg-gray-200',
+    tabActive: 'bg-accent text-white',
+    tabInactive: 'bg-background text-body hover:bg-surface',
     // Week date banner
-    dateBanner: 'bg-amber-50 border border-amber-200 rounded-xl p-4',
-    dateBannerText: 'text-lg font-medium text-amber-900',
+    dateBanner: 'bg-accent-light border border-accent rounded-2xl p-4 transition-colors duration-200',
+    dateBannerText: 'text-lg font-medium text-heading font-display',
     // Spinner color
-    spinnerColor: 'border-accent-dark',
+    spinnerColor: 'border-accent',
     // Chat bubble (user)
-    chatBubbleUser: 'bg-accent-dark text-white',
+    chatBubbleUser: 'bg-accent text-white',
     // Focus ring
-    focusRing: 'focus:ring-amber-500',
+    focusRing: 'focus:ring-accent',
     // Info banner in header
-    headerInfoBox: 'bg-white/20 rounded-lg p-3',
+    headerInfoBox: 'bg-white/20 rounded-xl p-3',
     // Progress bar
-    progressBar: 'bg-accent-dark',
+    progressBar: 'bg-accent',
   },
 };
 
@@ -151,4 +142,5 @@ export const SCREEN_THEME = {
   'recipe-instructions': THEMES.amber,
   'meal-creator': THEMES.amber,
   'heb-cart': THEMES.green,
+  'smart-deals': THEMES.green,
 };

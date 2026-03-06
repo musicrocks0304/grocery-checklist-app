@@ -375,7 +375,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
+      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-body">
@@ -392,15 +392,15 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
   if (showFinalList) {
     const finalList = getFinalGroceryList();
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
+      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="flex items-center gap-3 mb-6">
           <ShoppingCart className="text-primary" size={28} />
-          <h1 className="text-2xl font-bold text-heading">
+          <h1 className="text-2xl font-display font-bold text-heading">
             Recipe Grocery List
           </h1>
         </div>
 
-        <div className="bg-background p-4 rounded-lg mb-6">
+        <div className="bg-background p-4 rounded-xl mb-6">
           <p className="text-lg font-semibold text-body">
             {getWeekDateRange()}
           </p>
@@ -418,12 +418,12 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
               <h2 className="text-xl font-semibold text-heading mb-4 border-b-2 border-primary-border pb-2">
                 {categoryName}
               </h2>
-              <div className="bg-surface border border-default rounded-lg overflow-hidden">
+              <div className="bg-surface border border-default rounded-xl overflow-hidden">
                 {items.map((item, index) => (
                   <div
                     key={item.ItemID}
                     className={`p-4 flex items-center justify-between ${
-                      index !== items.length - 1 ? 'border-b border-gray-100' : ''
+                      index !== items.length - 1 ? 'border-b border-default' : ''
                     } hover:bg-background transition-colors`}
                   >
                     <div className="flex-1">
@@ -437,7 +437,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                       )}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-green-700 bg-primary-light px-3 py-1 rounded-full">
+                      <span className="text-sm font-semibold text-primary bg-primary-light px-3 py-1 rounded-full">
                         {item.quantity > 1
                           ? `${item.quantity} \u00d7 ${item.QuantitySelected}`
                           : item.QuantitySelected}
@@ -452,7 +452,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         <div className="flex gap-4 pt-6 border-t">
           <button
             onClick={() => setShowFinalList(false)}
-            className="px-6 py-2 bg-secondary text-white rounded-lg hover:bg-secondary-hover transition-colors"
+            className="px-6 py-2 bg-secondary text-white rounded-xl hover:bg-secondary-hover transition-colors"
           >
             Back to Selection
           </button>
@@ -460,7 +460,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
             onClick={() => {
               setShowConfirmDialog(true);
             }}
-            className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
+            className="px-6 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors"
           >
             Add to Main Grocery List
           </button>
@@ -469,7 +469,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         {/* Confirmation Dialog */}
         {showConfirmDialog && !isAddingToMainList && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-surface rounded-xl p-6 max-w-md mx-4 shadow-xl">
+            <div className="bg-surface rounded-2xl p-6 max-w-md mx-4 shadow-warm-lg">
               <div className="flex items-center gap-3 mb-4">
                 <AlertCircle className="text-accent" size={24} />
                 <h3 className="text-lg font-semibold text-heading">Confirm Action</h3>
@@ -481,13 +481,13 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setShowConfirmDialog(false)}
-                  className="px-4 py-2 text-body bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="px-4 py-2 text-body bg-background rounded-xl hover:bg-background transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddToMainList}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
+                  className="px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors"
                 >
                   Add to Main List
                 </button>
@@ -499,7 +499,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         {/* Loading Dialog */}
         {isAddingToMainList && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-surface rounded-xl p-8 max-w-md mx-4 shadow-xl text-center">
+            <div className="bg-surface rounded-2xl p-8 max-w-md mx-4 shadow-warm-lg text-center">
               <div className="flex items-center justify-center space-x-1 mb-4">
                 <div className="animate-bounce h-3 w-3 bg-primary rounded-full" style={{animationDelay: '0ms'}}></div>
                 <div className="animate-bounce h-3 w-3 bg-primary rounded-full" style={{animationDelay: '150ms'}}></div>
@@ -520,18 +520,18 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="p-6 bg-surface rounded-xl shadow-lg border border-default">
+      <div className="p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => onNavigate('grocery')}
-              className="p-2 text-body hover:text-heading hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-body hover:text-heading hover:bg-background rounded-xl transition-colors"
               title="Back to Grocery List"
             >
               <ArrowLeft size={20} />
             </button>
             <ChefHat className="text-primary" size={28} />
-            <h1 className="text-2xl font-bold text-heading">
+            <h1 className="text-2xl font-display font-bold text-heading">
               Recipe Ingredients
             </h1>
           </div>
@@ -553,7 +553,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
 
         {/* Debug Panel */}
         {showDebug && (
-          <div className="mb-6 p-4 bg-gray-900 text-white rounded-lg shadow-lg">
+          <div className="mb-6 p-4 bg-gray-900 text-white rounded-xl shadow-warm">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-3">
               <Wifi size={20} />
               Debug Information
@@ -589,15 +589,15 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         )}
 
         {error && (
-          <div className="mb-6 p-4 bg-danger-light border border-red-200 rounded-lg">
+          <div className="mb-6 p-4 bg-danger-light border border-danger rounded-xl">
             <div className="flex items-start gap-3">
               <AlertCircle className="text-danger mt-0.5" size={20} />
               <div>
-                <p className="font-semibold text-red-800">Processing Error</p>
-                <p className="text-red-700 text-sm mt-1">{error}</p>
+                <p className="font-semibold text-danger">Processing Error</p>
+                <p className="text-danger text-sm mt-1">{error}</p>
                 <button
                   onClick={() => onNavigate('chatbot')}
-                  className="mt-2 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-hover transition-colors"
+                  className="mt-2 px-4 py-2 bg-primary text-white rounded-xl text-sm hover:bg-primary-hover transition-colors"
                 >
                   Back to Meal Planner
                 </button>
@@ -606,19 +606,19 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
           </div>
         )}
 
-        <div className="bg-primary-light border border-primary-border rounded-lg p-4 mb-6">
-          <p className="text-lg font-medium text-green-900">
+        <div className="bg-primary-light border border-primary-border rounded-xl p-4 mb-6">
+          <p className="text-lg font-medium text-primary">
             {getWeekDateRange()}
           </p>
-          <p className="text-sm text-green-700 mt-1">
+          <p className="text-sm text-primary mt-1">
             Ingredients from {selectedMeals.length} selected meal{selectedMeals.length !== 1 ? 's' : ''}
           </p>
         </div>
 
         {/* Selected Meals Summary */}
         {selectedMeals.length > 0 && (
-          <div className="mb-6 bg-primary-light border border-primary-border rounded-lg p-4">
-            <h2 className="text-lg font-semibold text-green-900 mb-3 flex items-center gap-2">
+          <div className="mb-6 bg-primary-light border border-primary-border rounded-xl p-4">
+            <h2 className="text-lg font-semibold text-primary mb-3 flex items-center gap-2">
               <Utensils size={20} />
               Selected Meals ({selectedMeals.length})
             </h2>
@@ -626,7 +626,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
               {selectedMeals.map((meal, index) => {
                 const isExpanded = expandedMeals.has(index);
                 return (
-                  <div key={meal.id || index} className="bg-surface rounded-lg p-3 border border-primary-border">
+                  <div key={meal.id || index} className="bg-surface rounded-xl p-3 border border-primary-border">
                     <div className="flex items-start justify-between">
                       <h3 className="font-medium text-heading flex-1">{meal.name}</h3>
                       {meal.description && (
@@ -670,7 +670,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         </p>
 
         {/* Grouping Controls */}
-        <div className="mb-6 p-4 bg-background rounded-lg">
+        <div className="mb-6 p-4 bg-background rounded-xl">
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
             <div className="flex items-center gap-2 text-body">
               <Layers size={20} />
@@ -681,10 +681,10 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                 <button
                   key={mode}
                   onClick={() => handleGroupByChange(mode)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-xl font-medium transition-colors ${
                     groupBy === mode
                       ? "bg-primary text-white"
-                      : "bg-surface text-body border border-default hover:bg-gray-100"
+                      : "bg-surface text-body border border-default hover:bg-background"
                   }`}
                 >
                   {mode === "GroceryStoreSection" ? "Store Section" : mode}
@@ -704,10 +704,10 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                 <button
                   key={group}
                   onClick={() => setActiveTab(group)}
-                  className={`px-4 py-2 font-medium rounded-t-lg transition-colors ${
+                  className={`px-4 py-2 font-medium rounded-t-xl transition-colors ${
                     activeTab === group
                       ? "bg-primary text-white"
-                      : "bg-gray-100 text-body hover:bg-gray-200"
+                      : "bg-background text-body hover:bg-background"
                   }`}
                 >
                   {group}
@@ -734,7 +734,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
             <p className="text-body">Try selecting a different group or filter.</p>
           </div>
         ) : (
-          <div className="bg-surface border border-default rounded-lg">
+          <div className="bg-surface border border-default rounded-xl">
             <div className="p-4 border-b border-default bg-background flex items-center justify-between">
               <h3 className="font-medium text-heading">Category: {activeTab}</h3>
               <button
@@ -793,8 +793,8 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                               {item.ItemName}
                             </h4>
                             <div className="mt-1 space-y-1">
-                              <div className="text-sm text-green-700 font-medium">
-                                Buy: <span className="text-green-800">{item.QuantitySelected}</span>
+                              <div className="text-sm text-primary font-medium">
+                                Buy: <span className="text-primary">{item.QuantitySelected}</span>
                               </div>
                               {item.RecipeNeeds && (
                                 <div className="text-xs text-body">
@@ -855,7 +855,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
               <button
                 onClick={() => setShowFinalList(true)}
                 disabled={selectedItems.size === 0}
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 <Check size={20} />
                 Review List ({selectedItems.size})

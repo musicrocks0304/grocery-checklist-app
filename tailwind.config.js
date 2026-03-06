@@ -3,47 +3,64 @@ module.exports = {
   content: [
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        display: ['Fraunces', 'Georgia', 'serif'],
+        body: ['DM Sans', 'system-ui', 'sans-serif'],
+      },
       colors: {
-        // Primary — HEB green
+        // Semantic tokens via CSS custom properties (light/dark auto-switch)
         primary: {
-          DEFAULT: '#16a34a',   // green-600
-          hover: '#15803d',     // green-700
-          light: '#f0fdf4',     // green-50
-          border: '#bbf7d0',    // green-200
+          DEFAULT: 'var(--color-primary)',
+          hover: 'var(--color-primary-hover)',
+          light: 'var(--color-primary-light)',
+          border: 'var(--color-primary-border)',
         },
-        // Secondary — neutral
-        secondary: {
-          DEFAULT: '#4b5563',   // gray-600
-          hover: '#374151',     // gray-700
-        },
-        // Accent — amber (cooking screens)
         accent: {
-          DEFAULT: '#f59e0b',   // amber-500
-          dark: '#d97706',      // amber-600
+          DEFAULT: 'var(--color-accent)',
+          hover: 'var(--color-accent-hover)',
+          light: 'var(--color-accent-light)',
+          dark: 'var(--color-accent)',
         },
-        // Danger — red
         danger: {
-          DEFAULT: '#dc2626',   // red-600
-          hover: '#b91c1c',     // red-700
-          light: '#fef2f2',     // red-50
+          DEFAULT: 'var(--color-danger)',
+          hover: 'var(--color-danger-hover)',
+          light: 'var(--color-danger-light)',
         },
         // Surfaces
-        surface: '#ffffff',
-        background: '#f9fafb',  // gray-50
+        surface: 'var(--color-surface)',
+        'surface-elevated': 'var(--color-surface-elevated)',
+        background: 'var(--color-background)',
         // Text
-        heading: '#1f2937',     // gray-800
-        body: '#4b5563',        // gray-600
-        muted: '#6b7280',       // gray-500
+        heading: 'var(--color-text-primary)',
+        body: 'var(--color-text-secondary)',
+        muted: 'var(--color-text-muted)',
         // Borders
-        default: '#e5e7eb',     // gray-200
+        default: 'var(--color-border)',
+        // Sidebar
+        'sidebar-bg': 'var(--color-sidebar-bg)',
+        'sidebar-hover': 'var(--color-sidebar-hover)',
+        'sidebar-active': 'var(--color-sidebar-active)',
+        'sidebar-text': 'var(--color-sidebar-text)',
+        'sidebar-text-muted': 'var(--color-sidebar-text-muted)',
+        'sidebar-border': 'var(--color-sidebar-border)',
       },
       ringColor: {
-        focus: '#22c55e',       // green-500
+        focus: 'var(--color-primary)',
       },
       borderColor: {
-        default: '#e5e7eb',     // gray-200
+        default: 'var(--color-border)',
+      },
+      boxShadow: {
+        'warm-sm': '0 1px 2px rgba(45, 52, 54, 0.05)',
+        'warm': '0 4px 14px rgba(45, 52, 54, 0.08)',
+        'warm-lg': '0 10px 30px rgba(45, 52, 54, 0.12)',
+        'warm-xl': '0 20px 50px rgba(45, 52, 54, 0.16)',
+      },
+      screens: {
+        'xs': '475px',
       },
     },
   },

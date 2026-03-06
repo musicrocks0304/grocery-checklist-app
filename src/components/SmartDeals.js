@@ -2,26 +2,26 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Tag, Search, AlertCircle, Calendar, DollarSign, Loader,
   Scissors, CheckCircle, XCircle, ShoppingCart, RefreshCw,
-  ChevronDown, ChevronUp, Plus, Menu, Filter,
+  ChevronDown, ChevronUp, Plus, Filter,
 } from 'lucide-react';
 import { ENDPOINTS, CLIP_SERVER_URL, apiFetch } from '../config/api';
 import { getWeekDates } from '../utils/weekDates';
 
 const CONFIDENCE_STYLES = {
-  high: { bg: 'bg-green-100', text: 'text-green-700', label: 'High Match' },
+  high: { bg: 'bg-primary-light', text: 'text-primary', label: 'High Match' },
   medium: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Possible' },
 };
 
 const CLIP_STATUS_STYLES = {
-  pending: { icon: null, text: 'text-gray-400', label: 'Waiting...' },
+  pending: { icon: null, text: 'text-muted', label: 'Waiting...' },
   clipping: { icon: Loader, text: 'text-blue-600', label: 'Clipping...' },
-  clipped: { icon: CheckCircle, text: 'text-green-600', label: 'Clipped!' },
-  already_clipped: { icon: CheckCircle, text: 'text-green-500', label: 'Already clipped' },
-  failed: { icon: XCircle, text: 'text-red-600', label: 'Failed' },
-  skipped: { icon: null, text: 'text-gray-400', label: 'Skipped' },
+  clipped: { icon: CheckCircle, text: 'text-primary', label: 'Clipped!' },
+  already_clipped: { icon: CheckCircle, text: 'text-primary', label: 'Already clipped' },
+  failed: { icon: XCircle, text: 'text-danger', label: 'Failed' },
+  skipped: { icon: null, text: 'text-muted', label: 'Skipped' },
 };
 
-const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
+const SmartDeals = ({ onNavigate }) => {
   const [deals, setDeals] = useState([]);
   const [totalSavings, setTotalSavings] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -263,7 +263,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto p-6 bg-surface rounded-xl shadow-lg border border-default">
+      <div className="max-w-6xl mx-auto p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-body">Finding deals on your frequently purchased items...</p>
@@ -276,21 +276,14 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
       {/* Header */}
-      <div className="bg-surface rounded-xl shadow-lg border border-default p-4 sm:p-6 mb-4">
+      <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 mb-4 transition-colors duration-200">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <button
-              onClick={onToggleSidebar}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors sm:hidden"
-              aria-label="Open menu"
-            >
-              <Menu size={20} />
-            </button>
-            <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-2 rounded-lg">
+            <div className="bg-accent text-white p-2 rounded-xl">
               <Tag size={24} />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-heading">Smart Deals</h1>
+              <h1 className="text-xl sm:text-2xl font-bold font-display text-heading">Smart Deals</h1>
               <p className="text-sm text-muted">
                 {deals.length > 0
                   ? `${deals.length} deal${deals.length !== 1 ? 's' : ''} found — $${totalSavings.toFixed(2)} potential savings`
@@ -309,7 +302,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
             <button
               onClick={fetchDeals}
               disabled={isLoading}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-muted hover:text-heading"
+              className="p-2 hover:bg-background rounded-xl transition-colors text-muted hover:text-heading"
               title="Refresh deals"
             >
               <RefreshCw size={18} />
@@ -318,10 +311,10 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-danger-light border border-red-200 rounded-lg flex items-start gap-2">
+          <div className="mb-4 p-3 bg-danger-light border border-danger rounded-xl flex items-start gap-2">
             <AlertCircle className="text-danger flex-shrink-0 mt-0.5" size={18} />
             <div>
-              <p className="text-sm font-medium text-red-800">Failed to load deals</p>
+              <p className="text-sm font-medium text-danger">Failed to load deals</p>
               <p className="text-xs text-danger">{error}</p>
             </div>
           </div>
@@ -335,7 +328,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Search deals... (product name, brand)"
-            className="w-full pl-10 pr-4 py-2.5 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm"
+            className="w-full pl-10 pr-4 py-2.5 border border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm"
           />
         </div>
 
@@ -357,11 +350,11 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-primary text-white'
-                      : 'bg-gray-100 text-body hover:bg-gray-200'
+                      : 'bg-background text-body hover:bg-default'
                   }`}
                 >
                   {label}
-                  <span className={`text-xs ${isActive ? 'text-green-100' : 'text-muted'}`}>
+                  <span className={`text-xs ${isActive ? 'text-primary-light' : 'text-muted'}`}>
                     ({count})
                   </span>
                 </button>
@@ -375,7 +368,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="text-sm border border-default rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-focus"
+              className="text-sm border border-default rounded-xl px-2 py-1 focus:outline-none focus:ring-2 focus:ring-focus"
             >
               <option value="savings">Highest Savings</option>
               <option value="confidence">Confidence</option>
@@ -387,11 +380,11 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
 
       {/* Selection toolbar — only if there are deals */}
       {deals.length > 0 && (
-        <div className="bg-surface rounded-xl shadow border border-default p-3 mb-4 flex flex-wrap items-center gap-2">
+        <div className="bg-surface rounded-2xl shadow-warm border border-default p-3 mb-4 flex flex-wrap items-center gap-2 transition-colors duration-200">
           <button
             onClick={selectAllUnclipped}
             disabled={isClipping}
-            className="text-sm font-medium px-4 py-2 rounded-full bg-primary text-white hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="text-sm font-medium px-4 py-2 rounded-full bg-primary text-white hover:bg-primary-hover disabled:bg-default disabled:cursor-not-allowed transition-colors"
           >
             Select All Unclipped
           </button>
@@ -399,7 +392,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
             <button
               onClick={deselectAll}
               disabled={isClipping}
-              className="text-sm font-medium px-4 py-2 rounded-full bg-surface text-body border border-default hover:bg-gray-100 disabled:bg-gray-200 disabled:cursor-not-allowed transition-colors"
+              className="text-sm font-medium px-4 py-2 rounded-full bg-surface text-body border border-default hover:bg-background disabled:bg-default disabled:cursor-not-allowed transition-colors"
             >
               Deselect All
             </button>
@@ -409,7 +402,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
             <div className="ml-auto flex items-center gap-3">
               <span className="text-sm text-body">{selectedCount} selected</span>
               {selectedSavings > 0 && (
-                <span className="text-sm font-semibold text-green-700 flex items-center gap-1">
+                <span className="text-sm font-semibold text-primary flex items-center gap-1">
                   <DollarSign size={14} />
                   {selectedSavings.toFixed(2)} savings
                 </span>
@@ -417,7 +410,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
               <button
                 onClick={handleClipSelected}
                 disabled={isClipping}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-default disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
               >
                 {isClipping ? (
                   <>
@@ -438,22 +431,22 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
 
       {/* Clip progress banner */}
       {clipError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+        <div className="mb-4 p-3 bg-danger-light border border-danger rounded-xl flex items-start gap-2">
           <AlertCircle className="text-danger flex-shrink-0 mt-0.5" size={16} />
           <div>
-            <p className="text-sm font-medium text-red-800">Clipping failed</p>
+            <p className="text-sm font-medium text-danger">Clipping failed</p>
             <p className="text-xs text-danger">{clipError}</p>
           </div>
         </div>
       )}
 
       {clipResults && !isClipping && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className="mb-4 p-3 bg-primary-light border border-primary-border rounded-xl">
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle size={16} className="text-green-600" />
-            <span className="text-sm font-semibold text-green-800">Clipping Complete!</span>
+            <CheckCircle size={16} className="text-primary" />
+            <span className="text-sm font-semibold text-primary">Clipping Complete!</span>
           </div>
-          <p className="text-xs text-green-700">
+          <p className="text-xs text-primary">
             {clipResults.clipped} clipped
             {clipResults.already_clipped > 0 && `, ${clipResults.already_clipped} already clipped`}
             {clipResults.failed > 0 && `, ${clipResults.failed} failed`}
@@ -464,7 +457,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
 
       {/* Clipping progress detail */}
       {isClipping && clipProgress.size > 0 && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
           <div className="flex items-center gap-2 mb-2">
             <Loader size={14} className="animate-spin text-blue-600" />
             <span className="text-sm font-medium text-blue-800">Clipping coupons on HEB...</span>
@@ -480,7 +473,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
                     {StatusIcon ? (
                       <StatusIcon size={14} className={`${statusStyle.text} ${status === 'clipping' ? 'animate-spin' : ''}`} />
                     ) : (
-                      <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+                      <span className="w-2 h-2 rounded-full bg-default"></span>
                     )}
                   </span>
                   <span className="text-body truncate flex-1">
@@ -516,8 +509,8 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
             return (
               <div
                 key={deal.id}
-                className={`bg-surface rounded-xl shadow border overflow-hidden transition-all ${
-                  isSelected ? 'border-green-300 ring-1 ring-green-200' : 'border-default'
+                className={`bg-surface rounded-2xl shadow-warm border overflow-hidden transition-all ${
+                  isSelected ? 'border-primary-border ring-1 ring-primary-border' : 'border-default'
                 }`}
               >
                 <div className="flex gap-3 p-3 sm:p-4">
@@ -533,7 +526,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
                   </label>
 
                   {/* Product image */}
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-background">
                     {deal.frequentProduct.imageUrl ? (
                       <img
                         src={deal.frequentProduct.imageUrl}
@@ -542,7 +535,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
                         onError={(e) => { e.target.parentElement.style.display = 'none'; }}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300">
+                      <div className="w-full h-full flex items-center justify-center text-default">
                         <ShoppingCart size={24} />
                       </div>
                     )}
@@ -566,7 +559,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
 
                     {/* Coupon details */}
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-base font-bold text-green-700">
+                      <span className="text-base font-bold text-primary">
                         {deal.coupon.discount || 'Special Offer'}
                       </span>
                       {deal.coupon.savingsAmount > 0 && (
@@ -589,7 +582,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
                       {/* Expiration */}
                       {daysLeft !== null && (
                         <span className={`text-xs font-medium flex items-center gap-1 ${
-                          daysLeft <= 3 ? 'text-red-600' : daysLeft <= 7 ? 'text-amber-600' : 'text-muted'
+                          daysLeft <= 3 ? 'text-danger' : daysLeft <= 7 ? 'text-accent' : 'text-muted'
                         }`}>
                           <Calendar size={12} />
                           {daysLeft <= 0 ? 'Expired' : daysLeft === 1 ? '1 day left' : `${daysLeft} days`}
@@ -598,7 +591,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
 
                       {/* Already clipped indicator */}
                       {isClipped && !clipStatus && (
-                        <span className="text-xs font-medium text-green-600 flex items-center gap-1">
+                        <span className="text-xs font-medium text-primary flex items-center gap-1">
                           <CheckCircle size={12} />
                           Clipped
                         </span>
@@ -626,19 +619,19 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
                   {/* Add to list button */}
                   <div className="flex-shrink-0 flex items-center">
                     {addStatus === 'added' ? (
-                      <span className="text-xs font-medium text-green-600 flex items-center gap-1 px-2">
+                      <span className="text-xs font-medium text-primary flex items-center gap-1 px-2">
                         <CheckCircle size={14} />
                         Added
                       </span>
                     ) : addStatus === 'exists' ? (
-                      <span className="text-xs font-medium text-amber-600 flex items-center gap-1 px-2">
+                      <span className="text-xs font-medium text-accent flex items-center gap-1 px-2">
                         <CheckCircle size={14} />
                         On List
                       </span>
                     ) : addStatus === 'error' ? (
                       <button
                         onClick={() => handleAddToList(deal)}
-                        className="text-xs font-medium text-red-600 flex items-center gap-1 px-2 hover:text-red-700"
+                        className="text-xs font-medium text-danger flex items-center gap-1 px-2 hover:text-danger"
                         title="Retry"
                       >
                         <XCircle size={14} />
@@ -648,7 +641,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
                       <button
                         onClick={() => handleAddToList(deal)}
                         disabled={addStatus === 'adding'}
-                        className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
+                        className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-xl bg-primary-light text-primary hover:bg-primary-light/80 disabled:bg-background disabled:text-muted transition-colors"
                         title="Add to this week's grocery list"
                       >
                         {addStatus === 'adding' ? (
@@ -666,8 +659,8 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
           })}
         </div>
       ) : (
-        <div className="text-center py-16 bg-surface rounded-xl shadow-lg border border-default">
-          <Tag size={48} className="mx-auto text-gray-300 mb-4" />
+        <div className="text-center py-16 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
+          <Tag size={48} className="mx-auto text-default mb-4" />
           <h3 className="text-lg font-semibold text-body">
             {deals.length === 0 ? 'No Deals Found' : 'No matching deals'}
           </h3>
@@ -679,7 +672,7 @@ const SmartDeals = ({ onNavigate, onToggleSidebar }) => {
           {deals.length === 0 && (
             <button
               onClick={fetchDeals}
-              className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors text-sm font-medium"
+              className="mt-4 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors text-sm font-medium"
             >
               Try Again
             </button>

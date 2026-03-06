@@ -15,7 +15,7 @@ import React from 'react';
 
 const THEME_COLORS = {
   green: 'border-primary',
-  amber: 'border-accent-dark',
+  amber: 'border-accent',
 };
 
 const LoadingSpinner = ({

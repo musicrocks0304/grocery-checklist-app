@@ -27,13 +27,13 @@ const StepIndicator = ({ currentStep }) => {
         return (
           <React.Fragment key={step.id}>
             {i > 0 && (
-              <div className={`flex-1 h-0.5 ${isDone ? 'bg-primary' : 'bg-gray-200'}`} />
+              <div className={`flex-1 h-0.5 ${isDone ? 'bg-primary' : 'bg-default'}`} />
             )}
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                 isDone ? 'bg-primary text-white' :
                 isActive ? 'bg-primary text-white ring-2 ring-primary ring-offset-2' :
-                'bg-gray-200 text-muted'
+                'bg-default text-muted'
               }`}>
                 {isDone ? <Check size={14} /> : i + 1}
               </div>
@@ -56,13 +56,13 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, connecting })
   const loginValid = sessionStatus?.loginSessionValid;
 
   return (
-    <div className="bg-surface rounded-xl shadow-lg border border-default p-4 sm:p-6">
+    <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
       <div className="flex items-center gap-3 mb-4">
-        <div className={`p-2 rounded-lg ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+        <div className={`p-2 rounded-xl ${isActive ? 'bg-primary-light text-primary' : 'bg-background text-muted'}`}>
           {isActive ? <Wifi size={24} /> : <WifiOff size={24} />}
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-heading">HEB Connection</h2>
+          <h2 className="text-lg font-semibold font-display text-heading">HEB Connection</h2>
           <p className="text-sm text-muted">
             {isActive
               ? `Browser session active (idle ${sessionStatus.idleSeconds}s)`
@@ -74,12 +74,12 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, connecting })
       </div>
 
       {!loginValid && !isActive && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-          <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
+        <div className="mb-4 p-3 bg-accent-light border border-accent rounded-xl flex items-start gap-2">
+          <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={18} />
           <div>
-            <p className="text-sm font-medium text-amber-800">HEB login expired</p>
-            <p className="text-xs text-amber-700 mt-1">
-              Run <code className="bg-amber-100 px-1 rounded">npm run scrape:login</code> on the server to re-authenticate with HEB.
+            <p className="text-sm font-medium text-accent">HEB login expired</p>
+            <p className="text-xs text-accent mt-1">
+              Run <code className="bg-accent-light px-1 rounded">npm run scrape:login</code> on the server to re-authenticate with HEB.
             </p>
           </div>
         </div>
@@ -90,9 +90,9 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, connecting })
           <button
             onClick={onConnect}
             disabled={connecting || !loginValid}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors ${
               connecting || !loginValid
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                ? 'bg-default text-muted cursor-not-allowed'
                 : 'bg-primary text-white hover:bg-primary-hover'
             }`}
           >
@@ -111,7 +111,7 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, connecting })
         ) : (
           <button
             onClick={onDisconnect}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm bg-gray-100 text-body hover:bg-gray-200 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm bg-background text-body hover:bg-default transition-colors"
           >
             <WifiOff size={16} />
             Disconnect
@@ -129,19 +129,19 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
   const confidence = match?.confidence;
 
   const confidenceColors = {
-    high: 'bg-green-100 text-green-700',
-    medium: 'bg-amber-100 text-amber-700',
-    low: 'bg-red-100 text-red-700',
+    high: 'bg-primary-light text-primary',
+    medium: 'bg-accent-light text-accent',
+    low: 'bg-danger-light text-danger',
   };
 
   const isCouponMatch = match?.matchSource === 'coupon';
 
   return (
-    <div className={`border rounded-lg p-3 transition-all ${
-      isCouponMatch ? 'border-l-4 border-l-green-500 border-green-200 bg-green-50/30' :
-      isConfirmed ? 'border-green-300 bg-green-50/50' :
+    <div className={`border rounded-2xl p-3 transition-all ${
+      isCouponMatch ? 'border-l-4 border-l-primary border-primary-border bg-primary-light/30' :
+      isConfirmed ? 'border-primary-border bg-primary-light/50' :
       hasMatch ? 'border-default bg-surface' :
-      'border-amber-200 bg-amber-50/50'
+      'border-accent bg-accent-light/50'
     }`}>
       <div className="flex items-start gap-3">
         {/* Grocery item name */}
@@ -153,7 +153,7 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
                 x{item.Quantity}
               </span>
             )}
-            <span className="text-xs text-muted bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">
+            <span className="text-xs text-muted bg-background px-1.5 py-0.5 rounded flex-shrink-0">
               {item.Category}
             </span>
           </div>
@@ -164,7 +164,7 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
                 <img
                   src={match.hebImageUrl}
                   alt={match.hebProductName}
-                  className="w-10 h-10 object-contain rounded border border-gray-100 flex-shrink-0"
+                  className="w-10 h-10 object-contain rounded border border-default flex-shrink-0"
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               )}
@@ -172,9 +172,9 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
                 <p className="text-sm text-body truncate">{match.hebProductName}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   {match.hebPrice && (
-                    <span className="text-sm font-medium text-green-700">${Number(match.hebPrice).toFixed(2)}</span>
+                    <span className="text-sm font-medium text-primary">${Number(match.hebPrice).toFixed(2)}</span>
                   )}
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${confidenceColors[confidence] || 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${confidenceColors[confidence] || 'bg-background text-body'}`}>
                     {confidence}
                   </span>
                   {match.matchSource === 'frequently_purchased' && (
@@ -183,7 +183,7 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
                     </span>
                   )}
                   {isCouponMatch && item.couponSavings && (
-                    <span className="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full font-medium">
+                    <span className="text-xs text-primary bg-primary-light px-1.5 py-0.5 rounded-full font-medium">
                       Save ${Number(item.couponSavings).toFixed(2)}{item.couponClipped ? ' | Clipped' : ''}
                     </span>
                   )}
@@ -191,7 +191,7 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
               </div>
             </div>
           ) : (
-            <p className="text-xs text-amber-600 mt-1">No match found — search manually</p>
+            <p className="text-xs text-accent mt-1">No match found — search manually</p>
           )}
         </div>
 
@@ -201,14 +201,14 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
             <>
               <button
                 onClick={() => onConfirm(item.ItemID, match)}
-                className="p-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                className="p-1.5 rounded-xl bg-primary-light text-primary hover:bg-primary-light/80 transition-colors"
                 title="Accept match"
               >
                 <Check size={16} />
               </button>
               <button
                 onClick={() => onReject(item.ItemID, match)}
-                className="p-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                className="p-1.5 rounded-xl bg-danger-light text-danger hover:bg-danger-light/80 transition-colors"
                 title="Reject match"
               >
                 <X size={16} />
@@ -216,13 +216,13 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
             </>
           )}
           {isConfirmed && (
-            <div className="p-1.5 rounded-lg bg-green-100 text-green-700" title="Confirmed">
+            <div className="p-1.5 rounded-xl bg-primary-light text-primary" title="Confirmed">
               <CheckCircle2 size={16} />
             </div>
           )}
           <button
             onClick={() => onSearch(item)}
-            className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            className="p-1.5 rounded-xl bg-background text-body hover:bg-default transition-colors"
             title="Search for alternative"
           >
             <Search size={16} />
@@ -272,14 +272,14 @@ const SearchModal = ({ item, onSelect, onClose, sessionActive }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-10 sm:pt-20 px-4">
-      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+      <div className="bg-surface rounded-2xl shadow-warm-xl w-full max-w-lg max-h-[80vh] flex flex-col transition-colors duration-200">
         {/* Header */}
         <div className="p-4 border-b border-default flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-heading">Find HEB Product</h3>
             <p className="text-xs text-muted">for: {item?.ItemName}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-background">
             <X size={20} className="text-muted" />
           </button>
         </div>
@@ -302,9 +302,9 @@ const SearchModal = ({ item, onSelect, onClose, sessionActive }) => {
             <button
               onClick={handleSearch}
               disabled={searching || !sessionActive}
-              className={`px-4 py-2 rounded-lg font-medium text-sm ${
+              className={`px-4 py-2 rounded-xl font-medium text-sm ${
                 searching || !sessionActive
-                  ? 'bg-gray-300 text-gray-500'
+                  ? 'bg-default text-muted'
                   : 'bg-primary text-white hover:bg-primary-hover'
               }`}
             >
@@ -312,9 +312,9 @@ const SearchModal = ({ item, onSelect, onClose, sessionActive }) => {
             </button>
           </div>
           {!sessionActive && (
-            <p className="text-xs text-red-600 mt-1">Browser session required for search</p>
+            <p className="text-xs text-danger mt-1">Browser session required for search</p>
           )}
-          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+          {error && <p className="text-xs text-danger mt-1">{error}</p>}
         </div>
 
         {/* Results */}
@@ -329,7 +329,7 @@ const SearchModal = ({ item, onSelect, onClose, sessionActive }) => {
                 <button
                   key={product.id}
                   onClick={() => onSelect(item.ItemID, product)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-default hover:border-primary hover:bg-green-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-default hover:border-primary hover:bg-primary-light transition-colors text-left"
                 >
                   {product.imageUrl && (
                     <img
@@ -343,11 +343,11 @@ const SearchModal = ({ item, onSelect, onClose, sessionActive }) => {
                     <p className="text-sm font-medium text-heading truncate">{product.name}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       {product.price && (
-                        <span className="text-sm font-medium text-green-700">${Number(product.price).toFixed(2)}</span>
+                        <span className="text-sm font-medium text-primary">${Number(product.price).toFixed(2)}</span>
                       )}
                       {product.brand && <span className="text-xs text-muted">{product.brand}</span>}
                       {product.inStock === false && (
-                        <span className="text-xs text-red-600">Out of stock</span>
+                        <span className="text-xs text-danger">Out of stock</span>
                       )}
                     </div>
                   </div>
@@ -372,13 +372,13 @@ const BuildProgressPanel = ({ progress, summary, totalItems }) => {
   const pct = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
 
   return (
-    <div className="bg-surface rounded-xl shadow-lg border border-default p-4 sm:p-6">
+    <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
       <div className="flex items-center gap-3 mb-4">
-        <div className={`p-2 rounded-lg ${isComplete ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+        <div className={`p-2 rounded-xl ${isComplete ? 'bg-primary-light text-primary' : 'bg-blue-100 text-blue-700'}`}>
           {isComplete ? <CheckCircle2 size={24} /> : <Loader2 size={24} className="animate-spin" />}
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-heading">
+          <h2 className="text-lg font-semibold font-display text-heading">
             {isComplete ? 'Cart Built!' : 'Building Your HEB Cart...'}
           </h2>
           <p className="text-sm text-muted">
@@ -390,7 +390,7 @@ const BuildProgressPanel = ({ progress, summary, totalItems }) => {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+      <div className="w-full bg-default rounded-full h-2.5 mb-4">
         <div
           className="bg-primary h-2.5 rounded-full transition-all duration-300"
           style={{ width: `${isComplete ? 100 : pct}%` }}
@@ -400,17 +400,17 @@ const BuildProgressPanel = ({ progress, summary, totalItems }) => {
       {/* Summary stats */}
       {isComplete && summary && (
         <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="text-2xl font-bold text-green-700">{summary.added}</div>
-            <div className="text-xs text-green-600">Added</div>
+          <div className="text-center p-3 bg-primary-light rounded-xl border border-primary-border">
+            <div className="text-2xl font-bold text-primary">{summary.added}</div>
+            <div className="text-xs text-primary">Added</div>
           </div>
-          <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
-            <div className="text-2xl font-bold text-red-700">{summary.failed}</div>
-            <div className="text-xs text-red-600">Failed</div>
+          <div className="text-center p-3 bg-danger-light rounded-xl border border-danger">
+            <div className="text-2xl font-bold text-danger">{summary.failed}</div>
+            <div className="text-xs text-danger">Failed</div>
           </div>
-          <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="text-2xl font-bold text-gray-700">{summary.skipped}</div>
-            <div className="text-xs text-gray-600">Skipped</div>
+          <div className="text-center p-3 bg-background rounded-xl border border-default">
+            <div className="text-2xl font-bold text-heading">{summary.skipped}</div>
+            <div className="text-xs text-body">Skipped</div>
           </div>
         </div>
       )}
@@ -420,13 +420,13 @@ const BuildProgressPanel = ({ progress, summary, totalItems }) => {
         {progress.map((p, i) => (
           <div key={i} className="flex items-center gap-2 text-sm">
             {p.status === 'adding' && <Loader2 size={14} className="animate-spin text-blue-500 flex-shrink-0" />}
-            {p.status === 'added' && <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />}
-            {p.status === 'failed' && <XCircle size={14} className="text-red-600 flex-shrink-0" />}
-            {p.status === 'skipped' && <SkipForward size={14} className="text-gray-400 flex-shrink-0" />}
+            {p.status === 'added' && <CheckCircle2 size={14} className="text-primary flex-shrink-0" />}
+            {p.status === 'failed' && <XCircle size={14} className="text-danger flex-shrink-0" />}
+            {p.status === 'skipped' && <SkipForward size={14} className="text-muted flex-shrink-0" />}
             <span className={`truncate ${
-              p.status === 'added' ? 'text-green-700' :
-              p.status === 'failed' ? 'text-red-600' :
-              p.status === 'skipped' ? 'text-gray-400' :
+              p.status === 'added' ? 'text-primary' :
+              p.status === 'failed' ? 'text-danger' :
+              p.status === 'skipped' ? 'text-muted' :
               'text-body'
             }`}>
               {p.groceryItemName}
@@ -442,7 +442,7 @@ const BuildProgressPanel = ({ progress, summary, totalItems }) => {
 };
 
 // ─── Main HEB Cart Component ────────────────────────────────────
-const HebCart = ({ onNavigate, onToggleSidebar }) => {
+const HebCart = ({ onNavigate }) => {
   // --- State ---
   const [step, setStep] = useState('connect');
   const [sessionStatus, setSessionStatus] = useState(null);
@@ -1125,19 +1125,19 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6">
       {/* Header */}
-      <div className="bg-surface rounded-xl shadow-lg border border-default p-4 sm:p-6 mb-4">
+      <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 mb-4 transition-colors duration-200">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
-            <div className="bg-red-600 text-white p-2 rounded-lg">
+            <div className="bg-danger text-white p-2 rounded-xl">
               <ShoppingCart size={24} />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-heading">HEB Cart Builder</h1>
+              <h1 className="text-xl sm:text-2xl font-bold font-display text-heading">HEB Cart Builder</h1>
               <p className="text-sm text-muted">AI-powered grocery cart building</p>
             </div>
           </div>
           {sessionStatus?.active && (
-            <div className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 px-2 py-1 rounded-full">
+            <div className="flex items-center gap-1.5 text-xs text-primary bg-primary-light px-2 py-1 rounded-full">
               <Wifi size={12} />
               Connected
             </div>
@@ -1159,13 +1159,13 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
 
       {/* Step 2: Smart Match */}
       {step === 'match' && (
-        <div className="bg-surface rounded-xl shadow-lg border border-default p-4 sm:p-6">
+        <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+            <div className="p-2 rounded-xl bg-purple-100 text-purple-700">
               <Zap size={24} />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-heading">Smart Match</h2>
+              <h2 className="text-lg font-semibold font-display text-heading">Smart Match</h2>
               <p className="text-sm text-muted">
                 AI will match your grocery list to HEB products using search results and your purchase history.
               </p>
@@ -1180,14 +1180,14 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
             </div>
           ) : groceryItems.length === 0 && !loadingGroceries ? (
             <div className="text-center py-8 space-y-3">
-              <AlertCircle size={40} className="text-amber-500 mx-auto" />
+              <AlertCircle size={40} className="text-accent mx-auto" />
               <p className="text-body font-medium">No weekly grocery list found</p>
               <p className="text-sm text-muted">
                 Save your grocery list from the Weekly Grocery Selection screen first.
               </p>
               <button
                 onClick={() => onNavigate?.('grocery')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors"
               >
                 <ShoppingCart size={16} />
                 Go to Grocery Checklist
@@ -1204,10 +1204,10 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
                 <button
                   onClick={runSmartMatch}
                   disabled={!sessionStatus?.active}
-                  className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-colors ${
+                  className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-colors ${
                     sessionStatus?.active
                       ? 'bg-primary text-white hover:bg-primary-hover'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-default text-muted cursor-not-allowed'
                   }`}
                 >
                   <Zap size={18} />
@@ -1220,7 +1220,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
                     onClick={() => {
                       loadGroceryItems().then(() => setStep('review'));
                     }}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-sm bg-gray-100 text-body hover:bg-gray-200 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm bg-background text-body hover:bg-default transition-colors"
                   >
                     <Eye size={18} />
                     Review Existing Matches ({Object.keys(matches).length})
@@ -1229,7 +1229,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
               </div>
 
               {!sessionStatus?.active && (
-                <p className="text-xs text-red-600">
+                <p className="text-xs text-danger">
                   Browser session required. <button onClick={() => setStep('connect')} className="underline">Go back to connect</button>
                 </p>
               )}
@@ -1242,10 +1242,10 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
       {step === 'review' && (
         <div className="space-y-4">
           {/* Summary bar */}
-          <div className="bg-surface rounded-xl shadow-lg border border-default p-4 sm:p-6">
+          <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-heading">Review Matches</h2>
+                <h2 className="text-lg font-semibold font-display text-heading">Review Matches</h2>
                 <p className="text-sm text-muted">
                   {matchStats.confirmed} confirmed, {matchStats.matched - matchStats.confirmed} pending, {matchStats.unmatched} unmatched
                 </p>
@@ -1254,13 +1254,13 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
                 {couponSavingsTotal > 0 && (
                   <div className="text-right">
                     <p className="text-xs text-muted">Coupon Savings</p>
-                    <p className="text-sm font-bold text-green-600">-${couponSavingsTotal.toFixed(2)}</p>
+                    <p className="text-sm font-bold text-primary">-${couponSavingsTotal.toFixed(2)}</p>
                   </div>
                 )}
                 {estimatedTotal > 0 && (
                   <div className="text-right">
                     <p className="text-xs text-muted">Estimated Total</p>
-                    <p className="text-lg font-bold text-green-700">${estimatedTotal.toFixed(2)}</p>
+                    <p className="text-lg font-bold text-primary">${estimatedTotal.toFixed(2)}</p>
                   </div>
                 )}
               </div>
@@ -1269,7 +1269,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
             <div className="flex flex-wrap gap-2 mb-4">
               <button
                 onClick={handleConfirmAll}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-primary-light text-primary hover:bg-primary-light/80 transition-colors"
               >
                 <CheckCircle2 size={14} />
                 Accept All
@@ -1278,7 +1278,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
                 onClick={() => {
                   setStep('match');
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-body hover:bg-gray-200 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-background text-body hover:bg-default transition-colors"
               >
                 <RefreshCw size={14} />
                 Re-match
@@ -1286,7 +1286,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
             </div>
 
             {/* Progress bar for confirmations */}
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+            <div className="w-full bg-default rounded-full h-2 mb-1">
               <div
                 className="bg-primary h-2 rounded-full transition-all duration-300"
                 style={{ width: `${matchStats.total > 0 ? (matchStats.confirmed / matchStats.total) * 100 : 0}%` }}
@@ -1310,7 +1310,7 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
           </div>
 
           {/* Build Cart button */}
-          <div className="sticky bottom-4 bg-surface rounded-xl shadow-xl border border-default p-4 flex items-center justify-between">
+          <div className="sticky bottom-4 bg-surface rounded-2xl shadow-warm-lg border border-default p-4 flex items-center justify-between transition-colors duration-200">
             <div>
               <p className="text-sm font-medium text-heading">
                 {matchStats.confirmed} items confirmed
@@ -1320,17 +1320,17 @@ const HebCart = ({ onNavigate, onToggleSidebar }) => {
                   <span className="text-xs text-muted">~${estimatedTotal.toFixed(2)}</span>
                 )}
                 {couponSavingsTotal > 0 && (
-                  <span className="text-xs text-green-600 font-medium">(-${couponSavingsTotal.toFixed(2)} coupons)</span>
+                  <span className="text-xs text-primary font-medium">(-${couponSavingsTotal.toFixed(2)} coupons)</span>
                 )}
               </div>
             </div>
             <button
               onClick={handleBuildCart}
               disabled={matchStats.confirmed === 0}
-              className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-colors ${
+              className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-colors ${
                 matchStats.confirmed > 0
                   ? 'bg-primary text-white hover:bg-primary-hover'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-default text-muted cursor-not-allowed'
               }`}
             >
               <ShoppingCart size={18} />

@@ -5,14 +5,14 @@ const DebugPanel = ({ showDebug, setShowDebug, debugInfo }) => {
   if (!debugInfo || debugInfo.length === 0) return null;
 
   return (
-    <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+    <div className="mt-4 border border-default rounded-2xl overflow-hidden transition-colors duration-200">
       <button
         onClick={() => setShowDebug(!showDebug)}
-        className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+        className="w-full flex items-center justify-between p-3 bg-background hover:bg-background transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Wifi size={16} className="text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">
+          <Wifi size={16} className="text-muted" />
+          <span className="text-sm font-medium text-heading">
             Debug Info ({debugInfo.length} entries)
           </span>
         </div>
