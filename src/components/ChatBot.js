@@ -699,7 +699,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
   // Removed getFallbackIngredients function since we're not using it anymore
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative">
+    <div className="h-full flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative">
       {/* Loading Overlay */}
       {isGeneratingGroceryList && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -722,66 +722,41 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
       )}
 
       {/* Main Chat Area */}
-      <div className={`bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden transition-all transition-colors duration-200 flex flex-col ${showMealsPanel ? 'lg:flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'} ${showMealsPanel ? 'lg:mr-0' : ''}`}>
-        {/* Header */}
-        <div className="bg-primary text-white p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
+      <div className={`bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden transition-all transition-colors duration-200 flex flex-col flex-1 min-h-0 ${showMealsPanel ? 'lg:flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'} ${showMealsPanel ? 'lg:mr-0' : ''}`}>
+        {/* Toolbar — slim contextual bar, Plan tabs already provide navigation */}
+        <div className="flex items-center justify-between px-3 py-2 lg:px-4 bg-surface border-b border-default">
+          <button
+            onClick={() => !isGeneratingGroceryList && setShowMealsPanel(!showMealsPanel)}
+            disabled={isGeneratingGroceryList}
+            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${isGeneratingGroceryList ? 'opacity-50 cursor-not-allowed' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
+          >
+            <ShoppingCart size={15} />
+            <span className="font-medium">Meal Plans</span>
+            <span className="bg-primary text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{selectedMeals.length}</span>
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            {debugMode && (
               <button
-                onClick={onBack}
-                className="p-2 hover:bg-white/20 rounded-xl transition-colors"
-                aria-label="Go back"
+                onClick={() => setShowDebug(!showDebug)}
+                className="flex items-center gap-1 text-xs text-muted hover:text-body px-2 py-1.5 rounded-lg hover:bg-background transition-colors"
               >
-                <ArrowLeft size={20} />
+                <Wifi size={14} />
+                {showDebug ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
-              <ChefHat size={24} />
-              <h1 className="text-xl font-bold font-display">AI Meal Planner</h1>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Meals Panel Toggle */}
-              <button
-                onClick={() => !isGeneratingGroceryList && setShowMealsPanel(!showMealsPanel)}
-                disabled={isGeneratingGroceryList}
-                className={`flex items-center gap-1 text-sm px-2 py-1 rounded-xl transition-colors ${isGeneratingGroceryList ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/20'}`}
-              >
-                <ShoppingCart size={16} />
-                <span className="hidden sm:inline">Meal Plans</span> ({selectedMeals.length})
-              </button>
-
-              {/* Debug Toggle - only visible with ?debug=true */}
-              {debugMode && (
-                <button
-                  onClick={() => setShowDebug(!showDebug)}
-                  className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-xl transition-colors"
-                >
-                  <Wifi size={16} />
-                  <span className="hidden sm:inline">Debug</span>
-                  {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-              )}
-
-              {/* New Session Button */}
-              <button
-                onClick={() => {
-                  if (window.confirm("Start a new chat session? Your current conversation will be cleared.")) {
-                    localStorage.removeItem('chatSessionId');
-                    window.location.reload();
-                  }
-                }}
-                className="text-xs hover:bg-white/20 px-2 py-1 rounded-xl transition-colors"
-                title="Start new session"
-              >
-                New
-              </button>
-            </div>
-          </div>
-
-
-
-          <div className="bg-white/20 rounded-lg p-3">
-            <p className="text-sm font-medium">{getWeekDateRange()}</p>
-            <p className="text-xs opacity-90 mt-1">Get personalized meal suggestions based on your preferences</p>
+            )}
+            <button
+              onClick={() => {
+                if (window.confirm("Start a new chat session? Your current conversation will be cleared.")) {
+                  localStorage.removeItem('chatSessionId');
+                  window.location.reload();
+                }
+              }}
+              className="text-xs text-muted hover:text-body px-2 py-1.5 rounded-lg hover:bg-background transition-colors"
+              title="Start new session"
+            >
+              New Chat
+            </button>
           </div>
         </div>
 

@@ -575,7 +575,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   };
 
   return (
-    <div className="h-screen flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4">
+    <div className="h-full flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4">
       {/* Building Overlay */}
       {isBuilding && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -612,58 +612,47 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
 
       {/* Main Content */}
       <div className="bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden flex flex-col flex-1 transition-colors duration-200">
-        {/* Header */}
-        <div className="bg-accent text-white p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-xl transition-colors" aria-label="Go back">
-                <ArrowLeft size={20} />
-              </button>
-              <Sparkles size={24} />
-              <h1 className="text-xl font-bold font-display">AI Meal Creator</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              {debugMode && (
-                <button
-                  onClick={() => setShowDebug(!showDebug)}
-                  className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-xl transition-colors"
-                >
-                  <Wifi size={16} />
-                  <span className="hidden sm:inline">Debug</span>
-                </button>
-              )}
-              <button
-                onClick={startOver}
-                className="flex items-center gap-1 text-sm hover:bg-white/20 px-2 py-1 rounded-xl transition-colors"
-              >
-                <RotateCcw size={16} />
-                <span className="hidden sm:inline">New</span>
-              </button>
-            </div>
-          </div>
-
+        {/* Toolbar — slim phase indicator + actions, Plan tabs already provide navigation */}
+        <div className="flex items-center justify-between px-3 py-2 lg:px-4 bg-surface border-b border-default">
           {/* Phase Indicator */}
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${phase >= 1 ? 'bg-white/30 font-semibold' : 'bg-white/10'}`}>
-              <span>1.</span> Describe
-            </div>
-            <div className="w-4 h-px bg-white/40"></div>
-            <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${phase >= 2 ? 'bg-white/30 font-semibold' : 'bg-white/10'}`}>
-              <span>2.</span> Build
-            </div>
-            <div className="w-4 h-px bg-white/40"></div>
-            <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${phase >= 3 ? 'bg-white/30 font-semibold' : 'bg-white/10'}`}>
-              <span>3.</span> Preview
-            </div>
-            <div className="w-4 h-px bg-white/40"></div>
-            <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${phase >= 4 ? 'bg-white/30 font-semibold' : 'bg-white/10'}`}>
-              <span>4.</span> Save
-            </div>
+          <div className="flex items-center gap-1 lg:gap-1.5 text-xs">
+            {[
+              { n: 1, label: 'Describe' },
+              { n: 2, label: 'Build' },
+              { n: 3, label: 'Preview' },
+              { n: 4, label: 'Save' },
+            ].map((step, i) => (
+              <React.Fragment key={step.n}>
+                {i > 0 && <div className="w-3 lg:w-5 h-px bg-default"></div>}
+                <div className={`px-2 lg:px-2.5 py-1 rounded-full transition-colors ${
+                  phase === step.n
+                    ? 'bg-accent text-white font-semibold'
+                    : phase > step.n
+                      ? 'bg-accent/15 text-accent font-medium'
+                      : 'bg-background text-muted'
+                }`}>
+                  {step.n}. {step.label}
+                </div>
+              </React.Fragment>
+            ))}
           </div>
 
-          <div className="bg-white/20 rounded-lg p-3 mt-3">
-            <p className="text-sm font-medium">{getWeekDateRange()}</p>
-            <p className="text-xs opacity-90 mt-1">Create brand-new recipes tailored to your family</p>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {debugMode && (
+              <button
+                onClick={() => setShowDebug(!showDebug)}
+                className="flex items-center gap-1 text-xs text-muted hover:text-body px-2 py-1.5 rounded-lg hover:bg-background transition-colors"
+              >
+                <Wifi size={14} />
+              </button>
+            )}
+            <button
+              onClick={startOver}
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-body px-2 py-1.5 rounded-lg hover:bg-background transition-colors"
+            >
+              <RotateCcw size={14} />
+              <span>Start Over</span>
+            </button>
           </div>
         </div>
 

@@ -66,7 +66,7 @@ const Plan = ({
   }, [onNavigate]);
 
   return (
-    <div className="flex flex-col min-h-0">
+    <div className="flex flex-col min-h-0 h-full">
       {/* Tab bar */}
       <div className="sticky top-12 lg:top-0 z-20 bg-surface/95 backdrop-blur-md border-b border-default px-4 pt-2">
         <div className="max-w-6xl mx-auto flex gap-1">
@@ -116,7 +116,7 @@ const Plan = ({
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'list' && (
           <GroceryChecklist
             onNavigate={onNavigate}

@@ -12,7 +12,7 @@ import { ThemeToggle } from "./ui";
  */
 const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
   return (
-    <div className="flex min-h-screen bg-background transition-colors duration-200">
+    <div className="flex h-screen bg-background transition-colors duration-200">
       {/* Desktop sidebar */}
       <Sidebar
         currentScreen={currentScreen}
@@ -35,7 +35,7 @@ const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 pb-24 lg:pb-0">
+        <main className="flex-1 min-h-0 overflow-auto pb-24 lg:pb-0">
           {children}
         </main>
       </div>

@@ -300,10 +300,11 @@ const App = () => {
         onNavigate={navigateToScreen}
         navigation={navigation}
       >
-        <div className="lg:ml-64">
+        <div className="lg:ml-64 h-full">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentScreen}
+              className="h-full"
               initial={pageTransition.initial}
               animate={pageTransition.animate}
               exit={pageTransition.exit}
