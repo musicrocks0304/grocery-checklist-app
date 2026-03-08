@@ -35,6 +35,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
   // Feature 5: Compact Progress
   const [showStepDrawer, setShowStepDrawer] = useState(false);
+  const [showAllIngredients, setShowAllIngredients] = useState(false);
 
   // Step Navigation Menu (full list with previews)
   const [showStepMenu, setShowStepMenu] = useState(false);
@@ -1148,6 +1149,46 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           )}
         </div>
       </div>
+
+      {/* All Ingredients Panel (collapsible) */}
+      {activeRecipeData?.allIngredients?.length > 0 && (
+        <div className="max-w-4xl mx-auto px-4 pb-2">
+          <button
+            onClick={() => setShowAllIngredients(!showAllIngredients)}
+            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              kitchenMode
+                ? 'bg-gray-800 text-amber-400 border border-gray-700'
+                : 'bg-accent-light text-accent border border-accent'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <List size={16} />
+              All Ingredients ({activeRecipeData.allIngredients.length})
+            </span>
+            {showAllIngredients ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {showAllIngredients && (
+            <div className={`mt-2 rounded-xl p-4 ${
+              kitchenMode
+                ? 'bg-gray-800 border border-gray-700'
+                : 'bg-surface border border-default'
+            }`}>
+              <ul className="space-y-1.5">
+                {activeRecipeData.allIngredients.map((ing, i) => (
+                  <li key={i} className={`flex items-start gap-2 text-sm ${
+                    kitchenMode ? 'text-gray-200' : 'text-body'
+                  }`}>
+                    <span className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                      kitchenMode ? 'bg-amber-400' : 'bg-accent'
+                    }`} />
+                    {ing}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Swipe hint overlay (Feature 3) */}
       {showSwipeHint && (
