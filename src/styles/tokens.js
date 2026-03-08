@@ -134,6 +134,14 @@ export const THEMES = {
 
 // Convenience: map screen names to themes
 export const SCREEN_THEME = {
+  // New flow screens
+  home: THEMES.green,
+  plan: THEMES.green,
+  deals: THEMES.green,
+  cart: THEMES.green,
+  shop: THEMES.green,
+  cook: THEMES.amber,
+  // Legacy screens (still routable during transition)
   grocery: THEMES.green,
   chatbot: THEMES.green,
   coupons: THEMES.green,

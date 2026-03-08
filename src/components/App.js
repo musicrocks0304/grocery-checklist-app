@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ShoppingCart, MessageCircle, ChefHat, ShoppingBag, Sparkles, Store, Tag, BookOpen, Receipt } from "lucide-react";
+import { ClipboardList, Tag, Store, ShoppingBag, ChefHat } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
 import { pageTransition } from "../utils/animations";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import AppShell from "./AppShell";
+import Home from "./Home";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
 import RecipeInstructions from "./RecipeInstructions";
@@ -15,8 +16,26 @@ import MealCreator from "./MealCreator";
 import Coupons from "./Coupons";
 import HebCart from "./HebCart";
 import SmartDeals from "./SmartDeals";
+import Deals from "./Deals";
+import Plan from "./Plan";
 
-const VALID_SCREENS = ["grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions", "in-store", "coupons", "heb-cart", "smart-deals"];
+// New primary screen IDs + legacy IDs still routable during transition
+const VALID_SCREENS = [
+  // New flow screens
+  "home", "plan", "deals", "cart", "shop", "cook",
+  // Legacy IDs — still routable for internal navigation during phased migration
+  "grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions",
+  "in-store", "coupons", "heb-cart", "smart-deals",
+];
+
+// Map legacy hash IDs to new screen IDs for URL normalization
+const LEGACY_REDIRECT = {
+  grocery: "plan",
+  "smart-deals": "deals",
+  "heb-cart": "cart",
+  "in-store": "shop",
+  "recipe-instructions": "cook",
+};
 
 // Only show debug panels when ?debug=true is in the URL
 const isDebugMode = () => {
@@ -24,24 +43,23 @@ const isDebugMode = () => {
   return params.get("debug") === "true";
 };
 
-// Full navigation list for the desktop sidebar
+// Navigation list for the desktop sidebar (new flow)
 const navigation = [
-  { id: "grocery", name: "Weekly Grocery Selection", icon: ShoppingCart },
-  { id: "in-store", name: "In Store Mode", icon: ShoppingBag },
-  { id: "chatbot", name: "AI Meal Planner", icon: MessageCircle },
-  { id: "meal-creator", name: "AI Meal Creator", icon: Sparkles },
-  { id: "recipe-instructions", name: "Recipe Instructions", icon: ChefHat },
-  { id: "recipe-ingredients", name: "Ingredients", icon: BookOpen },
-  { id: "heb-cart", name: "HEB Cart Builder", icon: Store },
-  { id: "smart-deals", name: "Smart Deals", icon: Tag },
-  { id: "coupons", name: "Coupons", icon: Receipt },
+  { id: "plan", name: "Plan Meals & List", icon: ClipboardList },
+  { id: "deals", name: "Deals & Coupons", icon: Tag },
+  { id: "cart", name: "HEB Cart Builder", icon: Store },
+  { id: "shop", name: "Shop In-Store", icon: ShoppingBag },
+  { id: "cook", name: "Cook Recipes", icon: ChefHat },
 ];
 
 const App = () => {
   const [debugMode] = useState(isDebugMode);
   const [currentScreen, setCurrentScreen] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return VALID_SCREENS.includes(hash) ? hash : "grocery";
+    // Redirect legacy hashes to new screen IDs
+    const redirected = LEGACY_REDIRECT[hash];
+    if (redirected) return redirected;
+    return VALID_SCREENS.includes(hash) ? hash : "home";
   });
   const [selectedMeals, setSelectedMeals] = useState(() => {
     try {
@@ -74,6 +92,9 @@ const App = () => {
 
   // Navigate with unsaved-changes confirmation and browser history push
   const navigateToScreen = useCallback((screen) => {
+    // Redirect legacy IDs to new ones
+    const target = LEGACY_REDIRECT[screen] || screen;
+
     if (hasUnsavedChangesRef.current) {
       const confirmed = window.confirm(
         "You have unsaved changes that will be lost. Are you sure you want to leave?"
@@ -81,28 +102,29 @@ const App = () => {
       if (!confirmed) return;
       hasUnsavedChangesRef.current = false;
     }
-    setCurrentScreen(screen);
-    window.history.pushState({ screen }, "", `#${screen}`);
+    setCurrentScreen(target);
+    window.history.pushState({ screen: target }, "", `#${target}`);
     window.scrollTo(0, 0);
   }, []);
 
   const handleStartShopping = useCallback((data) => {
     setInStoreData(data);
     localStorage.setItem("inStoreShoppingList", JSON.stringify(data));
-    navigateToScreen("in-store");
+    navigateToScreen("shop");
   }, [navigateToScreen]);
 
   // Browser back/forward button support
   useEffect(() => {
-    const initialScreen = window.location.hash.replace("#", "") || "grocery";
+    const hash = window.location.hash.replace("#", "") || "home";
+    const initialScreen = LEGACY_REDIRECT[hash] || (VALID_SCREENS.includes(hash) ? hash : "home");
     window.history.replaceState({ screen: initialScreen }, "", `#${initialScreen}`);
 
     const handlePopState = (event) => {
-      const screen = event.state?.screen || "grocery";
+      const screen = event.state?.screen || "home";
       if (VALID_SCREENS.includes(screen)) {
-        setCurrentScreen(screen);
+        setCurrentScreen(LEGACY_REDIRECT[screen] || screen);
       } else {
-        setCurrentScreen("grocery");
+        setCurrentScreen("home");
       }
       window.scrollTo(0, 0);
     };
@@ -132,10 +154,33 @@ const App = () => {
   // Render the active screen content
   const renderScreen = () => {
     switch (currentScreen) {
+      case "home":
+        return (
+          <Home
+            onNavigate={navigateToScreen}
+          />
+        );
+
+      // --- Plan tab (unified Meals + Grocery List) ---
+      case "plan":
+        return (
+          <Plan
+            onNavigate={navigateToScreen}
+            onUnsavedChanges={setHasUnsavedChanges}
+            onStartShopping={handleStartShopping}
+            selectedMeals={selectedMeals}
+            setSelectedMeals={setSelectedMeals}
+            groceryListData={groceryListData}
+            setGroceryListData={setGroceryListData}
+            debugMode={debugMode}
+          />
+        );
+
+      // Legacy meal screens — still routable for internal navigation
       case "chatbot":
         return (
           <ChatBot
-            onBack={() => navigateToScreen("grocery")}
+            onBack={() => navigateToScreen("plan")}
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
@@ -147,7 +192,7 @@ const App = () => {
       case "meal-creator":
         return (
           <MealCreator
-            onBack={() => navigateToScreen("grocery")}
+            onBack={() => navigateToScreen("plan")}
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
@@ -163,7 +208,32 @@ const App = () => {
             debugMode={debugMode}
           />
         );
-      case "recipe-instructions":
+
+      // --- Deals tab (unified Smart Deals + All Coupons) ---
+      case "deals":
+        return (
+          <Deals
+            onNavigate={navigateToScreen}
+          />
+        );
+      // Legacy coupons screen — still routable for internal navigation
+      case "coupons":
+        return (
+          <Coupons
+            onNavigate={navigateToScreen}
+          />
+        );
+
+      // --- Cart tab ---
+      case "cart":
+        return (
+          <HebCart
+            onNavigate={navigateToScreen}
+          />
+        );
+
+      // --- Cook tab (Phase 1: routes to RecipeInstructions) ---
+      case "cook":
         return (
           <RecipeInstructions
             onNavigate={navigateToScreen}
@@ -171,44 +241,24 @@ const App = () => {
             debugMode={debugMode}
           />
         );
-      case "coupons":
-        return (
-          <Coupons
-            onNavigate={navigateToScreen}
-          />
-        );
-      case "smart-deals":
-        return (
-          <SmartDeals
-            onNavigate={navigateToScreen}
-          />
-        );
-      case "heb-cart":
-        return (
-          <HebCart
-            onNavigate={navigateToScreen}
-          />
-        );
+
       default:
         return (
-          <GroceryChecklist
+          <Home
             onNavigate={navigateToScreen}
-            onUnsavedChanges={setHasUnsavedChanges}
-            onStartShopping={handleStartShopping}
-            debugMode={debugMode}
           />
         );
     }
   };
 
-  // InStoreMode renders fullscreen without navigation chrome
-  if (currentScreen === "in-store") {
+  // Shop screen (InStoreMode) renders fullscreen without navigation chrome
+  if (currentScreen === "shop") {
     return (
       <ThemeProvider>
         {toaster}
         <InStoreMode
           inStoreData={inStoreData}
-          onExit={() => navigateToScreen("grocery")}
+          onExit={() => navigateToScreen("plan")}
         />
       </ThemeProvider>
     );
