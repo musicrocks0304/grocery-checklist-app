@@ -33,6 +33,17 @@ export const ENDPOINTS = {
   // Recipes
   mealIngredients: `${API_BASE_URL}/meal_ingredients`,
   chooseRecipeInstructions: `${API_BASE_URL}/choose_recipe_instructions`,
+
+  // Weekly meal selections (DB-backed)
+  fetchWeeklyMeals: `${API_BASE_URL}/fetch_weekly_meals`,
+  addWeeklySelection: `${API_BASE_URL}/add_weekly_selection`,
+  removeWeeklySelection: `${API_BASE_URL}/remove_weekly_selection`,
+
+  // Shopping progress (DB-backed)
+  shoppingProgress: `${API_BASE_URL}/shopping_progress`,
+  shoppingProgressCheck: `${API_BASE_URL}/shopping_progress_check`,
+  shoppingProgressUncheck: `${API_BASE_URL}/shopping_progress_uncheck`,
+
   grabInstructionsFast: `${API_BASE_URL}/grab_instructions_fast`,
 
   // Meal Creator
@@ -180,6 +191,28 @@ export function showApiError(error, onRetry) {
   } else {
     toast.error(message, { duration: 4000 });
   }
+}
+
+/**
+ * Normalize DB meal response to match the component prop interface.
+ * DB returns: { selection_id, recipe_id, recipe_name, recipe_description, ... }
+ * Components expect: { id, name, recipeId, description, ... }
+ */
+export function normalizeDbMeals(dbRows) {
+  if (!Array.isArray(dbRows)) return [];
+  return dbRows.map(row => ({
+    id: row.selection_id,
+    name: row.recipe_name,
+    recipeId: String(row.recipe_id),
+    description: row.recipe_description || row.notes || '',
+    prepTime: row.prep_time_minutes,
+    cookTime: row.cook_time_minutes,
+    totalTime: row.total_time_minutes,
+    servings: row.servings,
+    difficulty: row.difficulty_level,
+    tags: row.tags,
+    ingredients: [],
+  }));
 }
 
 export { API_BASE_URL, CLIP_SERVER_URL };
