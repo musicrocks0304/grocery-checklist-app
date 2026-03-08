@@ -401,17 +401,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     if (!saveResult) return;
     const weekData = getWeekDates();
 
-    const newMeal = {
-      id: Date.now(),
-      name: saveResult.recipeName,
-      description: fullRecipe?.recipe_description || '',
-      recipeId: String(saveResult.recipeId),
-      totalTime: fullRecipe?.total_time_minutes || null,
-      servings: fullRecipe?.servings || 4,
-      ingredients: []
-    };
-
-    // Call the webhook first, then update local state on success
+    // Call the webhook first, then refresh from DB on success
     try {
       const payload = {
         message: `Add recipe to this week: ${saveResult.recipeName}`,

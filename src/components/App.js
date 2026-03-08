@@ -69,7 +69,7 @@ const App = () => {
       return [];
     }
   });
-  const [mealsLoading, setMealsLoading] = useState(true);
+  const [mealsLoading, setMealsLoading] = useState(true); // eslint-disable-line no-unused-vars
   const [groceryListData, setGroceryListData] = useState(null);
   const [inStoreData, setInStoreData] = useState(null);
   const hasUnsavedChangesRef = useRef(false);
