@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, ChefHat, ArrowLeft, ChevronDown, ChevronUp, Wifi, Clock, Users, Flame, Check, Plus, RotateCcw, BookOpen, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getWeekDateRange, getWeekDates } from '../utils/weekDates';
+import { getWeekDates } from '../utils/weekDates';
 import { ENDPOINTS, apiFetch } from '../config/api';
 
 // Generate or retrieve a creator-specific session ID — keyed by week so each grocery week gets fresh history
