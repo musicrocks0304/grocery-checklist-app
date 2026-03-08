@@ -431,8 +431,8 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold text-primary bg-primary-light px-3 py-1 rounded-full">
                         {item.quantity > 1
-                          ? `${item.quantity} \u00d7 ${item.QuantitySelected}`
-                          : item.QuantitySelected}
+                          ? `${item.quantity} \u00d7 ${item.QuantitySelected}${item.Unit && item.Unit !== 'item' ? ` ${item.Unit}` : ''}`
+                          : `${item.QuantitySelected}${item.Unit && item.Unit !== 'item' ? ` ${item.Unit}` : ''}`}
                       </span>
                     </div>
                   </div>
@@ -786,7 +786,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                             </h4>
                             <div className="mt-1 space-y-1">
                               <div className="text-sm text-primary font-medium">
-                                Buy: <span className="text-primary">{item.QuantitySelected}</span>
+                                Buy: <span className="text-primary">{item.QuantitySelected}{item.Unit && item.Unit !== 'item' ? ` ${item.Unit}` : ''}</span>
                               </div>
                               {item.RecipeNeeds && (
                                 <div className="text-xs text-body">
@@ -807,7 +807,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                                 ))}
                               </select>
                               <span className="text-xs text-muted">
-                                {quantity > 1 ? `= ${quantity} \u00d7 ${item.QuantitySelected}` : ""}
+                                {quantity > 1 ? `= ${quantity} \u00d7 ${item.QuantitySelected}${item.Unit && item.Unit !== 'item' ? ` ${item.Unit}` : ''}` : ""}
                               </span>
                             </div>
                           )}

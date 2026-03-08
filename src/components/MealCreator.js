@@ -469,7 +469,8 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                 Store: 'HEB',
                 GroceryStoreSection: ing.category || 'General',
                 IsSelected: 1,
-                QuantitySelected: ing.purchaseQuantity || '1'
+                QuantitySelected: ing.purchaseQuantity || '1',
+                Unit: ing.purchaseUnit || null,
               }));
 
               const mealIngredientsPayload = {

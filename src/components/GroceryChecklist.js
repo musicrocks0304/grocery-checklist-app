@@ -527,11 +527,25 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
     setShowAddPanel(false);
   };
 
+  // Parse quick-add text like "2 lbs chicken breast" into { quantity, unit, name }
+  const parseQuickAdd = (text) => {
+    const trimmed = text.trim();
+    // Match: number + unit + item name (e.g. "2 lbs chicken breast", "1.5 oz cheese")
+    const match = trimmed.match(/^(\d+\.?\d*)\s+(lbs?|oz|cups?|cans?|bags?|boxes?|bottles?|gallons?|bunche?s?|packs?|pkg|dozen|doz|heads?|bundles?|jars?|cartons?|tubs?|rolls?|loave?s?|slices?|stalks?|cloves?|sprigs?|pints?|quarts?|liters?|ml|kg|g)\s+(.+)$/i);
+    if (match) return { quantity: Math.ceil(parseFloat(match[1])), unit: match[2], name: match[3] };
+    // Match: number + item name (e.g. "3 bananas")
+    const numMatch = trimmed.match(/^(\d+)\s+(.+)$/);
+    if (numMatch) return { quantity: parseInt(numMatch[1]), unit: null, name: numMatch[2] };
+    // Plain text — default qty 1, no unit
+    return { quantity: 1, unit: null, name: trimmed };
+  };
+
   // Quick-add a one-off item (skips GroceryItems catalog, only for this week)
   const handleQuickAddOneOff = async () => {
-    const name = quickAddText.trim();
-    if (!name) return;
+    const raw = quickAddText.trim();
+    if (!raw) return;
 
+    const parsed = parseQuickAdd(raw);
     setIsAddingOneOff(true);
     const weekData = getWeekDates();
 
@@ -540,7 +554,9 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          itemName: name,
+          itemName: parsed.name,
+          quantity: parsed.quantity,
+          unit: parsed.unit,
           weekDateRange: weekData.displayRange,
         }),
       });
@@ -551,19 +567,20 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         // Add to local state for immediate UI update
         const oneOffItem = {
           ItemID: `oneoff_${Date.now()}`,
-          ItemName: name,
+          ItemName: parsed.name,
           Category: "General",
           Store: "HEB",
           GroceryStoreSection: "Other",
           Type: "OneOff",
           DataSource: "OneOff",
           IsSelected: 1,
-          QuantitySelected: 1,
+          QuantitySelected: parsed.quantity,
+          Unit: parsed.unit,
         };
         setGroceryData(prev => [...prev, oneOffItem]);
         setSelectedItems(prev => new Set([...prev, oneOffItem.ItemID.toString()]));
-        setItemQuantities(prev => new Map([...prev, [oneOffItem.ItemID.toString(), 1]]));
-        toast.success(data.message || `${name} added as one-off item`);
+        setItemQuantities(prev => new Map([...prev, [oneOffItem.ItemID.toString(), parsed.quantity]]));
+        toast.success(data.message || `${parsed.name} added as one-off item`);
         setQuickAddText("");
       } else {
         throw new Error(data.message || "Failed to add item");
@@ -583,6 +600,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       .map((item) => ({
         ...item,
         quantity: itemQuantities.get(item.ItemID.toString()) || 1,
+        Unit: item.Unit || null,
       }));
 
     const groupedByCategory = {};
@@ -655,7 +673,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                     <div className="w-2 h-2 bg-primary rounded-full"></div>
                     <span className="flex-1">{item.ItemName}</span>
                     <span className="text-sm font-medium text-primary bg-primary-light px-2 py-1 rounded">
-                      Qty: {item.quantity}
+                      {item.Unit ? `${item.quantity} ${item.Unit}` : `Qty: ${item.quantity}`}
                     </span>
                   </li>
                 ))}

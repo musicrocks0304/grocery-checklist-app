@@ -68,7 +68,7 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle, couponMatch }) => {
             : "bg-primary-light text-primary"
         }`}
       >
-        x{item.quantity || 1}
+        {item.Unit ? `${item.quantity || 1} ${item.Unit}` : `x${item.quantity || 1}`}
       </span>
     </button>
   );

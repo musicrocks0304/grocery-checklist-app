@@ -147,9 +147,9 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-semibold text-heading truncate">{item.ItemName}</span>
-            {item.Quantity > 1 && (
+            {(item.Quantity > 1 || item.Unit) && (
               <span className="text-xs font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                x{item.Quantity}
+                {item.Unit ? `${item.Quantity || 1} ${item.Unit}` : `x${item.Quantity}`}
               </span>
             )}
             <span className="text-xs text-muted bg-background px-1.5 py-0.5 rounded flex-shrink-0">
@@ -735,6 +735,7 @@ const HebCart = ({ onNavigate }) => {
           groceryItemName: item.ItemName,
           category: item.Category,
           quantity: item.Quantity || 1,
+          unit: item.Unit || null,
           coupon: item.couponHashId ? {
             productName: item.couponProductName,
             savings: item.couponSavings,
@@ -820,6 +821,7 @@ const HebCart = ({ onNavigate }) => {
             groceryItemName: item.ItemName,
             category: item.Category,
             quantity: item.Quantity || 1,
+            unit: item.Unit || null,
             coupon: item.couponHashId ? {
               productName: item.couponProductName,
               savings: item.couponSavings,
