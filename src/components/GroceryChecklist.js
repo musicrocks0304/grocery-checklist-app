@@ -548,26 +548,22 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       const data = await response.json();
 
       if (data.success) {
-        if (data.alreadyExisted) {
-          toast.success(`${name} is already on this week's list`);
-        } else {
-          // Add to local state for immediate UI update
-          const oneOffItem = {
-            ItemID: `oneoff_${data.weeklyListId}`,
-            ItemName: name,
-            Category: "General",
-            Store: "HEB",
-            GroceryStoreSection: "Other",
-            Type: "OneOff",
-            DataSource: "OneOff",
-            IsSelected: 1,
-            QuantitySelected: 1,
-          };
-          setGroceryData(prev => [...prev, oneOffItem]);
-          setSelectedItems(prev => new Set([...prev, oneOffItem.ItemID.toString()]));
-          setItemQuantities(prev => new Map([...prev, [oneOffItem.ItemID.toString(), 1]]));
-          toast.success(`${name} added as one-off item`);
-        }
+        // Add to local state for immediate UI update
+        const oneOffItem = {
+          ItemID: `oneoff_${Date.now()}`,
+          ItemName: name,
+          Category: "General",
+          Store: "HEB",
+          GroceryStoreSection: "Other",
+          Type: "OneOff",
+          DataSource: "OneOff",
+          IsSelected: 1,
+          QuantitySelected: 1,
+        };
+        setGroceryData(prev => [...prev, oneOffItem]);
+        setSelectedItems(prev => new Set([...prev, oneOffItem.ItemID.toString()]));
+        setItemQuantities(prev => new Map([...prev, [oneOffItem.ItemID.toString(), 1]]));
+        toast.success(data.message || `${name} added as one-off item`);
         setQuickAddText("");
       } else {
         throw new Error(data.message || "Failed to add item");

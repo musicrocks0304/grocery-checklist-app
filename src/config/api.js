@@ -92,8 +92,8 @@ export const ENDPOINTS = {
   // Add item to weekly list (clip server)
   hebAddWeeklyItem: `${CLIP_SERVER_URL}/api/heb/add-weekly-item`,
 
-  // One-off items (clip server) — adds directly to WeeklyGroceryList, no catalog entry
-  addOneOffItem: `${CLIP_SERVER_URL}/api/heb/add-oneoff-item`,
+  // One-off items (n8n) — adds directly to WeeklyGroceryList, no catalog entry
+  addOneOffItem: `${API_BASE_URL}/add_oneoff_item`,
 };
 
 /**
