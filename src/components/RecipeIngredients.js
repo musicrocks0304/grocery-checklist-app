@@ -52,14 +52,6 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
     console.log(`[${timestamp}] ${message}`, data || "");
   };
 
-  // Clear any cached data on component mount
-  useEffect(() => {
-    // Remove any cached webhook responses to ensure fresh data
-    localStorage.removeItem('n8n_recipe_ingredients');
-    localStorage.removeItem('n8n_recipe_ingredients_raw');
-    addDebugLog('🧹 Cleared cached webhook data to ensure fresh responses');
-  }, []);
-
   // Handle adding ingredients to main list
   const handleAddToMainList = async () => {
     setIsAddingToMainList(true);

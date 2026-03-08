@@ -8,18 +8,18 @@ import { ENDPOINTS, apiFetch } from '../config/api';
 const getSessionId = () => {
   const weekStart = getWeekDates().startDate;
   const storageKey = `chatSessionId_${weekStart}`;
-  let sessionId = localStorage.getItem(storageKey);
-  if (!sessionId) {
-    sessionId = `session_${weekStart}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem(storageKey, sessionId);
-  }
+  // Legacy fallback: if existing random session ID for this week, keep using it
+  const existing = localStorage.getItem(storageKey);
+  if (existing) return existing;
+  // New deterministic format — same on any device
+  const sessionId = `chat_${weekStart}`;
   return sessionId;
 };
 
 const CHATBOT_WEBHOOK_URL = ENDPOINTS.callGroceryAgent;
 const CHAT_HISTORY_URL = ENDPOINTS.chatHistory;
 
-const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals, groceryListData, setGroceryListData, debugMode = false }) => {
+const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSelectedMeals: setParentSelectedMeals, refreshMeals, groceryListData, setGroceryListData, debugMode = false }) => {
   // Session management
   const [sessionId] = useState(getSessionId());
 
@@ -238,21 +238,33 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
   };
 
   // Add a meal to the selected meals list
-  const addMealToList = (mealName, mealDescription, recipeId = null, totalTime = null) => {
-    const newMeal = {
-      id: Date.now(),
-      name: mealName,
-      description: mealDescription,
-      recipeId: recipeId,
-      totalTime: totalTime,
-      ingredients: []
-    };
-
-    setSelectedMeals(prev => [...prev, newMeal]);
-
-    // Removed automatic ingredient fetching since we're not showing ingredients in side panel
-
-    addDebugLog('Added meal to planning list:', newMeal);
+  const addMealToList = async (mealName, mealDescription, recipeId = null, totalTime = null) => {
+    if (!recipeId) {
+      addDebugLog('⚠️ Cannot add meal without recipeId');
+      return;
+    }
+    try {
+      const weekData = getWeekDates();
+      const response = await apiFetch(ENDPOINTS.addWeeklySelection, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekDateRange: weekData.displayRange,
+          recipeId: Number(recipeId),
+          notes: '',
+        }),
+      });
+      if (response.ok) {
+        if (refreshMeals) await refreshMeals();
+        toast.success(`Added "${mealName}" to this week!`);
+        addDebugLog('Added meal to DB and refreshed:', mealName);
+      } else {
+        toast.error(`Failed to add "${mealName}".`);
+      }
+    } catch (error) {
+      toast.error(`Failed to add "${mealName}". Check connection.`);
+      addDebugLog('Error adding meal:', error.message);
+    }
   };
 
   // Removed ingredient fetching since we're not showing ingredients in side panel
@@ -300,8 +312,17 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
 
       if (response.ok) {
         addDebugLog('✅ Delete meal webhook call successful');
-        setSelectedMeals(prev => prev.filter(m => m.id !== mealId));
-        addDebugLog('Removed meal from planning list:', mealId);
+        // Also remove from weekly_selections via dedicated endpoint
+        await apiFetch(ENDPOINTS.removeWeeklySelection, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            weekDateRange: weekData.displayRange,
+            recipeId: Number(mealToRemove.recipeId),
+          }),
+        });
+        if (refreshMeals) await refreshMeals();
+        addDebugLog('Removed meal from DB and refreshed:', mealId);
       } else {
         addDebugLog('⚠️ Delete meal webhook call failed:', response.status);
         toast.error(`Failed to remove "${mealToRemove.name}". Server returned ${response.status}.`);

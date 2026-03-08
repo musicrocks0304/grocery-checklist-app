@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
 import { pageTransition } from "../utils/animations";
+import { ENDPOINTS, apiFetch, normalizeDbMeals } from "../config/api";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import AppShell from "./AppShell";
 import Home from "./Home";
@@ -68,6 +69,7 @@ const App = () => {
       return [];
     }
   });
+  const [mealsLoading, setMealsLoading] = useState(true);
   const [groceryListData, setGroceryListData] = useState(null);
   const [inStoreData, setInStoreData] = useState(null);
   const hasUnsavedChangesRef = useRef(false);
@@ -76,17 +78,40 @@ const App = () => {
     hasUnsavedChangesRef.current = value;
   }, []);
 
-  // Persist selectedMeals to localStorage (keyed by week so it auto-resets)
-  useEffect(() => {
+  // Shared helper: fetch meals from DB, normalize, and cache to localStorage
+  const loadMealsFromDb = useCallback(async ({ showLoading = false } = {}) => {
+    if (showLoading) setMealsLoading(true);
     try {
-      const weekKey = `selectedMeals_${getWeekDates().startDate}`;
-      if (selectedMeals.length > 0) {
-        localStorage.setItem(weekKey, JSON.stringify(selectedMeals));
-      } else {
-        localStorage.removeItem(weekKey);
+      const weekData = getWeekDates();
+      const url = new URL(ENDPOINTS.fetchWeeklyMeals);
+      url.searchParams.append("weekDateRange", weekData.displayRange);
+      const response = await apiFetch(url.toString(), {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const normalized = normalizeDbMeals(data);
+        setSelectedMeals(normalized);
+        const weekKey = `selectedMeals_${weekData.startDate}`;
+        if (normalized.length > 0) {
+          localStorage.setItem(weekKey, JSON.stringify(normalized));
+        } else {
+          localStorage.removeItem(weekKey);
+        }
       }
-    } catch { /* ignore storage errors */ }
-  }, [selectedMeals]);
+    } catch {
+      // Keep stale localStorage data on network failure
+    } finally {
+      if (showLoading) setMealsLoading(false);
+    }
+  }, []);
+
+  // Fetch selectedMeals from DB on mount (stale-while-revalidate)
+  useEffect(() => { loadMealsFromDb({ showLoading: true }); }, [loadMealsFromDb]);
+
+  // Callback for children to refresh meals from DB after mutations
+  const refreshMeals = useCallback(() => loadMealsFromDb(), [loadMealsFromDb]);
 
   // Navigate with unsaved-changes confirmation and browser history push
   const navigateToScreen = useCallback((screen) => {
@@ -169,6 +194,7 @@ const App = () => {
             onStartShopping={handleStartShopping}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
+            refreshMeals={refreshMeals}
             groceryListData={groceryListData}
             setGroceryListData={setGroceryListData}
             debugMode={debugMode}
@@ -183,6 +209,7 @@ const App = () => {
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
+            refreshMeals={refreshMeals}
             groceryListData={groceryListData}
             setGroceryListData={setGroceryListData}
             debugMode={debugMode}
@@ -195,6 +222,7 @@ const App = () => {
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
+            refreshMeals={refreshMeals}
             debugMode={debugMode}
           />
         );

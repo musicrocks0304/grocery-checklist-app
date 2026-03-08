@@ -28,6 +28,7 @@ const Plan = ({
   onStartShopping,
   selectedMeals,
   setSelectedMeals,
+  refreshMeals,
   groceryListData,
   setGroceryListData,
   debugMode,
@@ -131,6 +132,7 @@ const Plan = ({
             onNavigate={handleMealNavigate}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
+            refreshMeals={refreshMeals}
             groceryListData={groceryListData}
             setGroceryListData={setGroceryListData}
             debugMode={debugMode}
@@ -143,6 +145,7 @@ const Plan = ({
             onNavigate={handleMealNavigate}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
+            refreshMeals={refreshMeals}
             debugMode={debugMode}
           />
         )}

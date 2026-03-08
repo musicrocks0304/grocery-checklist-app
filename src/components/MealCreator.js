@@ -8,11 +8,11 @@ import { ENDPOINTS, apiFetch } from '../config/api';
 const getCreatorSessionId = () => {
   const weekStart = getWeekDates().startDate;
   const storageKey = `creatorSessionId_${weekStart}`;
-  let sessionId = localStorage.getItem(storageKey);
-  if (!sessionId) {
-    sessionId = `creator_${weekStart}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem(storageKey, sessionId);
-  }
+  // Legacy fallback: keep existing random ID for current week
+  const existing = localStorage.getItem(storageKey);
+  if (existing) return existing;
+  // New deterministic format
+  const sessionId = `creator_${weekStart}`;
   return sessionId;
 };
 
@@ -23,7 +23,7 @@ const ADD_TO_WEEK_WEBHOOK_URL = ENDPOINTS.callGroceryAgent;
 
 const CHAT_HISTORY_URL = ENDPOINTS.chatHistory;
 
-const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debugMode = false }) => {
+const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refreshMeals, debugMode = false }) => {
   const [sessionId] = useState(getCreatorSessionId());
   const [phase, setPhase] = useState(1); // 1=describe, 2=building, 3=preview, 4=saved
   const [messages, setMessages] = useState([
@@ -433,7 +433,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debu
       });
 
       if (response.ok) {
-        setSelectedMeals(prev => [...prev, newMeal]);
+        if (refreshMeals) await refreshMeals();
         toast.success(`Added to this week's meals!`);
         addDebugLog('Added to weekly_selections:', saveResult.recipeId);
 
@@ -537,7 +537,8 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debu
     setSaveResult(null);
     // Create a fresh session ID for new conversation
     const newSessionId = `creator_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('creatorSessionId', newSessionId);
+    const weekStart = getWeekDates().startDate;
+    localStorage.setItem(`creatorSessionId_${weekStart}`, newSessionId);
     // Reset messages to initial greeting
     setMessages([{
       id: 1,

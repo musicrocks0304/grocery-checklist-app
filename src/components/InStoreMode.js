@@ -229,23 +229,46 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     fetchCurrentWeekItems();
   }, [inStoreData]);
 
-  // Load checked items from localStorage, invalidate if list changed
+  // Load checked items from DB, fall back to localStorage
   useEffect(() => {
     if (!shoppingList) return;
 
-    const stored = localStorage.getItem("inStoreCheckedItems");
-    if (stored) {
+    const loadCheckedItems = async () => {
       try {
-        const parsed = JSON.parse(stored);
-        if (parsed.savedAt === shoppingList.savedAt) {
-          setCheckedItems(new Set(parsed.checkedIds));
-        } else {
-          localStorage.removeItem("inStoreCheckedItems");
+        const weekData = getWeekDates();
+        const url = new URL(ENDPOINTS.shoppingProgress);
+        url.searchParams.append("week_start_date", weekData.startDate);
+        const response = await apiFetch(url.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const checkedIds = Array.isArray(data) ? data.map(row => row.item_id) : [];
+          setCheckedItems(new Set(checkedIds));
+          return;
+        }
+      } catch {
+        // Fall through to localStorage fallback
+      }
+
+      // Offline fallback: try localStorage
+      try {
+        const stored = localStorage.getItem("inStoreCheckedItems");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.savedAt === shoppingList.savedAt) {
+            setCheckedItems(new Set(parsed.checkedIds));
+          } else {
+            localStorage.removeItem("inStoreCheckedItems");
+          }
         }
       } catch {
         localStorage.removeItem("inStoreCheckedItems");
       }
-    }
+    };
+
+    loadCheckedItems();
   }, [shoppingList]);
 
   // Fetch coupon matches for inline reminders
@@ -317,13 +340,31 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     (itemId) => {
       setCheckedItems((prev) => {
         const next = new Set(prev);
-        if (next.has(itemId)) {
-          next.delete(itemId);
-        } else {
+        const isChecking = !next.has(itemId);
+
+        if (isChecking) {
           next.add(itemId);
+        } else {
+          next.delete(itemId);
         }
 
-        // Persist to localStorage
+        // Persist to DB (fire-and-forget, don't block UI)
+        const weekData = getWeekDates();
+        const endpoint = isChecking
+          ? ENDPOINTS.shoppingProgressCheck
+          : ENDPOINTS.shoppingProgressUncheck;
+        apiFetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            week_start_date: weekData.startDate,
+            item_id: itemId,
+          }),
+        }).catch(() => {
+          // Silently fail — localStorage is backup
+        });
+
+        // Also cache to localStorage (offline backup)
         if (shoppingList) {
           localStorage.setItem(
             "inStoreCheckedItems",
