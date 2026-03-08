@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  ShoppingCart, Wifi, WifiOff, Search, Check, X, RefreshCw,
+  ShoppingCart, Wifi, WifiOff, Search, Check, X,
   AlertCircle, ChevronRight, Zap, Loader2,
-  CheckCircle2, XCircle, SkipForward, ArrowRight, Eye, Star,
+  CheckCircle2, XCircle, SkipForward, ArrowRight, Star,
 } from 'lucide-react';
 import { ENDPOINTS, apiFetch } from '../config/api';
 import { getWeekDateRange } from '../utils/weekDates';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   ClipboardList, Tag, Store, ShoppingBag, ChefHat,
-  ArrowRight, TrendingUp, Sparkles, CheckCircle,
+  ArrowRight, TrendingUp, Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";

@@ -10,12 +10,10 @@ import Home from "./Home";
 import ChatBot from "./ChatBot";
 import RecipeIngredients from "./RecipeIngredients";
 import RecipeInstructions from "./RecipeInstructions";
-import GroceryChecklist from "./GroceryChecklist";
 import InStoreMode from "./InStoreMode";
 import MealCreator from "./MealCreator";
 import Coupons from "./Coupons";
 import HebCart from "./HebCart";
-import SmartDeals from "./SmartDeals";
 import Deals from "./Deals";
 import Plan from "./Plan";
 
