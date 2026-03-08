@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ClipboardList, MessageSquare, UtensilsCrossed } from 'lucide-react';
 import ChatBot from './ChatBot';
 import MealCreator from './MealCreator';
@@ -32,8 +32,25 @@ const Plan = ({
   setGroceryListData,
   debugMode,
 }) => {
-  const [activeTab, setActiveTab] = useState('list');
-  const [mealMode, setMealMode] = useState('planner');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const saved = localStorage.getItem('planTabState');
+      return saved ? JSON.parse(saved).activeTab || 'list' : 'list';
+    } catch { return 'list'; }
+  });
+  const [mealMode, setMealMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('planTabState');
+      return saved ? JSON.parse(saved).mealMode || 'planner' : 'planner';
+    } catch { return 'planner'; }
+  });
+
+  // Persist active tab + meal sub-mode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('planTabState', JSON.stringify({ activeTab, mealMode }));
+    } catch { /* ignore */ }
+  }, [activeTab, mealMode]);
 
   // When ChatBot navigates to MealCreator (or vice versa), switch sub-mode instead
   const handleMealNavigate = useCallback((screen) => {

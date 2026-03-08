@@ -44,6 +44,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debu
   const [showDebug, setShowDebug] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef(null);
+  const lastProposeRef = useRef(null);
 
   const addDebugLog = (message, data = null) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -217,6 +218,8 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debu
         timestamp: new Date().toISOString()
       };
 
+      lastProposeRef.current = payload;
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000);
 
@@ -277,6 +280,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debu
         content: error.name === 'AbortError'
           ? "That took too long — please try again with a simpler description."
           : "Something went wrong generating proposals. Please try again!",
+        isRetryable: true,
         timestamp: new Date().toLocaleTimeString()
       }]);
     } finally {
@@ -543,6 +547,12 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debu
     window.location.reload();
   };
 
+  const retryLastPropose = () => {
+    if (!lastProposeRef.current) return;
+    setInputMessage(lastProposeRef.current.message || lastProposeRef.current.description || '');
+    setTimeout(() => sendMessage(), 50);
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -752,6 +762,15 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, debu
                               </div>
                             ))}
                           </div>
+                        )}
+
+                        {message.isRetryable && (
+                          <button
+                            onClick={retryLastPropose}
+                            className="mt-2 text-xs text-primary hover:text-primary-hover underline"
+                          >
+                            Retry
+                          </button>
                         )}
 
                         <div className={`text-xs mt-2 ${message.type === 'user' ? 'text-accent-light' : 'text-muted'}`}>

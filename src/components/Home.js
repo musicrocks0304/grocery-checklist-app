@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   ClipboardList, Tag, Store, ShoppingBag, ChefHat,
-  ArrowRight, TrendingUp, Sparkles,
+  ArrowRight, TrendingUp, Sparkles, AlertCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
@@ -31,6 +31,13 @@ function getNextStep(status) {
   return { label: "Ready to Shop!", screen: "shop", sublabel: "Your list is ready — head to the store" };
 }
 
+const StatBadgeSkeleton = () => (
+  <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
+    <div className="h-7 w-8 mx-auto bg-white/30 rounded animate-pulse mb-1" />
+    <div className="h-3 w-10 mx-auto bg-white/20 rounded animate-pulse" />
+  </div>
+);
+
 // ---------------------------------------------------------------------------
 // Home dashboard
 // ---------------------------------------------------------------------------
@@ -43,6 +50,7 @@ const Home = ({ onNavigate }) => {
   const [selectedCount, setSelectedCount] = useState(0);
   const [topDeals, setTopDeals] = useState(null);
   const [mealsPlanned, setMealsPlanned] = useState(0);
+  const [fetchError, setFetchError] = useState(false);
 
   // Load weekly status from existing endpoints
   useEffect(() => {
@@ -64,7 +72,10 @@ const Home = ({ onNavigate }) => {
           setListItems(items.length);
           setSelectedCount(items.filter(i => i.IsSelected === 1).length);
         }
-      } catch { /* silent — dashboard is informational */ }
+      } catch {
+        setFetchError(true);
+        setListItems(0);
+      }
     };
 
     // Fetch top smart deals
@@ -79,9 +90,15 @@ const Home = ({ onNavigate }) => {
         if (response.ok) {
           const data = await response.json();
           const result = Array.isArray(data) ? data[0] : data;
-          const deals = (result.deals || []).slice(0, 3);
-          const totalSavings = (result.deals || []).reduce((s, d) => s + (d.coupon?.savingsAmount || 0), 0);
-          setTopDeals({ deals, totalSavings: Math.round(totalSavings * 100) / 100, totalCount: (result.deals || []).length });
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const allDeals = (result.deals || []).filter(d => {
+            if (!d.coupon?.expirationDate) return true;
+            return new Date(d.coupon.expirationDate) >= today;
+          });
+          const deals = allDeals.slice(0, 3);
+          const totalSavings = allDeals.reduce((s, d) => s + (d.coupon?.savingsAmount || 0), 0);
+          setTopDeals({ deals, totalSavings: Math.round(totalSavings * 100) / 100, totalCount: allDeals.length });
         }
       } catch { /* silent */ }
     };
@@ -98,6 +115,20 @@ const Home = ({ onNavigate }) => {
 
     fetchList();
     fetchDeals();
+  }, []);
+
+  // Week boundary detection — auto-refresh if the week rolls over while page is open
+  const weekStartRef = useRef(getWeekDates().startDate);
+  useEffect(() => {
+    const checkWeekBoundary = setInterval(() => {
+      const currentStart = getWeekDates().startDate;
+      if (currentStart !== weekStartRef.current) {
+        weekStartRef.current = currentStart;
+        window.location.reload();
+      }
+    }, 60000);
+
+    return () => clearInterval(checkWeekBoundary);
   }, []);
 
   const weeklyStatus = useMemo(() => ({
@@ -117,28 +148,49 @@ const Home = ({ onNavigate }) => {
         <h1 className="text-2xl font-bold font-display mb-1">Grocery Planner</h1>
         <p className="text-white/80 text-sm">{displayRange}</p>
 
+        {/* Offline warning */}
+        {fetchError && (
+          <div className="mt-2 flex items-center gap-2 bg-white/15 rounded-lg px-3 py-1.5 text-xs text-white/90">
+            <AlertCircle size={14} />
+            Couldn't load latest data — showing cached info
+          </div>
+        )}
+
         {/* Progress summary */}
         <div className="flex gap-4 mt-4 flex-wrap">
-          <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
-            <div className="text-xl font-bold">{mealsPlanned}</div>
-            <div className="text-xs text-white/70">Meals</div>
-          </div>
-          <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
-            <div className="text-xl font-bold">{selectedCount}</div>
-            <div className="text-xs text-white/70">Items</div>
-          </div>
-          {topDeals && (
-            <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
-              <div className="text-xl font-bold">{topDeals.totalCount}</div>
-              <div className="text-xs text-white/70">Deals</div>
-            </div>
+          {listItems === null ? (
+            <>
+              <StatBadgeSkeleton />
+              <StatBadgeSkeleton />
+            </>
+          ) : (
+            <>
+              <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
+                <div className="text-xl font-bold">{mealsPlanned}</div>
+                <div className="text-xs text-white/70">Meals</div>
+              </div>
+              <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
+                <div className="text-xl font-bold">{selectedCount}</div>
+                <div className="text-xs text-white/70">Items</div>
+              </div>
+            </>
           )}
-          {topDeals && topDeals.totalSavings > 0 && (
-            <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
-              <div className="text-xl font-bold">${topDeals.totalSavings.toFixed(0)}</div>
-              <div className="text-xs text-white/70">Savings</div>
-            </div>
-          )}
+          {!topDeals && listItems !== null ? (
+            <StatBadgeSkeleton />
+          ) : topDeals ? (
+            <>
+              <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
+                <div className="text-xl font-bold">{topDeals.totalCount}</div>
+                <div className="text-xs text-white/70">Deals</div>
+              </div>
+              {topDeals.totalSavings > 0 && (
+                <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
+                  <div className="text-xl font-bold">${topDeals.totalSavings.toFixed(0)}</div>
+                  <div className="text-xs text-white/70">Savings</div>
+                </div>
+              )}
+            </>
+          ) : null}
         </div>
       </div>
 

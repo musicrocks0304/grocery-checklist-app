@@ -43,6 +43,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
   const [collapsedCards, setCollapsedCards] = useState(new Set());
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef(null);
+  const lastPayloadRef = useRef(null);
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
@@ -346,6 +347,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
       };
 
       addDebugLog('POST payload:', payload);
+      lastPayloadRef.current = payload;
 
       addDebugLog('Making API call to chatbot webhook with POST method...');
       const response = await apiFetch(CHATBOT_WEBHOOK_URL, {
@@ -645,9 +647,10 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
       removeTypingIndicator(typingId);
 
       const errorMessage = {
-        id: Date.now() + Math.random(), // Ensure unique ID
+        id: Date.now() + Math.random(),
         type: 'bot',
-        content: "I'm having trouble connecting to my meal planning brain right now! 🧠💭 But I can still help with some basic suggestions. What type of meals are you thinking about?",
+        content: "I'm having trouble connecting right now. Please try again in a moment.",
+        isRetryable: true,
         timestamp: new Date().toLocaleTimeString()
       };
 
@@ -655,6 +658,12 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const retryLastMessage = () => {
+    if (!lastPayloadRef.current) return;
+    setInputMessage(lastPayloadRef.current.message);
+    setTimeout(() => sendMessage(), 50);
   };
 
   const handleKeyPress = (e) => {
@@ -869,6 +878,15 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                             );
                           })}
                         </div>
+                      )}
+
+                      {message.isRetryable && (
+                        <button
+                          onClick={retryLastMessage}
+                          className="mt-2 text-xs text-primary hover:text-primary-hover underline"
+                        >
+                          Retry last message
+                        </button>
                       )}
 
                       <div

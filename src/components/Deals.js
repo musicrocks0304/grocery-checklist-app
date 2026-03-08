@@ -4,8 +4,9 @@ import {
   Scissors, CheckCircle, XCircle, ShoppingCart, RefreshCw,
   ChevronDown, ChevronUp, Plus, Filter, Ticket, Percent, Gift,
 } from 'lucide-react';
-import { ENDPOINTS, CLIP_SERVER_URL, apiFetch } from '../config/api';
+import { ENDPOINTS, apiFetch } from '../config/api';
 import { getWeekDates } from '../utils/weekDates';
+import { useClipCoupons } from '../hooks/useClipCoupons';
 
 // ---------------------------------------------------------------------------
 // Shared constants
@@ -306,13 +307,11 @@ const Deals = ({ onNavigate }) => {
 
   // All Coupons filters
   const [filterType, setFilterType] = useState('all');
+  const [visibleCouponCount, setVisibleCouponCount] = useState(50);
 
-  // Selection + clip state (shared)
+  // Selection + clip state (shared hook)
   const [selectedCoupons, setSelectedCoupons] = useState(new Set());
-  const [isClipping, setIsClipping] = useState(false);
-  const [clipProgress, setClipProgress] = useState(new Map());
-  const [clipResults, setClipResults] = useState(null);
-  const [clipError, setClipError] = useState(null);
+  const { clipSelected, clipProgress, clipResults, clipError, isClipping, resetClipState } = useClipCoupons();
 
   // Add-to-list state (smart deals only)
   const [addingToList, setAddingToList] = useState(new Map());
@@ -492,86 +491,36 @@ const Deals = ({ onNavigate }) => {
   // Clear selection on tab change
   useEffect(() => {
     setSelectedCoupons(new Set());
-    setClipResults(null);
-    setClipError(null);
-    setClipProgress(new Map());
-  }, [activeTab]);
+    resetClipState();
+    setVisibleCouponCount(50);
+  }, [activeTab, resetClipState]);
+
+  // Reset visible count when coupon filters change
+  useEffect(() => {
+    setVisibleCouponCount(50);
+  }, [filterType, searchText, sortBy]);
 
   // -----------------------------------------------------------------------
-  // Clip selected coupons via SSE
+  // Clip selected coupons via shared hook
   // -----------------------------------------------------------------------
 
   const handleClipSelected = async () => {
     if (selectedCount === 0) return;
     const selectedIds = Array.from(selectedCoupons);
-    setIsClipping(true);
-    setClipError(null);
-    setClipResults(null);
-
-    const initialProgress = new Map();
-    selectedIds.forEach(id => initialProgress.set(id, 'pending'));
-    setClipProgress(initialProgress);
-
-    try {
-      const startResponse = await fetch(`${CLIP_SERVER_URL}/api/clip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ couponIds: selectedIds }),
-      });
-
-      if (!startResponse.ok) {
-        const errData = await startResponse.json().catch(() => ({}));
-        throw new Error(errData.error || `Server returned ${startResponse.status}`);
-      }
-
-      const { jobId } = await startResponse.json();
-      const eventSource = new EventSource(`${CLIP_SERVER_URL}/api/clip-progress/${jobId}`);
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'progress') {
-            setClipProgress(prev => {
-              const next = new Map(prev);
-              next.set(data.couponId, data.status);
-              return next;
-            });
-          } else if (data.type === 'complete') {
-            setClipResults(data.summary);
-            setIsClipping(false);
-            eventSource.close();
-            // Update local state for clipped coupons
-            if (activeTab === 'smart') {
-              setDeals(prev => prev.map(d =>
-                selectedCoupons.has(d.coupon.hashId)
-                  ? { ...d, coupon: { ...d.coupon, clippedStatus: 1 } }
-                  : d
-              ));
-            } else {
-              setCouponsData(prev => prev.map(c =>
-                selectedCoupons.has(c.hash_id)
-                  ? { ...c, clipped_status: 1 }
-                  : c
-              ));
-            }
-          } else if (data.type === 'error') {
-            setClipError(data.message);
-            setIsClipping(false);
-            eventSource.close();
-          }
-        } catch { /* ignore malformed SSE */ }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        setIsClipping(false);
-        if (!clipResults) {
-          setClipError('Connection to clip server lost.');
-        }
-      };
-    } catch (err) {
-      setClipError(err.message);
-      setIsClipping(false);
+    await clipSelected(selectedIds);
+    // Update local state for clipped coupons
+    if (activeTab === 'smart') {
+      setDeals(prev => prev.map(d =>
+        selectedCoupons.has(d.coupon.hashId)
+          ? { ...d, coupon: { ...d.coupon, clippedStatus: 1 } }
+          : d
+      ));
+    } else {
+      setCouponsData(prev => prev.map(c =>
+        selectedCoupons.has(c.hash_id)
+          ? { ...c, clipped_status: 1 }
+          : c
+      ));
     }
   };
 
@@ -934,17 +883,29 @@ const Deals = ({ onNavigate }) => {
             ))}
           </div>
         ) : (
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-            {filteredCoupons.map((coupon) => (
-              <CouponCard
-                key={coupon.hash_id}
-                coupon={coupon}
-                isSelected={selectedCoupons.has(coupon.hash_id)}
-                onToggle={toggleCouponSelection}
-                isClipping={isClipping}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+              {filteredCoupons.slice(0, visibleCouponCount).map((coupon) => (
+                <CouponCard
+                  key={coupon.hash_id}
+                  coupon={coupon}
+                  isSelected={selectedCoupons.has(coupon.hash_id)}
+                  onToggle={toggleCouponSelection}
+                  isClipping={isClipping}
+                />
+              ))}
+            </div>
+            {visibleCouponCount < filteredCoupons.length && (
+              <div className="text-center mt-4">
+                <button
+                  onClick={() => setVisibleCouponCount(prev => prev + 50)}
+                  className="px-6 py-2 bg-primary-light text-primary font-medium rounded-xl hover:bg-primary hover:text-white transition-colors"
+                >
+                  Show more ({filteredCoupons.length - visibleCouponCount} remaining)
+                </button>
+              </div>
+            )}
+          </>
         )
       ) : (
         <div className="text-center py-16 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">

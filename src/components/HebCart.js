@@ -454,6 +454,7 @@ const HebCart = ({ onNavigate }) => {
   const [buildProgress, setBuildProgress] = useState([]);
   const [buildSummary, setBuildSummary] = useState(null);
   const [loadingGroceries, setLoadingGroceries] = useState(false);
+  const [searchWarning, setSearchWarning] = useState(null);
   const eventSourceRef = useRef(null);
 
   // --- Session polling ---
@@ -602,7 +603,7 @@ const HebCart = ({ onNavigate }) => {
 
   // --- Smart Match (AI) ---
   // Helper: process AI match response, validate, save, and update state
-  const processAiMatches = useCallback((resultObj, validProductIds, frequentProducts, matchesAccum) => {
+  const processAiMatches = useCallback(async (resultObj, validProductIds, frequentProducts, matchesAccum) => {
     const aiMatches = resultObj?.matches || [];
 
     if (resultObj?.droppedCount > 0) {
@@ -639,25 +640,33 @@ const HebCart = ({ onNavigate }) => {
         userConfirmed: false,
       };
 
-      // Save to DB (fire and forget)
-      fetch(ENDPOINTS.hebMatches, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          groceryItemId: m.groceryItemId,
-          groceryItemName: m.groceryItemName,
-          hebProductId: m.hebProductId,
-          hebSkuId: m.hebSkuId,
-          hebProductName: m.hebProductName,
-          hebProductUrl: m.hebProductUrl,
-          hebImageUrl: m.hebImageUrl,
-          hebPrice: m.hebPrice,
-          hebCategory: m.hebCategory,
-          matchSource: m.matchSource,
-          confidence: m.confidence,
-          matchReason: m.matchReason,
-        }),
-      }).catch(() => {});
+      // Save to DB with error feedback
+      try {
+        const saveRes = await fetch(ENDPOINTS.hebMatches, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groceryItemId: m.groceryItemId,
+            groceryItemName: m.groceryItemName,
+            hebProductId: m.hebProductId,
+            hebSkuId: m.hebSkuId,
+            hebProductName: m.hebProductName,
+            hebProductUrl: m.hebProductUrl,
+            hebImageUrl: m.hebImageUrl,
+            hebPrice: m.hebPrice,
+            hebCategory: m.hebCategory,
+            matchSource: m.matchSource,
+            confidence: m.confidence,
+            matchReason: m.matchReason,
+          }),
+        });
+        if (!saveRes.ok) {
+          console.error('[heb-cart] Match save failed:', saveRes.status);
+        }
+      } catch (err) {
+        console.error('[heb-cart] Match save error:', err.message);
+        toast.error(`Failed to save match for ${m.groceryItemName}. It may not persist.`);
+      }
     }
 
     return validated.length;
@@ -745,7 +754,7 @@ const HebCart = ({ onNavigate }) => {
           if (aiRes.ok) {
             const aiData = await aiRes.json();
             const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
-            const count = processAiMatches(resultObj, frequentProductIds, frequentProducts, newMatches);
+            const count = await processAiMatches(resultObj, frequentProductIds, frequentProducts, newMatches);
             phase1Matched += count;
             setMatches(prev => ({ ...prev, ...newMatches }));
 
@@ -801,6 +810,7 @@ const HebCart = ({ onNavigate }) => {
 
           if (totalSearchResults === 0) {
             console.log('[heb-cart] Phase 2: All searches returned 0 results (WAF likely blocking). Skipping remaining.');
+            setSearchWarning('Some items couldn\'t be searched. Try ending and restarting your HEB session, then re-run matching.');
             break; // Don't waste time on more searches
           }
 
@@ -846,7 +856,7 @@ const HebCart = ({ onNavigate }) => {
               const aiData = await aiRes.json();
               const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
               const allValidIds = new Set([...searchProductIds, ...frequentProductIds]);
-              processAiMatches(resultObj, allValidIds, frequentProducts, newMatches);
+              await processAiMatches(resultObj, allValidIds, frequentProducts, newMatches);
               setMatches(prev => ({ ...prev, ...newMatches }));
             }
           } catch (err) {
@@ -1195,6 +1205,17 @@ const HebCart = ({ onNavigate }) => {
             <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 text-center py-8 transition-colors duration-200">
               <Loader2 size={32} className="animate-spin text-primary mx-auto mb-3" />
               <p className="text-sm text-body">Loading your weekly grocery list...</p>
+            </div>
+          )}
+
+          {/* Search warning banner */}
+          {searchWarning && (
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+              <AlertCircle size={16} className="flex-shrink-0" />
+              <span>{searchWarning}</span>
+              <button onClick={() => setSearchWarning(null)} className="ml-auto text-amber-600 hover:text-amber-800">
+                <X size={16} />
+              </button>
             </div>
           )}
 

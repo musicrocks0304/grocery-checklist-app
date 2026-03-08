@@ -4,8 +4,9 @@ import {
   Scissors, CheckCircle, XCircle, ShoppingCart, RefreshCw,
   ChevronDown, ChevronUp, Plus, Filter,
 } from 'lucide-react';
-import { ENDPOINTS, CLIP_SERVER_URL, apiFetch } from '../config/api';
+import { ENDPOINTS, apiFetch } from '../config/api';
 import { getWeekDates } from '../utils/weekDates';
+import { useClipCoupons } from '../hooks/useClipCoupons';
 
 const CONFIDENCE_STYLES = {
   high: { bg: 'bg-primary-light', text: 'text-primary', label: 'High Match' },
@@ -33,10 +34,7 @@ const SmartDeals = ({ onNavigate }) => {
 
   // Clip state
   const [selectedCoupons, setSelectedCoupons] = useState(new Set());
-  const [isClipping, setIsClipping] = useState(false);
-  const [clipProgress, setClipProgress] = useState(new Map());
-  const [clipResults, setClipResults] = useState(null);
-  const [clipError, setClipError] = useState(null);
+  const { clipSelected, clipProgress, clipResults, clipError, isClipping } = useClipCoupons();
 
   // Add-to-list state
   const [addingToList, setAddingToList] = useState(new Map()); // dealId → 'adding' | 'added' | 'exists' | 'error'
@@ -146,73 +144,17 @@ const SmartDeals = ({ onNavigate }) => {
     .filter(d => selectedCoupons.has(d.coupon.hashId))
     .reduce((sum, d) => sum + (d.coupon.savingsAmount || 0), 0);
 
-  // Clip selected coupons (same SSE pattern as CouponMatchPanel)
+  // Clip selected coupons via shared hook
   const handleClipSelected = async () => {
     if (selectedCount === 0) return;
     const selectedIds = Array.from(selectedCoupons);
-    setIsClipping(true);
-    setClipError(null);
-    setClipResults(null);
-
-    const initialProgress = new Map();
-    selectedIds.forEach(id => initialProgress.set(id, 'pending'));
-    setClipProgress(initialProgress);
-
-    try {
-      const startResponse = await fetch(`${CLIP_SERVER_URL}/api/clip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ couponIds: selectedIds }),
-      });
-
-      if (!startResponse.ok) {
-        const errData = await startResponse.json().catch(() => ({}));
-        throw new Error(errData.error || `Server returned ${startResponse.status}`);
-      }
-
-      const { jobId } = await startResponse.json();
-      const eventSource = new EventSource(`${CLIP_SERVER_URL}/api/clip-progress/${jobId}`);
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'progress') {
-            setClipProgress(prev => {
-              const next = new Map(prev);
-              next.set(data.couponId, data.status);
-              return next;
-            });
-          } else if (data.type === 'complete') {
-            setClipResults(data.summary);
-            setIsClipping(false);
-            eventSource.close();
-            // Update clippedStatus in local state
-            setDeals(prev => prev.map(d =>
-              selectedCoupons.has(d.coupon.hashId)
-                ? { ...d, coupon: { ...d.coupon, clippedStatus: 1 } }
-                : d
-            ));
-          } else if (data.type === 'error') {
-            setClipError(data.message);
-            setIsClipping(false);
-            eventSource.close();
-          }
-        } catch {
-          // Ignore malformed SSE
-        }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        setIsClipping(false);
-        if (!clipResults) {
-          setClipError('Connection to clip server lost.');
-        }
-      };
-    } catch (err) {
-      setClipError(err.message);
-      setIsClipping(false);
-    }
+    await clipSelected(selectedIds);
+    // Mark clipped coupons in local deal state
+    setDeals(prev => prev.map(d =>
+      selectedCoupons.has(d.coupon.hashId)
+        ? { ...d, coupon: { ...d.coupon, clippedStatus: 1 } }
+        : d
+    ));
   };
 
   // Add item to weekly grocery list

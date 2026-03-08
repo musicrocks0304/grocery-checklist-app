@@ -22,6 +22,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [usingSampleData, setUsingSampleData] = useState(false);
 
   // Feature 1: Wake Lock
   const wakeLockRef = useRef(null);
@@ -313,6 +314,8 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           addDebugLog('Webhook data format unexpected, using sample data as fallback');
           addDebugLog('Expected format: [{ output: [...] }], received:', data);
           setRecipeData(sampleRecipeData);
+          setUsingSampleData(true);
+          toast.error('Could not load recipe instructions — showing sample recipe instead', { duration: 5000 });
         }
 
       } catch (error) {
@@ -457,11 +460,11 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
     if (showRecipeSelection || swipeHintShownRef.current) return;
     if (!recipeData) return;
 
-    const hintShown = sessionStorage.getItem('recipeSwipeHintShown');
+    const hintShown = localStorage.getItem('recipeSwipeHintShown');
     if (!hintShown) {
       setShowSwipeHint(true);
       swipeHintShownRef.current = true;
-      sessionStorage.setItem('recipeSwipeHintShown', 'true');
+      localStorage.setItem('recipeSwipeHintShown', 'true');
       const timeout = setTimeout(() => setShowSwipeHint(false), 3000);
       return () => clearTimeout(timeout);
     }
@@ -499,10 +502,18 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
   // --- Handler Functions ---
 
   const handlePrevious = () => {
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
     if (!isFirstStep) setCurrentStep(currentStep - 1);
   };
 
   const handleNext = () => {
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
     if (!isLastStep) setCurrentStep(currentStep + 1);
   };
 
@@ -572,6 +583,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
     setShowStepMenu(false);
     hasInitialized.current = false;
     celebratedRef.current = false;
+    setUsingSampleData(false);
     addDebugLog('Back to recipe selection (state cleared)');
   };
 
@@ -931,6 +943,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
             </h1>
             <p className={`text-xs ${kitchenMode ? 'text-gray-400' : 'text-muted'}`}>
               Step {currentStep + 1} of {totalSteps}
+              {usingSampleData && <span className="ml-2 text-amber-500 font-medium">(Sample)</span>}
             </p>
           </div>
 

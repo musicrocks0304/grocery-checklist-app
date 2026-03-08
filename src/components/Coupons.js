@@ -91,6 +91,9 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
   const [filterType, setFilterType] = useState('all');
   const [sortBy, setSortBy] = useState('expiration'); // 'expiration' or 'savings'
   const [showFilters, setShowFilters] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(50);
+
+  useEffect(() => { setVisibleCount(50); }, [filterType, searchText, sortBy]);
 
   useEffect(() => {
     const fetchCoupons = async () => {
@@ -263,18 +266,30 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
       {/* Results count */}
       {searchText.trim() || filterType !== 'all' ? (
         <p className="text-sm text-muted mb-3">
-          Showing {filteredCoupons.length} of {couponsData.length} coupons
+          Showing {Math.min(visibleCount, filteredCoupons.length)} of {couponsData.length} coupons
           {searchText.trim() && ` matching "${searchText}"`}
         </p>
       ) : null}
 
       {/* Coupon Grid */}
       {filteredCoupons.length > 0 ? (
-        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-          {filteredCoupons.map((coupon) => (
-            <CouponCard key={coupon.hash_id} coupon={coupon} />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+            {filteredCoupons.slice(0, visibleCount).map((coupon) => (
+              <CouponCard key={coupon.hash_id} coupon={coupon} />
+            ))}
+          </div>
+          {visibleCount < filteredCoupons.length && (
+            <div className="text-center mt-4">
+              <button
+                onClick={() => setVisibleCount(prev => prev + 50)}
+                className="px-6 py-2 bg-primary-light text-primary font-medium rounded-xl hover:bg-primary hover:text-white transition-colors"
+              >
+                Show more ({filteredCoupons.length - visibleCount} remaining)
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-16 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
           <Ticket size={48} className="mx-auto text-muted mb-4" />

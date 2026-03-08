@@ -9,6 +9,7 @@ import {
   Smartphone,
   Loader2,
   Tag,
+  AlertCircle,
 } from "lucide-react";
 import { EmptyState } from './ui';
 import toast from "react-hot-toast";
@@ -143,6 +144,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [couponLookup, setCouponLookup] = useState({}); // ItemName → coupon data
+  const [couponLoadFailed, setCouponLoadFailed] = useState(false);
   const wakeLockRef = useRef(null);
   const celebratedRef = useRef(false);
 
@@ -162,7 +164,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         if (parsed && parsed.items && parsed.items.length > 0) {
           // Check if the stored list is for the current week
           const weekData = getWeekDates();
-          if (parsed.weekDateRange === weekData.displayRange) {
+          if (parsed.weekStartDate === weekData.startDate) {
             setShoppingList(parsed);
             return;
           }
@@ -211,6 +213,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           items: selectedItems,
           savedAt: new Date().toISOString(),
           weekDateRange: weekData.displayRange,
+          weekStartDate: weekData.startDate,
         };
 
         setShoppingList(listData);
@@ -268,7 +271,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           });
           setCouponLookup(lookup);
         }
-      } catch { /* silent — coupon reminders are informational */ }
+      } catch { setCouponLoadFailed(true); }
     };
     fetchCoupons();
   }, [shoppingList?.weekDateRange]);
@@ -579,6 +582,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
             )}
           </div>
         ))}
+        {couponLoadFailed && (
+          <div className="px-4 py-2 text-xs text-muted flex items-center gap-1.5">
+            <AlertCircle size={12} />
+            Coupon reminders unavailable
+          </div>
+        )}
       </div>
 
       {/* All done banner */}

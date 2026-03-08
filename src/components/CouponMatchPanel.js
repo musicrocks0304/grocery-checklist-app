@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Check, AlertCircle, Sparkles, ChevronDown, ChevronUp, Scissors, CheckCircle, XCircle, Loader, DollarSign } from 'lucide-react';
-import { CLIP_SERVER_URL } from '../config/api';
+import { useClipCoupons } from '../hooks/useClipCoupons';
 
 const CONFIDENCE_STYLES = {
   high: { bg: 'bg-primary-light', text: 'text-primary', label: 'High Match', border: 'border-primary-border' },
@@ -20,10 +20,7 @@ const CLIP_STATUS_STYLES = {
 const CouponMatchPanel = ({ matches, onDismiss }) => {
   const [expandedItems, setExpandedItems] = useState(new Set());
   const [selectedCoupons, setSelectedCoupons] = useState(new Set());
-  const [isClipping, setIsClipping] = useState(false);
-  const [clipProgress, setClipProgress] = useState(new Map()); // couponHashId → status
-  const [clipResults, setClipResults] = useState(null); // { clipped, failed, total, savings }
-  const [clipError, setClipError] = useState(null);
+  const { clipSelected, clipProgress, clipResults, clipError, isClipping } = useClipCoupons();
 
   if (!matches || matches.length === 0) {
     return null;
@@ -95,74 +92,11 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
 
   const allSelected = matches.every(m => !m.coupon_hash_id || selectedCoupons.has(m.coupon_hash_id));
 
-  // Handle clip selected coupons
+  // Clip selected coupons via shared hook
   const handleClipSelected = async () => {
     if (selectedCount === 0) return;
-
     const selectedIds = Array.from(selectedCoupons);
-    setIsClipping(true);
-    setClipError(null);
-    setClipResults(null);
-
-    // Initialize progress for all selected coupons
-    const initialProgress = new Map();
-    selectedIds.forEach(id => initialProgress.set(id, 'pending'));
-    setClipProgress(initialProgress);
-
-    try {
-      // Start the clip job
-      const startResponse = await fetch(`${CLIP_SERVER_URL}/api/clip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ couponIds: selectedIds }),
-      });
-
-      if (!startResponse.ok) {
-        const errData = await startResponse.json().catch(() => ({}));
-        throw new Error(errData.error || `Server returned ${startResponse.status}`);
-      }
-
-      const { jobId } = await startResponse.json();
-
-      // Listen for progress via SSE
-      const eventSource = new EventSource(`${CLIP_SERVER_URL}/api/clip-progress/${jobId}`);
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === 'progress') {
-            setClipProgress(prev => {
-              const next = new Map(prev);
-              next.set(data.couponId, data.status);
-              return next;
-            });
-          } else if (data.type === 'complete') {
-            setClipResults(data.summary);
-            setIsClipping(false);
-            eventSource.close();
-          } else if (data.type === 'error') {
-            setClipError(data.message);
-            setIsClipping(false);
-            eventSource.close();
-          }
-        } catch {
-          // Ignore malformed SSE data
-        }
-      };
-
-      eventSource.onerror = () => {
-        // SSE connection closed — check if we already have results
-        eventSource.close();
-        setIsClipping(false);
-        if (!clipResults) {
-          setClipError('Connection to clip server lost. Check if the server is running.');
-        }
-      };
-    } catch (err) {
-      setClipError(err.message);
-      setIsClipping(false);
-    }
+    await clipSelected(selectedIds);
   };
 
   return (
