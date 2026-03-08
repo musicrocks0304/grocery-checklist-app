@@ -11,6 +11,7 @@ import {
   X,
   Layers,
   ShoppingBag,
+  Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getWeekDateRange, getWeekDates } from "../utils/weekDates";
@@ -113,6 +114,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   const [groupBy, setGroupBy] = useState("GroceryStoreSection"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
   const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
+  const [quickAddText, setQuickAddText] = useState(""); // One-off quick-add input
+  const [isAddingOneOff, setIsAddingOneOff] = useState(false); // Loading state for one-off add
 
   // Notify parent when user has unsaved changes (final list view)
   useEffect(() => {
@@ -522,6 +525,59 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       groceryStoreSection: "",
     });
     setShowAddPanel(false);
+  };
+
+  // Quick-add a one-off item (skips GroceryItems catalog, only for this week)
+  const handleQuickAddOneOff = async () => {
+    const name = quickAddText.trim();
+    if (!name) return;
+
+    setIsAddingOneOff(true);
+    const weekData = getWeekDates();
+
+    try {
+      const response = await apiFetch(ENDPOINTS.addOneOffItem, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemName: name,
+          weekDateRange: weekData.displayRange,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        if (data.alreadyExisted) {
+          toast.success(`${name} is already on this week's list`);
+        } else {
+          // Add to local state for immediate UI update
+          const oneOffItem = {
+            ItemID: `oneoff_${data.weeklyListId}`,
+            ItemName: name,
+            Category: "General",
+            Store: "HEB",
+            GroceryStoreSection: "Other",
+            Type: "OneOff",
+            DataSource: "OneOff",
+            IsSelected: 1,
+            QuantitySelected: 1,
+          };
+          setGroceryData(prev => [...prev, oneOffItem]);
+          setSelectedItems(prev => new Set([...prev, oneOffItem.ItemID.toString()]));
+          setItemQuantities(prev => new Map([...prev, [oneOffItem.ItemID.toString(), 1]]));
+          toast.success(`${name} added as one-off item`);
+        }
+        setQuickAddText("");
+      } else {
+        throw new Error(data.message || "Failed to add item");
+      }
+    } catch (err) {
+      console.error("One-off add error:", err);
+      toast.error("Failed to add one-off item. Check your connection.");
+    } finally {
+      setIsAddingOneOff(false);
+    }
   };
 
   const getFinalGroceryList = () => {
@@ -1164,6 +1220,30 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           <p className="text-lg font-medium text-primary">
             {getWeekDateRange()}
           </p>
+        </div>
+
+        {/* Quick-add one-off item bar */}
+        <div className="mb-6 flex gap-2">
+          <div className="flex-1 relative">
+            <Zap size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              type="text"
+              value={quickAddText}
+              onChange={(e) => setQuickAddText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleQuickAddOneOff(); }}
+              placeholder="Quick add one-off item (this week only)..."
+              className="w-full pl-9 pr-3 py-2.5 border border-default rounded-xl bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm transition-colors duration-200"
+              disabled={isAddingOneOff}
+            />
+          </div>
+          <button
+            onClick={handleQuickAddOneOff}
+            disabled={!quickAddText.trim() || isAddingOneOff}
+            className="px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center gap-1.5"
+          >
+            <Plus size={16} />
+            {isAddingOneOff ? "Adding..." : "Add"}
+          </button>
         </div>
 
         <p className="text-body mb-6">

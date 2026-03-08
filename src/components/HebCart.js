@@ -11,8 +11,7 @@ import toast from 'react-hot-toast';
 // ─── Step indicator ─────────────────────────────────────────────
 const STEPS = [
   { id: 'connect', label: 'Connect' },
-  { id: 'match', label: 'Smart Match' },
-  { id: 'review', label: 'Review' },
+  { id: 'review', label: 'Match & Review' },
   { id: 'build', label: 'Build Cart' },
 ];
 
@@ -499,7 +498,7 @@ const HebCart = ({ onNavigate }) => {
     try {
       await startSession();
       toast.success('Connected to HEB!');
-      setStep('match');
+      setStep('review');
     } catch (err) {
       toast.error(`Connection failed: ${err.message}`);
     } finally {
@@ -1111,13 +1110,13 @@ const HebCart = ({ onNavigate }) => {
   // --- Auto-advance from connect when session is already active ---
   useEffect(() => {
     if (sessionStatus?.active && step === 'connect') {
-      setStep('match');
+      setStep('review');
     }
   }, [sessionStatus, step]);
 
-  // --- Pre-load weekly items when entering the match step ---
+  // --- Pre-load weekly items when entering the review step ---
   useEffect(() => {
-    if (step === 'match' && groceryItems.length === 0 && !loadingGroceries) {
+    if (step === 'review' && groceryItems.length === 0 && !loadingGroceries) {
       loadGroceryItems();
     }
   }, [step, groceryItems.length, loadingGroceries, loadGroceryItems]);
@@ -1157,191 +1156,169 @@ const HebCart = ({ onNavigate }) => {
         />
       )}
 
-      {/* Step 2: Smart Match */}
-      {step === 'match' && (
-        <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-xl bg-purple-100 text-purple-700">
-              <Zap size={24} />
+      {/* Step 2: Match & Review (combined) */}
+      {step === 'review' && (
+        <div className="space-y-4">
+          {/* Matching in progress overlay */}
+          {isMatching && (
+            <div className="bg-surface rounded-2xl shadow-warm border border-primary-border p-4 sm:p-6 transition-colors duration-200">
+              <div className="flex items-center gap-3">
+                <Loader2 size={24} className="animate-spin text-primary flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-heading">{matchProgress}</p>
+                  <p className="text-xs text-muted mt-0.5">This may take a minute...</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold font-display text-heading">Smart Match</h2>
-              <p className="text-sm text-muted">
-                AI will match your grocery list to HEB products using search results and your purchase history.
-              </p>
-            </div>
-          </div>
+          )}
 
-          {isMatching ? (
-            <div className="text-center py-8">
-              <Loader2 size={40} className="animate-spin text-primary mx-auto mb-4" />
-              <p className="text-body font-medium">{matchProgress}</p>
-              <p className="text-sm text-muted mt-1">This may take a minute...</p>
-            </div>
-          ) : groceryItems.length === 0 && !loadingGroceries ? (
-            <div className="text-center py-8 space-y-3">
+          {/* Empty state — no grocery list */}
+          {!isMatching && groceryItems.length === 0 && !loadingGroceries && (
+            <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 text-center py-8 space-y-3 transition-colors duration-200">
               <AlertCircle size={40} className="text-accent mx-auto" />
               <p className="text-body font-medium">No weekly grocery list found</p>
               <p className="text-sm text-muted">
-                Save your grocery list from the Weekly Grocery Selection screen first.
+                Save your grocery list from the Plan screen first.
               </p>
               <button
-                onClick={() => onNavigate?.('grocery')}
+                onClick={() => onNavigate?.('plan')}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors"
               >
                 <ShoppingCart size={16} />
-                Go to Grocery Checklist
+                Go to Plan
               </button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-body">
-                AI will match your {groceryItems.length > 0 ? `${groceryItems.length} weekly items` : 'grocery list'} to HEB products.
-                {groceryItems.some(i => i.couponHashId) && ' Items with clipped coupons will be prioritized.'}
-              </p>
+          )}
 
-              <div className="flex flex-col sm:flex-row gap-3">
+          {/* Loading grocery items */}
+          {loadingGroceries && !isMatching && (
+            <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 text-center py-8 transition-colors duration-200">
+              <Loader2 size={32} className="animate-spin text-primary mx-auto mb-3" />
+              <p className="text-sm text-body">Loading your weekly grocery list...</p>
+            </div>
+          )}
+
+          {/* Summary bar + actions (show when we have items) */}
+          {groceryItems.length > 0 && (
+            <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold font-display text-heading">Match & Review</h2>
+                  <p className="text-sm text-muted">
+                    {matchStats.matched > 0
+                      ? `${matchStats.confirmed} confirmed, ${matchStats.matched - matchStats.confirmed} pending, ${matchStats.unmatched} unmatched`
+                      : `${groceryItems.length} items ready to match`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {couponSavingsTotal > 0 && (
+                    <div className="text-right">
+                      <p className="text-xs text-muted">Coupon Savings</p>
+                      <p className="text-sm font-bold text-primary">-${couponSavingsTotal.toFixed(2)}</p>
+                    </div>
+                  )}
+                  {estimatedTotal > 0 && (
+                    <div className="text-right">
+                      <p className="text-xs text-muted">Estimated Total</p>
+                      <p className="text-lg font-bold text-primary">${estimatedTotal.toFixed(2)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={runSmartMatch}
-                  disabled={!sessionStatus?.active}
-                  className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-colors ${
-                    sessionStatus?.active
-                      ? 'bg-primary text-white hover:bg-primary-hover'
-                      : 'bg-default text-muted cursor-not-allowed'
+                  disabled={isMatching || !sessionStatus?.active}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+                    isMatching || !sessionStatus?.active
+                      ? 'bg-default text-muted cursor-not-allowed'
+                      : matchStats.matched > 0
+                        ? 'bg-background text-body hover:bg-default'
+                        : 'bg-primary text-white hover:bg-primary-hover'
                   }`}
                 >
-                  <Zap size={18} />
-                  Run Smart Match
+                  {isMatching ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                  {matchStats.matched > 0 ? 'Re-match' : 'Run Smart Match'}
                 </button>
-
-                {/* Skip directly to review if we have saved matches */}
-                {Object.keys(matches).length > 0 && (
+                {matchStats.matched > 0 && (
                   <button
-                    onClick={() => {
-                      loadGroceryItems().then(() => setStep('review'));
-                    }}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm bg-background text-body hover:bg-default transition-colors"
+                    onClick={handleConfirmAll}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-primary-light text-primary hover:bg-primary-light/80 transition-colors"
                   >
-                    <Eye size={18} />
-                    Review Existing Matches ({Object.keys(matches).length})
+                    <CheckCircle2 size={14} />
+                    Accept All
                   </button>
                 )}
               </div>
 
               {!sessionStatus?.active && (
-                <p className="text-xs text-danger">
-                  Browser session required. <button onClick={() => setStep('connect')} className="underline">Go back to connect</button>
+                <p className="text-xs text-danger mb-3">
+                  Browser session required for matching. <button onClick={() => setStep('connect')} className="underline">Connect</button>
                 </p>
               )}
+
+              {/* Progress bar for confirmations */}
+              {matchStats.matched > 0 && (
+                <>
+                  <div className="w-full bg-default rounded-full h-2 mb-1">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${matchStats.total > 0 ? (matchStats.confirmed / matchStats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted">{matchStats.confirmed} of {matchStats.total} items confirmed</p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Item list */}
+          {groceryItems.length > 0 && (
+            <div className="space-y-2">
+              {groceryItems.map(item => (
+                <MatchCard
+                  key={item.ItemID}
+                  item={item}
+                  match={matches[item.ItemID]}
+                  onConfirm={handleConfirm}
+                  onReject={handleReject}
+                  onSearch={() => setSearchItem(item)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Build Cart button (sticky footer) */}
+          {matchStats.confirmed > 0 && (
+            <div className="sticky bottom-4 bg-surface rounded-2xl shadow-warm-lg border border-default p-4 flex items-center justify-between transition-colors duration-200">
+              <div>
+                <p className="text-sm font-medium text-heading">
+                  {matchStats.confirmed} items confirmed
+                </p>
+                <div className="flex items-center gap-2">
+                  {estimatedTotal > 0 && (
+                    <span className="text-xs text-muted">~${estimatedTotal.toFixed(2)}</span>
+                  )}
+                  {couponSavingsTotal > 0 && (
+                    <span className="text-xs text-primary font-medium">(-${couponSavingsTotal.toFixed(2)} coupons)</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={handleBuildCart}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm bg-primary text-white hover:bg-primary-hover transition-colors"
+              >
+                <ShoppingCart size={18} />
+                Build HEB Cart ({matchStats.confirmed})
+                <ArrowRight size={16} />
+              </button>
             </div>
           )}
         </div>
       )}
 
-      {/* Step 3: Review */}
-      {step === 'review' && (
-        <div className="space-y-4">
-          {/* Summary bar */}
-          <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <div>
-                <h2 className="text-lg font-semibold font-display text-heading">Review Matches</h2>
-                <p className="text-sm text-muted">
-                  {matchStats.confirmed} confirmed, {matchStats.matched - matchStats.confirmed} pending, {matchStats.unmatched} unmatched
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                {couponSavingsTotal > 0 && (
-                  <div className="text-right">
-                    <p className="text-xs text-muted">Coupon Savings</p>
-                    <p className="text-sm font-bold text-primary">-${couponSavingsTotal.toFixed(2)}</p>
-                  </div>
-                )}
-                {estimatedTotal > 0 && (
-                  <div className="text-right">
-                    <p className="text-xs text-muted">Estimated Total</p>
-                    <p className="text-lg font-bold text-primary">${estimatedTotal.toFixed(2)}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button
-                onClick={handleConfirmAll}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-primary-light text-primary hover:bg-primary-light/80 transition-colors"
-              >
-                <CheckCircle2 size={14} />
-                Accept All
-              </button>
-              <button
-                onClick={() => {
-                  setStep('match');
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium bg-background text-body hover:bg-default transition-colors"
-              >
-                <RefreshCw size={14} />
-                Re-match
-              </button>
-            </div>
-
-            {/* Progress bar for confirmations */}
-            <div className="w-full bg-default rounded-full h-2 mb-1">
-              <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${matchStats.total > 0 ? (matchStats.confirmed / matchStats.total) * 100 : 0}%` }}
-              />
-            </div>
-            <p className="text-xs text-muted">{matchStats.confirmed} of {matchStats.total} items confirmed</p>
-          </div>
-
-          {/* Item list */}
-          <div className="space-y-2">
-            {groceryItems.map(item => (
-              <MatchCard
-                key={item.ItemID}
-                item={item}
-                match={matches[item.ItemID]}
-                onConfirm={handleConfirm}
-                onReject={handleReject}
-                onSearch={() => setSearchItem(item)}
-              />
-            ))}
-          </div>
-
-          {/* Build Cart button */}
-          <div className="sticky bottom-4 bg-surface rounded-2xl shadow-warm-lg border border-default p-4 flex items-center justify-between transition-colors duration-200">
-            <div>
-              <p className="text-sm font-medium text-heading">
-                {matchStats.confirmed} items confirmed
-              </p>
-              <div className="flex items-center gap-2">
-                {estimatedTotal > 0 && (
-                  <span className="text-xs text-muted">~${estimatedTotal.toFixed(2)}</span>
-                )}
-                {couponSavingsTotal > 0 && (
-                  <span className="text-xs text-primary font-medium">(-${couponSavingsTotal.toFixed(2)} coupons)</span>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={handleBuildCart}
-              disabled={matchStats.confirmed === 0}
-              className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-colors ${
-                matchStats.confirmed > 0
-                  ? 'bg-primary text-white hover:bg-primary-hover'
-                  : 'bg-default text-muted cursor-not-allowed'
-              }`}
-            >
-              <ShoppingCart size={18} />
-              Build HEB Cart ({matchStats.confirmed})
-              <ArrowRight size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 4: Building */}
+      {/* Step 3: Building */}
       {step === 'build' && (
         <BuildProgressPanel
           progress={buildProgress}

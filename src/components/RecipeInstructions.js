@@ -106,7 +106,16 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
     const fetchAvailableRecipes = async () => {
       try {
         setIsLoadingRecipes(true);
-        addDebugLog('Fetching available recipes from choose_recipe_instructions webhook...');
+
+        // Prioritize selectedMeals from Plan screen (if available)
+        if (selectedMeals && selectedMeals.length > 0) {
+          setAvailableRecipes(selectedMeals);
+          addDebugLog('Using selectedMeals from Plan screen:', selectedMeals);
+          setIsLoadingRecipes(false);
+          return;
+        }
+
+        addDebugLog('No selectedMeals — fetching from choose_recipe_instructions webhook...');
 
         const weekData = getWeekDates();
         addDebugLog('Week information for recipe selection:', weekData);

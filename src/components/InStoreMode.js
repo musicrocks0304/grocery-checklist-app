@@ -8,6 +8,7 @@ import {
   PartyPopper,
   Smartphone,
   Loader2,
+  Tag,
 } from "lucide-react";
 import { EmptyState } from './ui';
 import toast from "react-hot-toast";
@@ -16,7 +17,7 @@ import { getWeekDates } from "../utils/weekDates";
 import { ENDPOINTS, apiFetch } from "../config/api";
 
 // Memoized individual shopping item with large tap target
-const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
+const InStoreItem = React.memo(({ item, isChecked, onToggle, couponMatch }) => {
   return (
     <button
       onClick={() => onToggle(item.ItemID.toString())}
@@ -37,16 +38,26 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle }) => {
         {isChecked && <Check size={16} className="text-white" />}
       </div>
 
-      {/* Item name */}
-      <span
-        className={`flex-1 text-left text-lg transition-all duration-200 ${
-          isChecked
-            ? "line-through text-muted opacity-50"
-            : "text-heading font-medium"
-        }`}
-      >
-        {item.ItemName}
-      </span>
+      {/* Item name + coupon reminder */}
+      <div className="flex-1 text-left min-w-0">
+        <span
+          className={`text-lg transition-all duration-200 ${
+            isChecked
+              ? "line-through text-muted opacity-50"
+              : "text-heading font-medium"
+          }`}
+        >
+          {item.ItemName}
+        </span>
+        {couponMatch && !isChecked && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <Tag size={12} className="text-accent flex-shrink-0" />
+            <span className="text-xs font-medium text-accent truncate">
+              {couponMatch.couponDiscount}{couponMatch.couponClipped ? ' (clipped)' : ''}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Quantity badge */}
       <span
@@ -131,6 +142,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const [shoppingList, setShoppingList] = useState(null);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [couponLookup, setCouponLookup] = useState({}); // ItemName → coupon data
   const wakeLockRef = useRef(null);
   const celebratedRef = useRef(false);
 
@@ -232,6 +244,34 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       }
     }
   }, [shoppingList]);
+
+  // Fetch coupon matches for inline reminders
+  useEffect(() => {
+    if (!shoppingList?.weekDateRange) return;
+    const fetchCoupons = async () => {
+      try {
+        const url = `${ENDPOINTS.hebWeeklyItems}?weekDateRange=${encodeURIComponent(shoppingList.weekDateRange)}`;
+        const response = await apiFetch(url, { timeout: 10000 });
+        if (response.ok) {
+          const data = await response.json();
+          const items = data.items || data || [];
+          const lookup = {};
+          (Array.isArray(items) ? items : []).forEach(item => {
+            if (item.couponDiscount && item.ItemName) {
+              lookup[item.ItemName.toLowerCase()] = {
+                couponDiscount: item.couponDiscount,
+                couponSavings: item.couponSavings,
+                couponClipped: item.couponClipped,
+                couponProductName: item.couponProductName,
+              };
+            }
+          });
+          setCouponLookup(lookup);
+        }
+      } catch { /* silent — coupon reminders are informational */ }
+    };
+    fetchCoupons();
+  }, [shoppingList?.weekDateRange]);
 
   // Screen Wake Lock
   useEffect(() => {
@@ -532,6 +572,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
                     item={item}
                     isChecked={checkedItems.has(item.ItemID.toString())}
                     onToggle={handleToggleItem}
+                    couponMatch={couponLookup[item.ItemName?.toLowerCase()]}
                   />
                 ))}
               </div>

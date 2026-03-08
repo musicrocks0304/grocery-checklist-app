@@ -1,5 +1,5 @@
 import React from "react";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, Home } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 
 /**
@@ -13,20 +13,39 @@ const Sidebar = ({
 }) => {
   const { isDark, toggleTheme } = useTheme();
 
+  // Map legacy screen IDs to new parent IDs for active highlighting
+  const LEGACY_TO_NEW = {
+    grocery: "plan",
+    chatbot: "plan",
+    "meal-creator": "plan",
+    "recipe-ingredients": "plan",
+    "smart-deals": "deals",
+    coupons: "deals",
+    "heb-cart": "cart",
+    "in-store": "shop",
+    "recipe-instructions": "cook",
+  };
+
+  const activeId = LEGACY_TO_NEW[currentScreen] || currentScreen;
+
   return (
     <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-sidebar-bg border-r border-sidebar-border transition-colors duration-200">
-      {/* Header */}
-      <div className="flex items-center h-16 px-6 border-b border-sidebar-border">
+      {/* Header — clicking goes to Home */}
+      <button
+        onClick={() => setCurrentScreen("home")}
+        className="flex items-center gap-2 h-16 px-6 border-b border-sidebar-border hover:bg-sidebar-hover transition-colors duration-200 text-left w-full"
+      >
+        <Home size={20} className="text-primary" />
         <h2 className="text-xl font-bold text-heading font-display">
           Grocery Planner
         </h2>
-      </div>
+      </button>
 
       {/* Navigation */}
       <nav className="flex-1 mt-4 px-3 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
           const Icon = item.icon;
-          const isActive = currentScreen === item.id;
+          const isActive = activeId === item.id;
           return (
             <button
               key={item.id}

@@ -39,7 +39,7 @@ test('renders without crashing', () => {
   expect(document.getElementById('root') || document.body).toBeTruthy();
 });
 
-test('defaults to grocery screen', () => {
+test('defaults to home screen', () => {
   render(<App />);
-  expect(window.location.hash === '' || window.location.hash === '#grocery').toBe(true);
+  expect(window.location.hash === '' || window.location.hash === '#home').toBe(true);
 });
