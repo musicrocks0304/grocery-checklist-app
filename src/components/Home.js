@@ -42,29 +42,29 @@ const StatBadgeSkeleton = () => (
 // Home dashboard
 // ---------------------------------------------------------------------------
 
-const Home = ({ onNavigate }) => {
+const Home = ({ onNavigate, selectedMeals = [] }) => {
   const { displayRange } = getWeekDates();
 
   // Weekly status data
   const [listItems, setListItems] = useState(null); // null = loading
   const [selectedCount, setSelectedCount] = useState(0);
+  const [mealsCount, setMealsCount] = useState(null); // null = loading, falls back to prop
   const [topDeals, setTopDeals] = useState(null);
-  const [mealsPlanned, setMealsPlanned] = useState(0);
   const [fetchError, setFetchError] = useState(false);
 
   // Load weekly status from existing endpoints
   useEffect(() => {
-    // Fetch grocery items for this week
+    // Fetch grocery items for this week (GET with query params, matching GroceryChecklist)
     const fetchList = async () => {
       try {
         const weekData = getWeekDates();
-        const response = await apiFetch(ENDPOINTS.fetchGroceryItems, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            weekStartDate: weekData.startDate,
-            weekEndDate: weekData.endDate,
-          }),
+        const url = new URL(ENDPOINTS.fetchGroceryItems);
+        url.searchParams.append("weekStartDate", weekData.startDate);
+        url.searchParams.append("weekEndDate", weekData.endDate);
+        url.searchParams.append("weekDateRange", weekData.displayRange);
+        const response = await apiFetch(url.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json" },
         });
         if (response.ok) {
           const data = await response.json();
@@ -103,18 +103,31 @@ const Home = ({ onNavigate }) => {
       } catch { /* silent */ }
     };
 
-    // Check meals from localStorage
-    try {
-      const weekKey = `selectedMeals_${getWeekDates().startDate}`;
-      const stored = localStorage.getItem(weekKey);
-      if (stored) {
-        const meals = JSON.parse(stored);
-        setMealsPlanned(Array.isArray(meals) ? meals.length : 0);
+    // Fetch weekly meal selections from backend (same endpoint as RecipeInstructions)
+    const fetchMeals = async () => {
+      try {
+        const weekData = getWeekDates();
+        const url = new URL(ENDPOINTS.chooseRecipeInstructions);
+        url.searchParams.append("weekStartDate", weekData.startDate);
+        url.searchParams.append("weekEndDate", weekData.endDate);
+        url.searchParams.append("weekDateRange", weekData.displayRange);
+        const response = await apiFetch(url.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setMealsCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch {
+        // Fall back to selectedMeals prop count
+        setMealsCount(null);
       }
-    } catch { /* ignore */ }
+    };
 
     fetchList();
     fetchDeals();
+    fetchMeals();
   }, []);
 
   // Week boundary detection — auto-refresh if the week rolls over while page is open
@@ -131,13 +144,15 @@ const Home = ({ onNavigate }) => {
     return () => clearInterval(checkWeekBoundary);
   }, []);
 
+  // Prefer backend meal count; fall back to selectedMeals prop (localStorage)
+  const resolvedMeals = mealsCount !== null ? mealsCount : selectedMeals.length;
+
   const weeklyStatus = useMemo(() => ({
-    mealsPlanned,
-    listItems: listItems || 0,
-    selectedCount,
+    mealsPlanned: resolvedMeals,
+    listItems: selectedCount,
     dealsChecked: topDeals !== null,
     cartBuilt: false, // Would need HEB session status — skip for now
-  }), [mealsPlanned, listItems, selectedCount, topDeals]);
+  }), [resolvedMeals, selectedCount, topDeals]);
 
   const nextStep = getNextStep(weeklyStatus);
 
@@ -166,7 +181,7 @@ const Home = ({ onNavigate }) => {
           ) : (
             <>
               <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
-                <div className="text-xl font-bold">{mealsPlanned}</div>
+                <div className="text-xl font-bold">{resolvedMeals}</div>
                 <div className="text-xs text-white/70">Meals</div>
               </div>
               <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">

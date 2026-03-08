@@ -156,6 +156,7 @@ const App = () => {
         return (
           <Home
             onNavigate={navigateToScreen}
+            selectedMeals={selectedMeals}
           />
         );
 
@@ -244,6 +245,7 @@ const App = () => {
         return (
           <Home
             onNavigate={navigateToScreen}
+            selectedMeals={selectedMeals}
           />
         );
     }

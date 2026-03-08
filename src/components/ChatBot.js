@@ -4,12 +4,14 @@ import toast from 'react-hot-toast';
 import { getWeekDateRange, getWeekDates } from '../utils/weekDates';
 import { ENDPOINTS, apiFetch } from '../config/api';
 
-// Generate or retrieve session ID
+// Generate or retrieve session ID — keyed by week so each grocery week gets fresh history
 const getSessionId = () => {
-  let sessionId = localStorage.getItem('chatSessionId');
+  const weekStart = getWeekDates().startDate;
+  const storageKey = `chatSessionId_${weekStart}`;
+  let sessionId = localStorage.getItem(storageKey);
   if (!sessionId) {
-    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('chatSessionId', sessionId);
+    sessionId = `session_${weekStart}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem(storageKey, sessionId);
   }
   return sessionId;
 };
