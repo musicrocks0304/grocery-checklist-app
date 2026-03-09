@@ -912,7 +912,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="Ask me about meal ideas, recipes, or cooking tips..."
-                className="w-full px-4 py-3 border border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none"
+                className="w-full px-4 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none"
                 rows="2"
                 disabled={isLoading}
                 aria-label="Type your message"
