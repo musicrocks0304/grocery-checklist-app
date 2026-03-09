@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   ArrowLeft,
   Check,
@@ -10,12 +10,25 @@ import {
   Loader2,
   Tag,
   AlertCircle,
+  Clock,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/animations";
 import { EmptyState } from './ui';
-import toast from "react-hot-toast";
 import confetti from "canvas-confetti";
 import { getWeekDates } from "../utils/weekDates";
 import { ENDPOINTS, apiFetch } from "../config/api";
+
+// Motivational messages based on shopping progress
+const getMotivationalMessage = (percentage) => {
+  if (percentage === 0) return "Let's go!";
+  if (percentage < 25) return "Great start!";
+  if (percentage < 50) return "Making progress!";
+  if (percentage < 75) return "Over halfway!";
+  if (percentage < 90) return "Almost there!";
+  if (percentage < 100) return "Final stretch!";
+  return "";
+};
 
 // Memoized individual shopping item with large tap target
 const InStoreItem = React.memo(({ item, isChecked, onToggle, couponMatch }) => {
@@ -74,24 +87,37 @@ const InStoreItem = React.memo(({ item, isChecked, onToggle, couponMatch }) => {
   );
 });
 
-// Section header with collapse toggle and progress
-const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }) => {
+// Section header with collapse toggle, progress, and completion animation
+const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle, justCompleted }) => {
   const allDone = checkedCount === totalCount && totalCount > 0;
 
   return (
-    <button
+    <motion.button
       onClick={onToggle}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 ${
+      animate={justCompleted ? {
+        boxShadow: [
+          '0 0 0px rgba(91,138,114,0)',
+          '0 0 16px rgba(91,138,114,0.35)',
+          '0 0 0px rgba(91,138,114,0)',
+        ],
+      } : { boxShadow: '0 0 0px rgba(91,138,114,0)' }}
+      transition={{ duration: 1.2, ease: 'easeInOut' }}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors duration-200 ${
         allDone
           ? "bg-primary-light border border-primary-border"
           : "bg-background border border-default"
       }`}
     >
-      {/* Section complete indicator */}
+      {/* Animated section complete indicator */}
       {allDone && (
-        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+          className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
+        >
           <Check size={14} className="text-white" />
-        </div>
+        </motion.div>
       )}
 
       <span
@@ -102,16 +128,21 @@ const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }
         {name}
       </span>
 
-      {/* Progress count */}
-      <span
-        className={`text-sm font-medium px-2 py-1 rounded-full ${
-          allDone
-            ? "bg-primary-light text-primary"
-            : "bg-default text-body"
-        }`}
-      >
-        {checkedCount}/{totalCount}
-      </span>
+      {/* Done badge or progress count */}
+      {allDone ? (
+        <motion.span
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
+          className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary text-white"
+        >
+          Done!
+        </motion.span>
+      ) : (
+        <span className="text-sm font-medium px-2 py-1 rounded-full bg-default text-body">
+          {checkedCount}/{totalCount}
+        </span>
+      )}
 
       {/* Collapse chevron */}
       {isCollapsed ? (
@@ -119,21 +150,169 @@ const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle }
       ) : (
         <ChevronUp size={20} className="text-muted flex-shrink-0" />
       )}
-    </button>
+    </motion.button>
   );
 };
 
-// Thin progress bar
-const ProgressBar = ({ checked, total }) => {
+// SVG progress ring
+const ProgressRing = ({ checked, total }) => {
+  const size = 48;
+  const strokeWidth = 3.5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
   const percentage = total > 0 ? (checked / total) * 100 : 0;
+  const offset = circumference * (1 - percentage / 100);
 
   return (
-    <div className="h-1.5 bg-default rounded-full overflow-hidden">
-      <div
-        className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
-        style={{ width: `${percentage}%` }}
-      />
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        {/* Background track */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--color-border)"
+          strokeWidth={strokeWidth}
+        />
+        {/* Progress arc */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-all duration-500 ease-out"
+        />
+      </svg>
+      {/* Center text */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-bold text-heading leading-none">
+          {checked}/{total}
+        </span>
+        <span className="text-[9px] text-muted leading-none mt-0.5">items</span>
+      </div>
     </div>
+  );
+};
+
+// Scrollable aisle quick-jump chips
+const AisleChips = ({ sections, onChipClick }) => (
+  <div
+    className="flex gap-2 px-4 py-2 overflow-x-auto"
+    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+  >
+    {sections.map((section) => {
+      const isComplete = section.checkedCount === section.totalCount && section.totalCount > 0;
+      return (
+        <button
+          key={section.name}
+          onClick={() => onChipClick(section.name)}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 min-h-[36px] ${
+            isComplete
+              ? "bg-primary-light border border-primary-border text-primary"
+              : "bg-surface border border-default text-body"
+          }`}
+        >
+          {isComplete && <Check size={12} className="text-primary" />}
+          <span className="whitespace-nowrap">
+            {isComplete ? section.name : `${section.name} ${section.checkedCount}/${section.totalCount}`}
+          </span>
+        </button>
+      );
+    })}
+  </div>
+);
+
+// Trip summary card overlay
+const TripSummaryCard = ({ totalItems, sectionsCleared, totalSections, shoppingMinutes, couponSavings, onExit }) => {
+  useEffect(() => {
+    const colors = ['#5B8A72', '#7CB896', '#C17849', '#E09565', '#f59e0b'];
+    const fire = () => {
+      confetti({ particleCount: 80, spread: 70, origin: { x: 0.1, y: 0.6 }, colors });
+      confetti({ particleCount: 80, spread: 70, origin: { x: 0.9, y: 0.6 }, colors });
+    };
+    const t1 = setTimeout(fire, 400);
+    const t2 = setTimeout(fire, 700);
+    const t3 = setTimeout(() => {
+      confetti({ particleCount: 120, spread: 100, origin: { x: 0.5, y: 0.4 }, colors });
+    }, 1000);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  const stats = [
+    { icon: Clock, label: 'Shopping Time', value: shoppingMinutes < 1 ? 'Under 1 min' : `${shoppingMinutes} min` },
+    { icon: Check, label: 'Items Checked', value: `${totalItems}` },
+    { icon: ShoppingBag, label: 'Aisles Cleared', value: `${sectionsCleared}/${totalSections}` },
+  ];
+  if (couponSavings > 0) {
+    stats.push({ icon: Tag, label: 'Coupon Savings', value: `$${couponSavings.toFixed(2)}` });
+  }
+
+  return (
+    <motion.div
+      {...fadeIn}
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+    >
+      <motion.div
+        {...modalSpring}
+        className="bg-surface rounded-2xl shadow-warm-xl p-6 max-w-sm w-full"
+      >
+        {/* Header */}
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.2 }}
+          className="flex items-center justify-center gap-2 mb-6"
+        >
+          <PartyPopper size={28} className="text-primary" />
+          <h2 className="text-2xl font-bold font-display text-heading">All Done!</h2>
+          <PartyPopper size={28} className="text-primary" />
+        </motion.div>
+
+        {/* Stats */}
+        <motion.div
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+          className="space-y-3 mb-6"
+        >
+          {stats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <motion.div
+                key={stat.label}
+                variants={staggerItem}
+                className="flex items-center gap-3 p-3 rounded-xl bg-background"
+              >
+                <div className="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
+                  <Icon size={18} className="text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted">{stat.label}</p>
+                  <p className="text-lg font-bold text-heading">{stat.value}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+
+        {/* Exit button */}
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.3 }}
+          onClick={onExit}
+          className="w-full py-3.5 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary-hover transition-colors min-h-[56px]"
+        >
+          Return to Planner
+        </motion.button>
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -145,8 +324,14 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [couponLookup, setCouponLookup] = useState({}); // ItemName → coupon data
   const [couponLoadFailed, setCouponLoadFailed] = useState(false);
+  const [showTripSummary, setShowTripSummary] = useState(false);
+  const [elapsedMinutes, setElapsedMinutes] = useState(0);
+  const [recentlyCompletedSection, setRecentlyCompletedSection] = useState(null);
   const wakeLockRef = useRef(null);
   const celebratedRef = useRef(false);
+  const startTimeRef = useRef(Date.now());
+  const autoCollapseTimerRef = useRef(null);
+  const sectionRefs = useRef({});
 
   // Resolve shopping list from prop, localStorage, or auto-fetch from backend
   useEffect(() => {
@@ -335,6 +520,23 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     };
   }, []);
 
+  // Shopping timer — updates every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsedMinutes(Math.floor((Date.now() - startTimeRef.current) / 60000));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Cleanup auto-collapse timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoCollapseTimerRef.current) {
+        clearTimeout(autoCollapseTimerRef.current);
+      }
+    };
+  }, []);
+
   // Toggle an item's checked state
   const handleToggleItem = useCallback(
     (itemId) => {
@@ -375,6 +577,34 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           );
         }
 
+        // Section completion detection (only when checking)
+        if (isChecking && shoppingList) {
+          const item = shoppingList.items.find(i => i.ItemID.toString() === itemId);
+          if (item) {
+            const sectionName = item.GroceryStoreSection || 'Other';
+            const sectionItems = shoppingList.items.filter(
+              i => (i.GroceryStoreSection || 'Other') === sectionName
+            );
+            const allSectionChecked = sectionItems.every(
+              i => next.has(i.ItemID.toString())
+            );
+            if (allSectionChecked) {
+              setRecentlyCompletedSection(sectionName);
+              if (autoCollapseTimerRef.current) {
+                clearTimeout(autoCollapseTimerRef.current);
+              }
+              autoCollapseTimerRef.current = setTimeout(() => {
+                setCollapsedSections(prev => {
+                  const s = new Set(prev);
+                  s.add(sectionName);
+                  return s;
+                });
+                setRecentlyCompletedSection(null);
+              }, 1200);
+            }
+          }
+        }
+
         return next;
       });
     },
@@ -392,6 +622,21 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       }
       return next;
     });
+  }, []);
+
+  // Scroll to section from aisle chip
+  const handleChipClick = useCallback((sectionName) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      next.delete(sectionName);
+      return next;
+    });
+    setTimeout(() => {
+      sectionRefs.current[sectionName]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
   }, []);
 
   // Group items by GroceryStoreSection, sort unchecked first within each group
@@ -435,50 +680,35 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   useEffect(() => {
     if (allDone && !celebratedRef.current) {
       celebratedRef.current = true;
-
-      // Fire confetti burst from left and right sides
-      const fireConfetti = () => {
-        // Left side burst
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { x: 0.1, y: 0.6 },
-          colors: ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"],
-        });
-        // Right side burst
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { x: 0.9, y: 0.6 },
-          colors: ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"],
-        });
-      };
-
-      // Fire immediately, then again for a more festive effect
-      fireConfetti();
-      setTimeout(fireConfetti, 300);
       setTimeout(() => {
-        confetti({
-          particleCount: 120,
-          spread: 100,
-          origin: { x: 0.5, y: 0.4 },
-          colors: ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"],
-        });
-      }, 600);
-
-      toast.success("You got everything! Shopping complete!", {
-        icon: "🎉",
-        duration: 4000,
-        style: {
-          fontSize: "16px",
-          fontWeight: "bold",
-        },
-      });
+        setShowTripSummary(true);
+      }, 800);
     }
     if (!allDone) {
       celebratedRef.current = false;
+      setShowTripSummary(false);
     }
   }, [allDone]);
+
+  // Computed values for trip summary
+  const couponSavingsTotal = useMemo(() => {
+    if (!shoppingList?.items || !couponLookup) return 0;
+    return shoppingList.items.reduce((sum, item) => {
+      if (checkedItems.has(item.ItemID.toString())) {
+        const match = couponLookup[item.ItemName?.toLowerCase()];
+        if (match?.couponSavings) {
+          return sum + parseFloat(match.couponSavings);
+        }
+      }
+      return sum;
+    }, 0);
+  }, [shoppingList, checkedItems, couponLookup]);
+
+  const groupedItems = getGroupedItems();
+
+  const sectionsCleared = useMemo(() => {
+    return groupedItems.filter(s => s.checkedCount === s.totalCount && s.totalCount > 0).length;
+  }, [groupedItems]);
 
   // Exit handler with confirmation
   const handleExit = useCallback(() => {
@@ -548,44 +778,43 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     );
   }
 
-  const groupedItems = getGroupedItems();
+  const progressPercentage = totalItems > 0 ? (totalChecked / totalItems) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-surface shadow-sm">
-        <div className="flex items-center gap-3 px-4 h-14">
+        {/* Top row: back, ring, message, timer, wake lock */}
+        <div className="flex items-center gap-3 px-4 py-2">
           <button
             onClick={handleExit}
-            className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-gray-100 transition-colors"
+            className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-background transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Go back"
           >
             <ArrowLeft size={24} />
           </button>
 
-          <h1 className="flex-1 text-lg font-bold font-display text-heading">
-            Shopping List
-          </h1>
+          <ProgressRing checked={totalChecked} total={totalItems} />
 
-          {/* Wake lock indicator */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-heading truncate">
+              {getMotivationalMessage(progressPercentage)}
+            </p>
+            {elapsedMinutes > 0 && (
+              <p className="text-xs text-muted flex items-center gap-1">
+                <Clock size={10} />
+                Shopping for {elapsedMinutes} min
+              </p>
+            )}
+          </div>
+
           {wakeLockActive && (
-            <Smartphone
-              size={16}
-              className="text-primary flex-shrink-0"
-              title="Screen will stay awake"
-            />
+            <Smartphone size={16} className="text-primary flex-shrink-0" title="Screen stays awake" />
           )}
-
-          {/* Progress count */}
-          <span className="text-sm font-semibold text-body flex-shrink-0">
-            {totalChecked}/{totalItems}
-          </span>
         </div>
 
-        {/* Progress bar */}
-        <div className="px-4 pb-2">
-          <ProgressBar checked={totalChecked} total={totalItems} />
-        </div>
+        {/* Aisle quick-jump chips */}
+        <AisleChips sections={groupedItems} onChipClick={handleChipClick} />
       </div>
 
       {/* Week info */}
@@ -598,29 +827,44 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       {/* Scrollable content */}
       <div className="flex-1 px-4 py-3 space-y-4 pb-24">
         {groupedItems.map((section) => (
-          <div key={section.name}>
+          <div
+            key={section.name}
+            ref={el => { sectionRefs.current[section.name] = el; }}
+          >
             <SectionHeader
               name={section.name}
               checkedCount={section.checkedCount}
               totalCount={section.totalCount}
               isCollapsed={collapsedSections.has(section.name)}
               onToggle={() => handleToggleSection(section.name)}
+              justCompleted={recentlyCompletedSection === section.name}
             />
 
-            {/* Section items */}
-            {!collapsedSections.has(section.name) && (
-              <div className="mt-1 space-y-1">
-                {section.items.map((item) => (
-                  <InStoreItem
-                    key={item.ItemID}
-                    item={item}
-                    isChecked={checkedItems.has(item.ItemID.toString())}
-                    onToggle={handleToggleItem}
-                    couponMatch={couponLookup[item.ItemName?.toLowerCase()]}
-                  />
-                ))}
-              </div>
-            )}
+            {/* Section items with animated collapse */}
+            <AnimatePresence initial={false}>
+              {!collapsedSections.has(section.name) && (
+                <motion.div
+                  key={`items-${section.name}`}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div className="mt-1 space-y-1">
+                    {section.items.map((item) => (
+                      <InStoreItem
+                        key={item.ItemID}
+                        item={item}
+                        isChecked={checkedItems.has(item.ItemID.toString())}
+                        onToggle={handleToggleItem}
+                        couponMatch={couponLookup[item.ItemName?.toLowerCase()]}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ))}
         {couponLoadFailed && (
@@ -631,22 +875,19 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         )}
       </div>
 
-      {/* All done banner */}
-      {allDone && (
-        <div className="fixed bottom-0 left-0 right-0 z-10 bg-primary p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-warm">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <PartyPopper size={28} className="text-white" />
-            <span className="text-xl font-bold text-white">All Done!</span>
-            <PartyPopper size={28} className="text-white" />
-          </div>
-          <button
-            onClick={onExit}
-            className="w-full py-3 bg-surface text-primary rounded-xl font-bold text-lg hover:bg-primary-light transition-colors"
-          >
-            Return to Grocery List
-          </button>
-        </div>
-      )}
+      {/* Trip Summary overlay */}
+      <AnimatePresence>
+        {showTripSummary && (
+          <TripSummaryCard
+            totalItems={totalItems}
+            sectionsCleared={sectionsCleared}
+            totalSections={groupedItems.length}
+            shoppingMinutes={Math.round((Date.now() - startTimeRef.current) / 60000)}
+            couponSavings={couponSavingsTotal}
+            onExit={onExit}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

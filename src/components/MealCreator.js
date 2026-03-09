@@ -961,7 +961,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyPress}
                   placeholder="Describe what you're craving... (e.g., 'quick chicken pasta, Italian vibes, under 30 min')"
-                  className="w-full px-4 py-3 border border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
                   rows="2"
                   disabled={isLoading}
                   aria-label="Describe what you're craving"
