@@ -429,7 +429,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         });
         if (response.ok) {
           const data = await response.json();
-          const checkedIds = Array.isArray(data) ? data.map(row => row.item_id) : [];
+          const checkedIds = Array.isArray(data) ? data.map(row => String(row.item_id)) : [];
           setCheckedItems(new Set(checkedIds));
           return;
         }

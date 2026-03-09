@@ -726,6 +726,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                     section: item.GroceryStoreSection,
                     type: item.Type || "Basic",
                     quantity: item.quantity.toString(),
+                    unit: item.Unit || null,
                   })),
                 };
                 addDebugLog("Create grocery list webhook URL:", webhookURL, "Payload:", payload);
