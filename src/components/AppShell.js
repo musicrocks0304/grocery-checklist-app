@@ -20,8 +20,8 @@ const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
         navigation={navigation}
       />
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main content area — lg:ml-64 offsets for the fixed sidebar */}
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
         {/* Mobile header with home link */}
         <header className="lg:hidden flex items-center justify-between h-12 px-4 bg-surface/95 backdrop-blur-md border-b border-default sticky top-0 z-30">
           <button

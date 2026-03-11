@@ -18,6 +18,10 @@ import HebCart from "./HebCart";
 import Deals from "./Deals";
 import Plan from "./Plan";
 
+// Screens that need fixed-height layout (flex column with internal scroll)
+// — chat interfaces pin input at bottom, so they need a defined container height
+const FULL_HEIGHT_SCREENS = new Set(["plan", "chatbot", "meal-creator"]);
+
 // New primary screen IDs + legacy IDs still routable during transition
 const VALID_SCREENS = [
   // New flow screens
@@ -300,20 +304,18 @@ const App = () => {
         onNavigate={navigateToScreen}
         navigation={navigation}
       >
-        <div className="lg:ml-64 h-full">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentScreen}
-              className="h-full"
-              initial={pageTransition.initial}
-              animate={pageTransition.animate}
-              exit={pageTransition.exit}
-              transition={pageTransition.transition}
-            >
-              {renderScreen()}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentScreen}
+            className={FULL_HEIGHT_SCREENS.has(currentScreen) ? "h-full" : ""}
+            initial={pageTransition.initial}
+            animate={pageTransition.animate}
+            exit={pageTransition.exit}
+            transition={pageTransition.transition}
+          >
+            {renderScreen()}
+          </motion.div>
+        </AnimatePresence>
       </AppShell>
     </ThemeProvider>
   );

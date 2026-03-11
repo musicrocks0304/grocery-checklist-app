@@ -115,8 +115,9 @@ const Plan = ({
         )}
       </div>
 
-      {/* Tab content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      {/* Tab content — overflow-y-auto lets GroceryChecklist scroll;
+           ChatBot/MealCreator have their own internal overflow handling */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {activeTab === 'list' && (
           <GroceryChecklist
             onNavigate={onNavigate}
