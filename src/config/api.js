@@ -94,6 +94,10 @@ export const ENDPOINTS = {
 
   // One-off items (n8n) — adds directly to WeeklyGroceryList, no catalog entry
   addOneOffItem: `${API_BASE_URL}/add_oneoff_item`,
+
+  // Feedback
+  submitFeedback: `${API_BASE_URL}/submit_feedback`,
+  fetchFeedback: `${API_BASE_URL}/fetch_feedback`,
 };
 
 /**
