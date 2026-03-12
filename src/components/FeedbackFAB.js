@@ -173,10 +173,11 @@ const FeedbackFAB = ({ currentScreen }) => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 lg:bottom-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:max-w-lg lg:rounded-2xl z-50 bg-surface rounded-t-2xl shadow-warm-xl border border-default max-h-[85vh] overflow-y-auto"
+            className="fixed bottom-0 left-0 right-0 lg:bottom-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:max-w-lg lg:rounded-2xl z-50 bg-surface rounded-t-2xl shadow-warm-xl border border-default max-h-[85vh] flex flex-col"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-default sticky top-0 bg-surface/95 backdrop-blur-md rounded-t-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-default bg-surface rounded-t-2xl shrink-0">
               <h2 className="text-lg font-bold font-display text-heading">Send Feedback</h2>
               <button
                 onClick={handleClose}
@@ -187,7 +188,8 @@ const FeedbackFAB = ({ currentScreen }) => {
               </button>
             </div>
 
-            <div className="p-4 space-y-5">
+            {/* Scrollable content */}
+            <div className="p-4 space-y-5 overflow-y-auto overscroll-contain flex-1 min-h-0">
               {/* Category picker */}
               <div>
                 <p className="text-sm font-medium text-secondary mb-2">How's it going?</p>
@@ -263,8 +265,10 @@ const FeedbackFAB = ({ currentScreen }) => {
                   Auto-captured current screen. Paste (Ctrl+V) or add more.
                 </p>
               </div>
+            </div>
 
-              {/* Submit */}
+            {/* Sticky Submit */}
+            <div className="p-4 pt-3 border-t border-default bg-surface shrink-0">
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
