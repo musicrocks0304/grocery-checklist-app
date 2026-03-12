@@ -17,6 +17,7 @@ import Coupons from "./Coupons";
 import HebCart from "./HebCart";
 import Deals from "./Deals";
 import Plan from "./Plan";
+import FeedbackFAB from "./FeedbackFAB";
 
 // Screens that need fixed-height layout (flex column with internal scroll)
 // — chat interfaces pin input at bottom, so they need a defined container height
@@ -317,6 +318,7 @@ const App = () => {
           </motion.div>
         </AnimatePresence>
       </AppShell>
+      <FeedbackFAB currentScreen={currentScreen} />
     </ThemeProvider>
   );
 };
