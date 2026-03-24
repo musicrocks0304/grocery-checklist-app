@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { ClipboardList, Tag, Store, ShoppingBag, ChefHat } from "lucide-react";
+import { ClipboardList, UtensilsCrossed, Tag, Store, ShoppingBag, ChefHat } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
@@ -17,16 +17,17 @@ import Coupons from "./Coupons";
 import HebCart from "./HebCart";
 import Deals from "./Deals";
 import Plan from "./Plan";
+import Meals from "./Meals";
 import FeedbackFAB from "./FeedbackFAB";
 
 // Screens that need fixed-height layout (flex column with internal scroll)
 // — chat interfaces pin input at bottom, so they need a defined container height
-const FULL_HEIGHT_SCREENS = new Set(["plan", "chatbot", "meal-creator"]);
+const FULL_HEIGHT_SCREENS = new Set(["plan", "meals", "chatbot", "meal-creator"]);
 
 // New primary screen IDs + legacy IDs still routable during transition
 const VALID_SCREENS = [
   // New flow screens
-  "home", "plan", "deals", "cart", "shop", "cook",
+  "home", "plan", "meals", "deals", "cart", "shop", "cook",
   // Legacy IDs — still routable for internal navigation during phased migration
   "grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions",
   "in-store", "coupons", "heb-cart", "smart-deals",
@@ -49,7 +50,8 @@ const isDebugMode = () => {
 
 // Navigation list for the desktop sidebar (new flow)
 const navigation = [
-  { id: "plan", name: "Plan Meals & List", icon: ClipboardList },
+  { id: "plan", name: "Grocery List", icon: ClipboardList },
+  { id: "meals", name: "Meal Planning", icon: UtensilsCrossed },
   { id: "deals", name: "Deals & Coupons", icon: Tag },
   { id: "cart", name: "HEB Cart Builder", icon: Store },
   { id: "shop", name: "Shop In-Store", icon: ShoppingBag },
@@ -190,13 +192,22 @@ const App = () => {
           />
         );
 
-      // --- Plan tab (unified Meals + Grocery List) ---
+      // --- Plan tab (Grocery List) ---
       case "plan":
         return (
           <Plan
             onNavigate={navigateToScreen}
             onUnsavedChanges={setHasUnsavedChanges}
             onStartShopping={handleStartShopping}
+            debugMode={debugMode}
+          />
+        );
+
+      // --- Meals tab (AI Meal Planner + Create Recipe) ---
+      case "meals":
+        return (
+          <Meals
+            onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
             refreshMeals={refreshMeals}
@@ -210,7 +221,7 @@ const App = () => {
       case "chatbot":
         return (
           <ChatBot
-            onBack={() => navigateToScreen("plan")}
+            onBack={() => navigateToScreen("meals")}
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
@@ -223,7 +234,7 @@ const App = () => {
       case "meal-creator":
         return (
           <MealCreator
-            onBack={() => navigateToScreen("plan")}
+            onBack={() => navigateToScreen("meals")}
             onNavigate={navigateToScreen}
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}

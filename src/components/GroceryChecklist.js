@@ -1409,7 +1409,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             </div>
           </div>
 
-          <div className="max-h-[60vh] overflow-y-auto overscroll-contain border border-default rounded-xl bg-surface">
+          <div className="border border-default rounded-xl bg-surface">
             <div className="space-y-1 p-2">
               {currentGroupItems.map((item) => (
                 <GroceryItem
