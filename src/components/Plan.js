@@ -9,8 +9,6 @@ const Plan = ({
   onNavigate,
   onUnsavedChanges,
   onStartShopping,
-  groceryListData,
-  setGroceryListData,
   debugMode,
 }) => {
   return (

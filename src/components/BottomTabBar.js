@@ -3,9 +3,9 @@ import { ClipboardList, UtensilsCrossed, Tag, Store, ShoppingBag, ChefHat } from
 import { motion } from "framer-motion";
 
 /**
- * Mobile bottom tab bar — 5 flat tabs for the weekly flow.
+ * Mobile bottom tab bar — 6 tabs for the weekly flow.
  *
- * Tabs: Plan | Deals | Cart | Shop | Cook
+ * Tabs: Plan | Meals | Deals | Cart | Shop | Cook
  *
  * Home is accessed via the header logo, not a tab.
  */
