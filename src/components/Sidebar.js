@@ -16,9 +16,9 @@ const Sidebar = ({
   // Map legacy screen IDs to new parent IDs for active highlighting
   const LEGACY_TO_NEW = {
     grocery: "plan",
-    chatbot: "plan",
-    "meal-creator": "plan",
-    "recipe-ingredients": "plan",
+    chatbot: "meals",
+    "meal-creator": "meals",
+    "recipe-ingredients": "meals",
     "smart-deals": "deals",
     coupons: "deals",
     "heb-cart": "cart",
