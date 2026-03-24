@@ -17,7 +17,6 @@ const MEAL_MODES = [
 
 const Meals = ({
   onNavigate,
-  onUnsavedChanges,
   selectedMeals,
   setSelectedMeals,
   refreshMeals,
