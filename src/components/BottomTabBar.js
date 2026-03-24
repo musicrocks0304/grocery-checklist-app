@@ -1,5 +1,5 @@
 import React from "react";
-import { ClipboardList, Tag, Store, ShoppingBag, ChefHat } from "lucide-react";
+import { ClipboardList, UtensilsCrossed, Tag, Store, ShoppingBag, ChefHat } from "lucide-react";
 import { motion } from "framer-motion";
 
 /**
@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 
 const TABS = [
   { id: "plan", label: "Plan", icon: ClipboardList },
+  { id: "meals", label: "Meals", icon: UtensilsCrossed },
   { id: "deals", label: "Deals", icon: Tag },
   { id: "cart", label: "Cart", icon: Store },
   { id: "shop", label: "Shop", icon: ShoppingBag },
@@ -22,15 +23,16 @@ const TABS = [
 const SCREEN_TO_TAB = {
   // New IDs
   plan: "plan",
+  meals: "meals",
   deals: "deals",
   cart: "cart",
   shop: "shop",
   cook: "cook",
   // Legacy IDs (still routable during transition)
   grocery: "plan",
-  chatbot: "plan",
-  "meal-creator": "plan",
-  "recipe-ingredients": "plan",
+  chatbot: "meals",
+  "meal-creator": "meals",
+  "recipe-ingredients": "meals",
   "smart-deals": "deals",
   coupons: "deals",
   "heb-cart": "cart",
@@ -56,7 +58,7 @@ const BottomTabBar = ({ currentScreen, onNavigate }) => {
               <button
                 key={tab.id}
                 onClick={() => onNavigate(tab.id)}
-                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl min-w-[60px] min-h-[44px] transition-all duration-200 relative ${
+                className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl min-w-[52px] min-h-[44px] transition-all duration-200 relative ${
                   isActive
                     ? "text-primary"
                     : "text-muted hover:text-body"
