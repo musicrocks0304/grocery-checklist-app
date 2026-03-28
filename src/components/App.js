@@ -22,7 +22,7 @@ import FeedbackFAB from "./FeedbackFAB";
 
 // Screens that need fixed-height layout (flex column with internal scroll)
 // — chat interfaces pin input at bottom, so they need a defined container height
-const FULL_HEIGHT_SCREENS = new Set(["plan", "meals", "chatbot", "meal-creator"]);
+const FULL_HEIGHT_SCREENS = new Set(["meals", "chatbot", "meal-creator"]);
 
 // New primary screen IDs + legacy IDs still routable during transition
 const VALID_SCREENS = [

@@ -39,6 +39,10 @@ npx
 .vscode/
 .idea/
 
+# Claude Code local config (may contain API keys)
+.mcp.json
+.claude/settings.local.json
+
 # debug logs
 npm-debug.log*
 yarn-debug.log*
