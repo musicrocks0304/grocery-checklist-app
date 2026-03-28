@@ -46,7 +46,7 @@ const BottomTabBar = ({ currentScreen, onNavigate }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
       <div
-        className="bg-surface/95 backdrop-blur-md border-t border-default"
+        className="bg-surface border-t border-default"
         style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex items-center justify-around px-2 pt-2">
