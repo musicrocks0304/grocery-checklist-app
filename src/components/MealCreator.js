@@ -576,7 +576,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   };
 
   return (
-    <div className="h-full flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4">
+    <div className="h-full flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4 pb-16 lg:pb-0">
       {/* Building Overlay */}
       {isBuilding && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

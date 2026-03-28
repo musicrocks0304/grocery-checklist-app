@@ -699,7 +699,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
   // Removed getFallbackIngredients function since we're not using it anymore
 
   return (
-    <div className="h-full flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative">
+    <div className="h-full flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative pb-16 lg:pb-0">
       {/* Loading Overlay */}
       {isGeneratingGroceryList && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
