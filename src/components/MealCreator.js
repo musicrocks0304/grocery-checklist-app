@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, ChefHat, ArrowLeft, ChevronDown, ChevronUp, Wifi, Clock, Users, Flame, Check, Plus, RotateCcw, BookOpen, Save } from 'lucide-react';
+import { Send, Sparkles, ChefHat, ArrowLeft, ChevronDown, ChevronUp, Wifi, Clock, Users, Flame, Check, Plus, RotateCcw, BookOpen, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
 import { ENDPOINTS, apiFetch } from '../config/api';
@@ -45,6 +45,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [showMealsPanel, setShowMealsPanel] = useState(false);
   const messagesEndRef = useRef(null);
   const lastProposeRef = useRef(null);
 
@@ -52,6 +53,25 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     const timestamp = new Date().toLocaleTimeString();
     setDebugInfo(prev => [...prev, { timestamp, message, data }]);
     console.log(`[Creator ${timestamp}] ${message}`, data || '');
+  };
+
+  const removeMeal = async (mealId) => {
+    const mealToRemove = selectedMeals.find(meal => meal.id === mealId);
+    if (!mealToRemove) return;
+    try {
+      const weekData = getWeekDates();
+      await apiFetch(ENDPOINTS.removeWeeklySelection, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekDateRange: weekData.displayRange,
+          recipeId: Number(mealToRemove.recipeId),
+        }),
+      });
+      if (refreshMeals) await refreshMeals();
+    } catch (error) {
+      toast.error(`Failed to remove "${mealToRemove.name}".`);
+    }
   };
 
   // Parse AI response for meal creator (handles proposals)
@@ -576,7 +596,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   };
 
   return (
-    <div className="h-full flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4">
+    <div className="h-full flex flex-col lg:flex-row lg:max-w-5xl lg:mx-auto lg:p-4 lg:gap-6">
       {/* Building Overlay */}
       {isBuilding && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -951,6 +971,52 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
           )}
         </div>
 
+        {/* Selected Meals Strip */}
+        {selectedMeals.length > 0 && (
+          <button
+            onClick={() => setShowMealsPanel(!showMealsPanel)}
+            className="w-full transition-colors duration-200 hover:brightness-110"
+            style={{
+              background: 'linear-gradient(135deg, #2a2520 0%, #332d28 100%)',
+              borderTop: '1px solid rgba(193,120,73,0.3)',
+              borderBottom: '1px solid rgba(193,120,73,0.15)',
+              padding: '10px 16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+                style={{
+                  background: 'linear-gradient(135deg, #c17849, #d4915e)',
+                  boxShadow: '0 2px 8px rgba(193,120,73,0.3)',
+                }}
+              >
+                <ChefHat size={14} className="text-white" />
+              </div>
+              <div className="text-left">
+                <div className="text-[13px] font-semibold text-heading" style={{ letterSpacing: '-0.01em' }}>
+                  {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} planned
+                </div>
+                <div className="text-[11px] text-muted">this week</div>
+              </div>
+            </div>
+            <div
+              className="text-[12px] font-semibold px-3.5 py-1.5 rounded-lg"
+              style={{
+                background: 'rgba(193,120,73,0.15)',
+                border: '1px solid rgba(193,120,73,0.3)',
+                color: '#e09565',
+                letterSpacing: '0.02em',
+              }}
+            >
+              View All &rarr;
+            </div>
+          </button>
+        )}
+
         {/* Input Area (Phase 1 only) */}
         {phase === 1 && (
           <div className="p-4 pb-6 lg:p-6 bg-surface border-t border-default">
@@ -985,6 +1051,75 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
           </div>
         )}
       </div>
+
+      {/* Selected Meals Panel */}
+      {showMealsPanel && (
+        <>
+          {/* Mobile Overlay */}
+          <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setShowMealsPanel(false)} />
+
+          {/* Meals Panel - Mobile Modal / Desktop Sidebar */}
+          <div className="fixed lg:relative inset-y-0 right-0 lg:inset-auto w-full max-w-sm lg:max-w-none lg:w-96 bg-surface lg:rounded-2xl shadow-warm-xl lg:shadow-warm overflow-hidden flex flex-col z-50 lg:z-auto">
+            <div className="bg-accent text-white p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ChefHat size={20} />
+                  <h2 className="text-lg font-semibold">Selected Meals</h2>
+                </div>
+                <button
+                  onClick={() => setShowMealsPanel(false)}
+                  className="p-2 lg:p-1 hover:bg-white/20 rounded transition-colors touch-manipulation"
+                  aria-label="Close meal plans"
+                >
+                  <X size={20} className="lg:w-4 lg:h-4" />
+                </button>
+              </div>
+              <p className="text-sm opacity-90 mt-1">
+                {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4">
+              {selectedMeals.length === 0 ? (
+                <div className="text-center text-muted mt-8">
+                  <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
+                  <p>No meals selected yet</p>
+                  <p className="text-sm mt-1">Add meals from the AI Planner or by creating recipes</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedMeals.map((meal) => (
+                    <div key={meal.id} className="border border-default rounded-2xl bg-surface transition-colors duration-200">
+                      <div className="p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-heading">{meal.name}</h3>
+                            <p className="text-sm text-body mt-1">{meal.description}</p>
+                            {(meal.servings || meal.totalTime) && (
+                              <div className="flex items-center gap-2 mt-2 text-xs text-muted">
+                                {meal.servings && <span>Serves {meal.servings}</span>}
+                                {meal.totalTime && <span>{meal.servings ? '• ' : ''}{meal.totalTime} min cook time</span>}
+                                {meal.prepTime && <span>• {meal.prepTime} min</span>}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => removeMeal(meal.id)}
+                            className="text-danger hover:text-danger-hover transition-colors ml-2"
+                            title="Remove meal"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

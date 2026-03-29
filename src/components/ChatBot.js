@@ -903,6 +903,52 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Selected Meals Strip */}
+        {selectedMeals.length > 0 && (
+          <button
+            onClick={() => setShowMealsPanel(!showMealsPanel)}
+            className="w-full transition-colors duration-200 hover:brightness-110"
+            style={{
+              background: 'linear-gradient(135deg, #2a2520 0%, #332d28 100%)',
+              borderTop: '1px solid rgba(193,120,73,0.3)',
+              borderBottom: '1px solid rgba(193,120,73,0.15)',
+              padding: '10px 16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+                style={{
+                  background: 'linear-gradient(135deg, #c17849, #d4915e)',
+                  boxShadow: '0 2px 8px rgba(193,120,73,0.3)',
+                }}
+              >
+                <ChefHat size={14} className="text-white" />
+              </div>
+              <div className="text-left">
+                <div className="text-[13px] font-semibold text-heading" style={{ letterSpacing: '-0.01em' }}>
+                  {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} planned
+                </div>
+                <div className="text-[11px] text-muted">this week</div>
+              </div>
+            </div>
+            <div
+              className="text-[12px] font-semibold px-3.5 py-1.5 rounded-lg"
+              style={{
+                background: 'rgba(193,120,73,0.15)',
+                border: '1px solid rgba(193,120,73,0.3)',
+                color: '#e09565',
+                letterSpacing: '0.02em',
+              }}
+            >
+              View All &rarr;
+            </div>
+          </button>
+        )}
+
         {/* Input Area */}
         <div className="p-4 pb-6 lg:p-6 bg-surface border-t border-default">
           <div className="flex gap-3">
