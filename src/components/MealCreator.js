@@ -712,10 +712,10 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
 
           {/* ===== PHASE 1 & 2: Chat Messages ===== */}
           {(phase === 1 || phase === 2) && (
-            <div className="space-y-4">
+            <div className="space-y-3 lg:space-y-4">
               {messages.map((message) => (
                 <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] lg:max-w-lg px-4 py-3 rounded-2xl ${
+                  <div className={`max-w-[85%] lg:max-w-lg px-3 py-2.5 lg:px-4 lg:py-3 rounded-2xl ${
                     message.type === 'user'
                       ? 'bg-accent text-white'
                       : 'bg-surface text-heading shadow-md border border-default'
@@ -731,24 +731,24 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                       </div>
                     ) : (
                       <div>
-                        <div className="whitespace-pre-line">{message.content}</div>
+                        <div className="whitespace-pre-line text-[13px] lg:text-sm">{message.content}</div>
 
                         {/* Proposal Cards */}
                         {message.proposals && message.proposals.length > 0 && (
-                          <div className="mt-3 space-y-3">
+                          <div className="mt-2 space-y-2">
                             {message.proposals.map((proposal, index) => (
-                              <div key={index} className="bg-accent-light rounded-2xl border border-accent-border p-4">
+                              <div key={index} className="bg-accent-light rounded-xl border border-accent-border p-3">
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
-                                    <h4 className="font-bold text-heading text-base">{proposal.name}</h4>
-                                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                                      <span className="text-xs bg-accent-light text-accent px-2 py-0.5 rounded-full">{proposal.cuisineStyle}</span>
-                                      <span className="text-xs text-muted flex items-center gap-1"><Clock size={12} /> {proposal.estimatedTotalTime} min</span>
+                                    <h4 className="font-bold text-heading text-[13px] lg:text-sm">{proposal.name}</h4>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                      <span className="text-[10px] bg-accent-light text-accent px-1.5 py-0.5 rounded-full">{proposal.cuisineStyle}</span>
+                                      <span className="text-[10px] text-muted flex items-center gap-0.5"><Clock size={10} /> {proposal.estimatedTotalTime}m</span>
                                     </div>
                                   </div>
                                 </div>
-                                <p className="text-sm text-body mt-2">{proposal.description}</p>
-                                <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted">
+                                <p className="text-xs text-body mt-1.5">{proposal.description}</p>
+                                <div className="flex flex-wrap gap-1.5 mt-1.5 text-[10px] text-muted">
                                   <span><strong>Protein:</strong> {proposal.protein}</span>
                                   <span>•</span>
                                   <span><strong>Kid:</strong> {proposal.kidVehicle}</span>
@@ -758,9 +758,9 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                                 <button
                                   onClick={() => buildRecipe(proposal)}
                                   disabled={isBuilding}
-                                  className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors disabled:opacity-50"
+                                  className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-accent text-white text-[13px] rounded-xl hover:bg-accent-hover transition-colors disabled:opacity-50"
                                 >
-                                  <ChefHat size={16} />
+                                  <ChefHat size={14} />
                                   Build This Recipe
                                 </button>
                               </div>
