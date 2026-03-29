@@ -148,8 +148,8 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
               timestamp: 'restored'
             });
           } else if (msg.type === 'ai') {
-            // AI content might be a JSON string wrapping the structured output
-            let aiContent = content;
+            // Prefer raw_content (original structured JSON) over summary for card rendering
+            let aiContent = row.raw_content || content;
             // The AI agent wraps its response in {"output": {...}}, so unwrap it
             try {
               const wrapper = JSON.parse(aiContent);
