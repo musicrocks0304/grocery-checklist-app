@@ -3,11 +3,15 @@ import { MessageSquare, UtensilsCrossed } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ChatBot from './ChatBot';
 import MealCreator from './MealCreator';
+import { useHeader } from '../contexts/HeaderContext';
 
 /**
  * Meals screen — segmented control switching between:
  *   1. AI Meal Planner (ChatBot)
  *   2. Create Recipe (MealCreator)
+ *
+ * On mobile, the tab pills are injected into the AppShell header via
+ * HeaderContext to save ~52px of vertical space.
  */
 
 const MEAL_MODES = [
@@ -24,6 +28,7 @@ const Meals = ({
   setGroceryListData,
   debugMode,
 }) => {
+  const { setMobileHeader, clearMobileHeader } = useHeader();
   const [mealMode, setMealMode] = useState(() => {
     try {
       return localStorage.getItem('mealsTabState') || 'planner';
@@ -34,6 +39,40 @@ const Meals = ({
     try { localStorage.setItem('mealsTabState', mealMode); }
     catch { /* ignore */ }
   }, [mealMode]);
+
+  // Inject compact segment pills into the mobile header
+  useEffect(() => {
+    setMobileHeader(
+      <div className="inline-flex bg-background rounded-full p-0.5 gap-0.5">
+        {MEAL_MODES.map((mode) => {
+          const Icon = mode.icon;
+          const isActive = mealMode === mode.id;
+          return (
+            <button
+              key={mode.id}
+              onClick={() => setMealMode(mode.id)}
+              className={`relative flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200 z-10 ${
+                isActive ? 'text-white' : 'text-muted hover:text-body'
+              }`}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="meals-segment-mobile"
+                  className="absolute inset-0 bg-primary rounded-full"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="relative flex items-center gap-1">
+                <Icon size={12} />
+                {mode.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+    return () => clearMobileHeader();
+  }, [mealMode, setMobileHeader, clearMobileHeader]);
 
   // Internal navigation: switch sub-mode instead of leaving screen
   const handleMealNavigate = useCallback((screen) => {
@@ -48,8 +87,8 @@ const Meals = ({
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Segmented control */}
-      <div className="sticky top-12 lg:top-0 z-20 bg-surface/95 backdrop-blur-md border-b border-default px-4 py-3">
+      {/* Segmented control — desktop only (mobile pills are in the header) */}
+      <div className="hidden lg:block sticky top-0 z-20 bg-surface/95 backdrop-blur-md border-b border-default px-4 py-3">
         <div className="max-w-6xl mx-auto flex justify-center">
           <div className="inline-flex bg-background rounded-full p-1 gap-0.5">
             {MEAL_MODES.map((mode) => {

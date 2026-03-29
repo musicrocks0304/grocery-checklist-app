@@ -144,8 +144,12 @@ const FeedbackFAB = ({ currentScreen }) => {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={handleOpen}
-          className="fixed right-4 lg:right-8 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-warm-lg flex items-center justify-center hover:bg-primary-hover transition-colors duration-200"
-          style={{ bottom: ['meals', 'chatbot', 'meal-creator'].includes(currentScreen) ? 'calc(var(--tab-bar-height) + 7rem)' : 'calc(var(--tab-bar-height) + 1rem)' }}
+          className={`fixed lg:right-8 z-50 rounded-full bg-primary text-white shadow-warm-lg flex items-center justify-center hover:bg-primary-hover transition-colors duration-200 ${
+            ['meals', 'chatbot', 'meal-creator'].includes(currentScreen)
+              ? 'w-10 h-10 right-3 opacity-60'
+              : 'w-14 h-14 right-4'
+          }`}
+          style={{ bottom: ['meals', 'chatbot', 'meal-creator'].includes(currentScreen) ? 'calc(var(--tab-bar-height) + 4rem)' : 'calc(var(--tab-bar-height) + 1rem)' }}
           aria-label="Send feedback"
         >
           <MessageSquarePlus size={24} />

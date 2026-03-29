@@ -6,6 +6,7 @@ import { getWeekDates } from "../utils/weekDates";
 import { pageTransition } from "../utils/animations";
 import { ENDPOINTS, apiFetch, normalizeDbMeals } from "../config/api";
 import { ThemeProvider } from "../contexts/ThemeContext";
+import { HeaderProvider } from "../contexts/HeaderContext";
 import AppShell from "./AppShell";
 import Home from "./Home";
 import ChatBot from "./ChatBot";
@@ -310,26 +311,28 @@ const App = () => {
 
   return (
     <ThemeProvider>
-      {toaster}
-      <AppShell
-        currentScreen={currentScreen}
-        onNavigate={navigateToScreen}
-        navigation={navigation}
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentScreen}
-            className={FULL_HEIGHT_SCREENS.has(currentScreen) ? "h-full" : ""}
-            initial={pageTransition.initial}
-            animate={pageTransition.animate}
-            exit={pageTransition.exit}
-            transition={pageTransition.transition}
-          >
-            {renderScreen()}
-          </motion.div>
-        </AnimatePresence>
-      </AppShell>
-      <FeedbackFAB currentScreen={currentScreen} />
+      <HeaderProvider>
+        {toaster}
+        <AppShell
+          currentScreen={currentScreen}
+          onNavigate={navigateToScreen}
+          navigation={navigation}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentScreen}
+              className={FULL_HEIGHT_SCREENS.has(currentScreen) ? "h-full" : ""}
+              initial={pageTransition.initial}
+              animate={pageTransition.animate}
+              exit={pageTransition.exit}
+              transition={pageTransition.transition}
+            >
+              {renderScreen()}
+            </motion.div>
+          </AnimatePresence>
+        </AppShell>
+        <FeedbackFAB currentScreen={currentScreen} />
+      </HeaderProvider>
     </ThemeProvider>
   );
 };

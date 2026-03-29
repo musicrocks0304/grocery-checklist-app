@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, ChefHat, ArrowLeft, ChevronDown, ChevronUp, Wifi, Clock, Users, Flame, Check, Plus, RotateCcw, BookOpen, Save, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
 import { ENDPOINTS, apiFetch } from '../config/api';
@@ -971,17 +972,35 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
           )}
         </div>
 
-        {/* Selected Meals Strip */}
+        {/* Mobile Floating Meal Badge — left side to avoid FeedbackFAB on right */}
+        {selectedMeals.length > 0 && !showMealsPanel && (
+          <button
+            onClick={() => setShowMealsPanel(true)}
+            className="lg:hidden fixed z-30 flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
+            style={{
+              left: '12px',
+              bottom: 'calc(var(--tab-bar-height) + 70px)',
+              background: 'linear-gradient(135deg, #c17849, #d4915e)',
+              borderRadius: '24px',
+              padding: '10px 16px',
+              boxShadow: '0 4px 16px rgba(193,120,73,0.4)',
+            }}
+          >
+            <ChefHat size={16} className="text-white" />
+            <span className="text-white text-sm font-bold">{selectedMeals.length}</span>
+          </button>
+        )}
+
+        {/* Selected Meals Strip — desktop only */}
         {selectedMeals.length > 0 && (
           <button
             onClick={() => setShowMealsPanel(!showMealsPanel)}
-            className="w-full transition-colors duration-200 hover:brightness-110"
+            className="hidden lg:flex w-full transition-colors duration-200 hover:brightness-110"
             style={{
               background: 'linear-gradient(135deg, #2a2520 0%, #332d28 100%)',
               borderTop: '1px solid rgba(193,120,73,0.3)',
               borderBottom: '1px solid rgba(193,120,73,0.15)',
               padding: '10px 16px',
-              display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
             }}
@@ -1019,31 +1038,33 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
 
         {/* Input Area (Phase 1 only) */}
         {phase === 1 && (
-          <div className="p-4 pb-6 lg:p-6 bg-surface border-t border-default">
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <textarea
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Describe what you're craving... (e.g., 'quick chicken pasta, Italian vibes, under 30 min')"
-                  className="w-full px-4 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
-                  rows="2"
-                  disabled={isLoading}
-                  aria-label="Describe what you're craving"
-                />
-              </div>
+          <div className="p-3 lg:p-6 bg-surface border-t border-default">
+            <div className="relative">
+              <textarea
+                value={inputMessage}
+                onChange={(e) => {
+                  setInputMessage(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                }}
+                onKeyDown={handleKeyPress}
+                placeholder="Describe what you're craving..."
+                className="w-full pl-4 pr-12 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
+                rows="1"
+                disabled={isLoading}
+                aria-label="Describe what you're craving"
+              />
               <button
                 onClick={sendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className="px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                className="absolute right-2 bottom-2 w-9 h-9 flex items-center justify-center bg-accent text-white rounded-full hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                aria-label="Send message"
               >
-                <Send size={20} />
-                Send
+                <Send size={18} />
               </button>
             </div>
             {isLoading && (
-              <div className="flex items-center justify-center gap-2 text-sm text-accent mt-3">
+              <div className="flex items-center justify-center gap-2 text-sm text-accent mt-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent"></div>
                 Inventing recipes...
               </div>
@@ -1053,73 +1074,131 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
       </div>
 
       {/* Selected Meals Panel */}
-      {showMealsPanel && (
-        <>
-          {/* Mobile Overlay */}
-          <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setShowMealsPanel(false)} />
+      <AnimatePresence>
+        {showMealsPanel && (
+          <>
+            {/* Mobile overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 bg-black/50 z-40"
+              onClick={() => setShowMealsPanel(false)}
+            />
 
-          {/* Meals Panel - Mobile Modal / Desktop Sidebar */}
-          <div className="fixed lg:relative inset-y-0 right-0 lg:inset-auto w-full max-w-sm lg:max-w-none lg:w-96 bg-surface lg:rounded-2xl shadow-warm-xl lg:shadow-warm overflow-hidden flex flex-col z-50 lg:z-auto">
-            <div className="bg-accent text-white p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ChefHat size={20} />
-                  <h2 className="text-lg font-semibold">Selected Meals</h2>
+            {/* Mobile Bottom Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl shadow-warm-xl flex flex-col"
+              style={{ maxHeight: '55vh' }}
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-2 pb-1">
+                <div className="w-10 h-1 bg-default rounded-full" />
+              </div>
+
+              {/* Compact header */}
+              <div className="flex items-center justify-between px-4 py-2 rounded-t-2xl" style={{ background: 'linear-gradient(135deg, #c17849, #d4915e)' }}>
+                <div className="flex items-center gap-2 text-white">
+                  <ChefHat size={18} />
+                  <h2 className="text-base font-semibold">Selected Meals</h2>
+                  <span className="text-sm opacity-90">({selectedMeals.length})</span>
                 </div>
-                <button
-                  onClick={() => setShowMealsPanel(false)}
-                  className="p-2 lg:p-1 hover:bg-white/20 rounded transition-colors touch-manipulation"
-                  aria-label="Close meal plans"
-                >
-                  <X size={20} className="lg:w-4 lg:h-4" />
+                <button onClick={() => setShowMealsPanel(false)} className="p-1.5 hover:bg-white/20 rounded-lg text-white">
+                  <X size={18} />
                 </button>
               </div>
-              <p className="text-sm opacity-90 mt-1">
-                {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
-              </p>
-            </div>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain p-4">
-              {selectedMeals.length === 0 ? (
-                <div className="text-center text-muted mt-8">
-                  <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
-                  <p>No meals selected yet</p>
-                  <p className="text-sm mt-1">Add meals from the AI Planner or by creating recipes</p>
+              {/* Scrollable meal list */}
+              <div className="flex-1 overflow-y-auto overscroll-contain p-3">
+                {selectedMeals.length === 0 ? (
+                  <div className="text-center text-muted py-6">
+                    <ChefHat size={36} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No meals selected yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedMeals.map((meal) => (
+                      <div key={meal.id} className="flex items-center gap-3 p-2.5 border border-default rounded-xl bg-surface">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-heading text-sm truncate">{meal.name}</h3>
+                          {meal.totalTime && <span className="text-[11px] text-muted">{meal.totalTime} min</span>}
+                        </div>
+                        <button onClick={() => removeMeal(meal.id)} className="shrink-0 text-danger hover:text-danger-hover">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Desktop Sidebar — unchanged */}
+            <div className="hidden lg:flex lg:relative lg:inset-auto lg:w-96 bg-surface lg:rounded-2xl shadow-warm overflow-hidden flex-col z-auto">
+              <div className="bg-accent text-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ChefHat size={20} />
+                    <h2 className="text-lg font-semibold">Selected Meals</h2>
+                  </div>
+                  <button
+                    onClick={() => setShowMealsPanel(false)}
+                    className="p-1 hover:bg-white/20 rounded transition-colors"
+                    aria-label="Close meal plans"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {selectedMeals.map((meal) => (
-                    <div key={meal.id} className="border border-default rounded-2xl bg-surface transition-colors duration-200">
-                      <div className="p-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-heading">{meal.name}</h3>
-                            <p className="text-sm text-body mt-1">{meal.description}</p>
-                            {(meal.servings || meal.totalTime) && (
-                              <div className="flex items-center gap-2 mt-2 text-xs text-muted">
-                                {meal.servings && <span>Serves {meal.servings}</span>}
-                                {meal.totalTime && <span>{meal.servings ? '• ' : ''}{meal.totalTime} min cook time</span>}
-                                {meal.prepTime && <span>• {meal.prepTime} min</span>}
-                              </div>
-                            )}
+                <p className="text-sm opacity-90 mt-1">
+                  {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
+                </p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto overscroll-contain p-4">
+                {selectedMeals.length === 0 ? (
+                  <div className="text-center text-muted mt-8">
+                    <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
+                    <p>No meals selected yet</p>
+                    <p className="text-sm mt-1">Add meals from the AI Planner or by creating recipes</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedMeals.map((meal) => (
+                      <div key={meal.id} className="border border-default rounded-2xl bg-surface transition-colors duration-200">
+                        <div className="p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-heading">{meal.name}</h3>
+                              <p className="text-sm text-body mt-1">{meal.description}</p>
+                              {(meal.servings || meal.totalTime) && (
+                                <div className="flex items-center gap-2 mt-2 text-xs text-muted">
+                                  {meal.servings && <span>Serves {meal.servings}</span>}
+                                  {meal.totalTime && <span>{meal.servings ? '• ' : ''}{meal.totalTime} min cook time</span>}
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => removeMeal(meal.id)}
+                              className="text-danger hover:text-danger-hover transition-colors ml-2"
+                              title="Remove meal"
+                            >
+                              <X size={16} />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => removeMeal(meal.id)}
-                            className="text-danger hover:text-danger-hover transition-colors ml-2"
-                            title="Remove meal"
-                          >
-                            <X size={16} />
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

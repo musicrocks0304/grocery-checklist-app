@@ -3,14 +3,20 @@ import { Home } from "lucide-react";
 import Sidebar from "./Sidebar";
 import BottomTabBar from "./BottomTabBar";
 import { ThemeToggle } from "./ui";
+import { useHeader } from "../contexts/HeaderContext";
 
 /**
  * App layout shell — combines desktop sidebar + mobile bottom tab bar.
  *
  * Desktop (>= lg): Sidebar on left, main content fills remaining space.
  * Mobile (< lg): Header with home link + bottom tab bar, main content fills viewport.
+ *
+ * The mobile header supports a center slot via HeaderContext — child screens
+ * (e.g. Meals) can inject content (like tab pills) to save vertical space.
  */
 const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
+  const { headerContent } = useHeader();
+
   return (
     <div className="flex h-screen bg-background transition-colors duration-200">
       {/* Desktop sidebar */}
@@ -22,16 +28,24 @@ const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
 
       {/* Main content area — lg:ml-64 offsets for the fixed sidebar */}
       <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
-        {/* Mobile header with home link */}
-        <header className="lg:hidden flex items-center justify-between h-12 px-4 bg-surface/95 backdrop-blur-md border-b border-default sticky top-0 z-30">
+        {/* Mobile header — supports injected center content via HeaderContext */}
+        <header className="lg:hidden flex items-center justify-between h-12 px-3 bg-surface/95 backdrop-blur-md border-b border-default sticky top-0 z-30">
           <button
             onClick={() => onNavigate("home")}
-            className="flex items-center gap-2 min-h-[44px] text-heading hover:text-primary transition-colors duration-200"
+            className="flex items-center shrink-0 min-h-[44px] text-heading hover:text-primary transition-colors duration-200"
           >
             <Home size={20} />
-            <span className="text-base font-bold font-display">Grocery Planner</span>
           </button>
-          <ThemeToggle />
+
+          {headerContent ? (
+            <div className="flex-1 flex justify-center mx-2">{headerContent}</div>
+          ) : (
+            <span className="text-base font-bold font-display text-heading">Grocery Planner</span>
+          )}
+
+          <div className="shrink-0">
+            <ThemeToggle />
+          </div>
         </header>
 
         {/* Page content */}

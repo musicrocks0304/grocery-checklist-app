@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, Sparkles, Plus, X, ShoppingCart } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
 import { ENDPOINTS, apiFetch } from '../config/api';
@@ -696,7 +697,115 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
     }
   };
 
-  // Removed getFallbackIngredients function since we're not using it anymore
+  // Generate grocery list from selected meals
+  const handleGenerateGroceryList = useCallback(async () => {
+    if (isGeneratingGroceryList) {
+      addDebugLog('⚠️ Grocery list generation already in progress, ignoring duplicate request');
+      return;
+    }
+
+    setIsGeneratingGroceryList(true);
+    addDebugLog('Generating grocery list for meals:', selectedMeals);
+
+    const recipeIds = selectedMeals
+      .map(meal => meal.recipeId)
+      .filter(id => id);
+
+    addDebugLog('Recipe IDs to send:', recipeIds);
+
+    const requestKey = JSON.stringify(recipeIds.sort());
+    const now = Date.now();
+    if (lastGroceryListRequest &&
+        lastGroceryListRequest.key === requestKey &&
+        (now - lastGroceryListRequest.timestamp) < 120000) {
+      addDebugLog('⚠️ Duplicate request detected within 2 minutes, ignoring');
+      toast('A grocery list for these same recipes was recently requested. Please wait a moment before trying again.', { icon: '⚠️' });
+      setIsGeneratingGroceryList(false);
+      return;
+    }
+
+    setLastGroceryListRequest({ key: requestKey, timestamp: now });
+
+    if (recipeIds.length === 0) {
+      addDebugLog('❌ No recipe IDs found in selected meals');
+      toast.error('No recipe IDs found. Please make sure meals were added properly.');
+      setIsGeneratingGroceryList(false);
+      return;
+    }
+
+    try {
+      const baseWebhookURL = ENDPOINTS.getRecipeItems;
+      const weekInfo = getWeekDates();
+
+      const recipePayload = {
+        recipe_ids: JSON.stringify(recipeIds),
+        session_id: sessionId,
+        timestamp: new Date().toISOString(),
+        meal_count: selectedMeals.length.toString(),
+        meals: JSON.stringify(selectedMeals.map(meal => ({
+          id: meal.recipeId,
+          name: meal.name,
+          description: meal.description
+        }))),
+        week_start_date: weekInfo.startDate,
+        week_end_date: weekInfo.endDate,
+        week_display_range: weekInfo.displayRange
+      };
+
+      addDebugLog('Sending POST request to get_recipe_items webhook');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        addDebugLog('⏰ Request timed out after 90 seconds');
+      }, 90000);
+
+      const response = await apiFetch(baseWebhookURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(recipePayload),
+        mode: 'cors',
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+      addDebugLog('Webhook response status:', response.status);
+
+      if (response.ok) {
+        const responseData = await response.text();
+        addDebugLog('✅ Successfully called get_recipe_items webhook');
+
+        try {
+          const parsedData = JSON.parse(responseData);
+          setGroceryListData(parsedData);
+          addDebugLog('✅ Grocery list data stored successfully');
+          onNavigate('recipe-ingredients');
+        } catch (parseError) {
+          addDebugLog('❌ Error parsing webhook response JSON:', parseError.message);
+          toast.error('Received invalid data from the server. Please try again.');
+        }
+      } else {
+        const errorText = await response.text();
+        addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
+        addDebugLog('Error response:', errorText);
+        toast.error('Failed to generate grocery list. The server returned an error. Please try again.');
+      }
+    } catch (error) {
+      addDebugLog('❌ Error calling get_recipe_items webhook:', error.message);
+      if (error.name === 'AbortError') {
+        toast.error('The grocery list generation timed out. Please try again.');
+      } else if (error.message === 'Failed to fetch') {
+        toast.error('Could not connect to the server. Please check your connection and try again.');
+      } else {
+        toast.error('Error generating grocery list. Please try again.');
+      }
+    } finally {
+      setIsGeneratingGroceryList(false);
+    }
+  }, [isGeneratingGroceryList, selectedMeals, lastGroceryListRequest, sessionId, setGroceryListData, onNavigate]);
 
   return (
     <div className="h-full flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative">
@@ -724,7 +833,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
       {/* Main Chat Area */}
       <div className={`bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden transition-all transition-colors duration-200 flex flex-col flex-1 min-h-0 ${showMealsPanel ? 'lg:flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'} ${showMealsPanel ? 'lg:mr-0' : ''}`}>
         {/* Toolbar — slim contextual bar, Plan tabs already provide navigation */}
-        <div className="flex items-center justify-between px-3 py-2 lg:px-4 bg-surface border-b border-default">
+        <div className="hidden lg:flex items-center justify-between px-3 py-2 lg:px-4 bg-surface border-b border-default">
           <button
             onClick={() => !isGeneratingGroceryList && setShowMealsPanel(!showMealsPanel)}
             disabled={isGeneratingGroceryList}
@@ -798,14 +907,15 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
               Loading conversation history...
             </div>
           )}
-          <div className="space-y-4">
+          <div className="space-y-3 lg:space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}
               >
+                {/* Chat bubble — text only */}
                 <div
-                  className={`max-w-[85%] lg:max-w-md px-4 py-3 rounded-2xl ${
+                  className={`max-w-[85%] lg:max-w-md px-3 py-2.5 lg:px-4 lg:py-3 rounded-2xl ${
                     message.type === 'user'
                       ? 'bg-primary text-white'
                       : 'bg-surface text-heading shadow-md border'
@@ -822,61 +932,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                     </div>
                   ) : (
                     <div>
-                      <div className="whitespace-pre-line">{message.content}</div>
-
-                      {/* Meal Suggestion Buttons */}
-                      {message.suggestedMeals && message.suggestedMeals.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          {message.suggestedMeals.map((meal, index) => {
-                            const cardKey = `${message.id}-${index}`;
-                            const isCollapsed = !collapsedCards.has(cardKey); // Cards are collapsed by default
-
-                            return (
-                              <div key={index} className="bg-background rounded-2xl border border-default">
-                                {/* Card Header - Always Visible */}
-                                <div className="p-3">
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <h4 className="font-semibold text-heading">{meal.name}</h4>
-                                        <button
-                                          onClick={() => toggleCardCollapse(message.id, index)}
-                                          className="p-1 hover:bg-background rounded transition-colors"
-                                          title={isCollapsed ? "Expand details" : "Collapse details"}
-                                        >
-                                          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                                        </button>
-                                      </div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
-                                        setShowMealsPanel(true);
-                                      }}
-                                      className="ml-3 flex items-center gap-1 px-3 py-1 bg-primary text-white text-sm rounded-xl hover:bg-primary-hover transition-colors"
-                                    >
-                                      <Plus size={14} />
-                                      Add to Plan
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Card Details - Collapsible */}
-                                {!isCollapsed && (
-                                  <div className="px-3 pb-3">
-                                    <p className="text-sm text-body">{meal.description}</p>
-                                    {meal.totalTime && (
-                                      <div className="flex items-center gap-2 mt-2 text-xs text-muted">
-                                        <span>{meal.totalTime} min cook time</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                      <div className="whitespace-pre-line text-[13px] lg:text-sm">{message.content}</div>
 
                       {message.isRetryable && (
                         <button
@@ -897,23 +953,73 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                     </div>
                   )}
                 </div>
+
+                {/* Meal suggestion cards — OUTSIDE bubble, full container width */}
+                {message.suggestedMeals && message.suggestedMeals.length > 0 && (
+                  <div className="w-full mt-2 space-y-2">
+                    {message.suggestedMeals.map((meal, index) => {
+                      const cardKey = `${message.id}-${index}`;
+                      const isExpanded = collapsedCards.has(cardKey); // collapsed by default, click to expand
+                      return (
+                        <div key={index} className="bg-background rounded-xl border border-default overflow-hidden">
+                          {/* Compact row — always visible */}
+                          <div className="flex items-center gap-3 p-2.5">
+                            <div
+                              className="flex-1 min-w-0 cursor-pointer"
+                              onClick={() => toggleCardCollapse(message.id, index)}
+                            >
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-heading text-[13px] truncate">{meal.name}</h4>
+                                {meal.totalTime && (
+                                  <span className="shrink-0 text-[10px] text-muted bg-surface border border-default rounded-full px-1.5 py-0.5">
+                                    {meal.totalTime}m
+                                  </span>
+                                )}
+                                <ChevronDown size={14} className={`shrink-0 text-muted transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
+                              }}
+                              className="shrink-0 w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full hover:bg-primary-hover transition-colors"
+                              aria-label={`Add ${meal.name} to plan`}
+                            >
+                              <Plus size={16} />
+                            </button>
+                          </div>
+                          {/* Expanded details */}
+                          {isExpanded && (
+                            <div className="px-2.5 pb-2.5 -mt-1">
+                              {meal.description && (
+                                <p className="text-xs text-body">{meal.description}</p>
+                              )}
+                              {meal.servings && (
+                                <span className="text-[10px] text-muted mt-1 inline-block">Serves {meal.servings}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ))}
           </div>
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Selected Meals Strip */}
+        {/* Selected Meals Strip — desktop only */}
         {selectedMeals.length > 0 && (
           <button
             onClick={() => setShowMealsPanel(!showMealsPanel)}
-            className="w-full transition-colors duration-200 hover:brightness-110"
+            className="hidden lg:flex w-full transition-colors duration-200 hover:brightness-110"
             style={{
               background: 'linear-gradient(135deg, #2a2520 0%, #332d28 100%)',
               borderTop: '1px solid rgba(193,120,73,0.3)',
               borderBottom: '1px solid rgba(193,120,73,0.15)',
               padding: '10px 16px',
-              display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
             }}
@@ -949,33 +1055,53 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
           </button>
         )}
 
+        {/* Mobile Floating Meal Badge — left side to avoid FeedbackFAB on right */}
+        {selectedMeals.length > 0 && !showMealsPanel && (
+          <button
+            onClick={() => setShowMealsPanel(true)}
+            className="lg:hidden fixed z-30 flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
+            style={{
+              left: '12px',
+              bottom: 'calc(var(--tab-bar-height) + 70px)',
+              background: 'linear-gradient(135deg, #c17849, #d4915e)',
+              borderRadius: '24px',
+              padding: '10px 16px',
+              boxShadow: '0 4px 16px rgba(193,120,73,0.4)',
+            }}
+          >
+            <ChefHat size={16} className="text-white" />
+            <span className="text-white text-sm font-bold">{selectedMeals.length}</span>
+          </button>
+        )}
+
         {/* Input Area */}
-        <div className="p-4 pb-6 lg:p-6 bg-surface border-t border-default">
-          <div className="flex gap-3">
-            <div className="flex-1 relative">
-              <textarea
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="Ask me about meal ideas, recipes, or cooking tips..."
-                className="w-full px-4 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none"
-                rows="2"
-                disabled={isLoading}
-                aria-label="Type your message"
-              />
-            </div>
+        <div className="p-3 lg:p-6 bg-surface border-t border-default">
+          <div className="relative">
+            <textarea
+              value={inputMessage}
+              onChange={(e) => {
+                setInputMessage(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+              }}
+              onKeyDown={handleKeyPress}
+              placeholder="Ask me about meal ideas..."
+              className="w-full pl-4 pr-12 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none"
+              rows="1"
+              disabled={isLoading}
+              aria-label="Type your message"
+            />
             <button
               onClick={sendMessage}
               disabled={!inputMessage.trim() || isLoading}
-              className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+              className="absolute right-2 bottom-2 w-9 h-9 flex items-center justify-center bg-primary text-white rounded-full hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              aria-label="Send message"
             >
-              <Send size={20} />
-              Send
+              <Send size={18} />
             </button>
           </div>
-
           {isLoading && (
-            <div className="flex items-center justify-center gap-2 text-sm text-primary mt-3">
+            <div className="flex items-center justify-center gap-2 text-sm text-primary mt-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
               Thinking...
             </div>
@@ -984,253 +1110,197 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
       </div>
 
       {/* Meals Panel */}
-      {showMealsPanel && (
-        <>
-          {/* Mobile Overlay */}
-          <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setShowMealsPanel(false)} />
+      <AnimatePresence>
+        {showMealsPanel && (
+          <>
+            {/* Mobile overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 bg-black/50 z-40"
+              onClick={() => setShowMealsPanel(false)}
+            />
 
-          {/* Meals Panel - Mobile Modal / Desktop Sidebar */}
-          <div className="fixed lg:relative inset-y-0 right-0 lg:inset-auto w-full max-w-sm lg:max-w-none lg:w-96 bg-surface lg:rounded-2xl shadow-warm-xl lg:shadow-warm overflow-hidden flex flex-col z-50 lg:z-auto transform transition-transform duration-300 ease-in-out">
-          <div className="bg-primary text-white p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ChefHat size={20} />
-                <h2 className="text-lg font-semibold">Selected Meals</h2>
+            {/* Mobile Bottom Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl shadow-warm-xl flex flex-col"
+              style={{ maxHeight: '55vh' }}
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-2 pb-1">
+                <div className="w-10 h-1 bg-default rounded-full" />
               </div>
-              <button
-                onClick={() => setShowMealsPanel(false)}
-                className="p-2 lg:p-1 hover:bg-white/20 rounded transition-colors touch-manipulation"
-                aria-label="Close meal plans"
-              >
-                <X size={20} className="lg:w-4 lg:h-4" />
-              </button>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <p className="text-sm opacity-90">
-                {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
-              </p>
-              {selectedMeals.length > 1 && (
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Remove all ${selectedMeals.length} meals from your plan?`)) {
-                      setSelectedMeals([]);
-                    }
-                  }}
-                  className="text-xs opacity-80 hover:opacity-100 hover:bg-white/20 px-2 py-1 rounded transition-colors"
-                >
-                  Clear All
+
+              {/* Compact header */}
+              <div className="flex items-center justify-between px-4 py-2 rounded-t-2xl" style={{ background: 'linear-gradient(135deg, #c17849, #d4915e)' }}>
+                <div className="flex items-center gap-2 text-white">
+                  <ChefHat size={18} />
+                  <h2 className="text-base font-semibold">Selected Meals</h2>
+                  <span className="text-sm opacity-90">({selectedMeals.length})</span>
+                </div>
+                <button onClick={() => setShowMealsPanel(false)} className="p-1.5 hover:bg-white/20 rounded-lg text-white">
+                  <X size={18} />
                 </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto overscroll-contain p-4">
-            {selectedMeals.length === 0 ? (
-              <div className="text-center text-muted mt-8">
-                <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
-                <p>No meals selected yet</p>
-                <p className="text-sm mt-1">Add meals from chat suggestions to start planning</p>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {selectedMeals.map((meal) => (
-                  <div key={meal.id} className="border border-default rounded-2xl bg-surface transition-colors duration-200">
-                    <div className="p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-heading">{meal.name}</h3>
-                          <p className="text-sm text-body mt-1">{meal.description}</p>
-                          {(meal.servings || meal.totalTime) && (
-                            <div className="flex items-center gap-2 mt-2 text-xs text-muted">
-                              {meal.servings && <span>Serves {meal.servings}</span>}
-                              {meal.totalTime && <span>{meal.servings ? '• ' : ''}{meal.totalTime} min cook time</span>}
-                              {meal.prepTime && <span>• {meal.prepTime} min</span>}
-                            </div>
-                          )}
+
+              {/* Scrollable meal list */}
+              <div className="flex-1 overflow-y-auto overscroll-contain p-3">
+                {selectedMeals.length === 0 ? (
+                  <div className="text-center text-muted py-6">
+                    <ChefHat size={36} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No meals selected yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedMeals.map((meal) => (
+                      <div key={meal.id} className="flex items-center gap-3 p-2.5 border border-default rounded-xl bg-surface">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-heading text-sm truncate">{meal.name}</h3>
+                          {meal.totalTime && <span className="text-[11px] text-muted">{meal.totalTime} min</span>}
                         </div>
-                        <button
-                          onClick={() => removeMeal(meal.id)}
-                          className="text-danger hover:text-danger-hover transition-colors ml-2"
-                          title="Remove meal"
-                        >
-                          <X size={16} />
+                        <button onClick={() => removeMeal(meal.id)} className="shrink-0 text-danger hover:text-danger-hover">
+                          <X size={14} />
                         </button>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {selectedMeals.length > 0 && (
-            <div className="border-t border-default p-4 bg-background">
-              <div className="text-sm text-body mb-3">
-                {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
-              </div>
-              <button
-                onClick={async () => {
-                  // Prevent duplicate requests
-                  if (isGeneratingGroceryList) {
-                    addDebugLog('⚠️ Grocery list generation already in progress, ignoring duplicate request');
-                    return;
-                  }
-
-                  // Set loading state
-                  setIsGeneratingGroceryList(true);
-
-                  addDebugLog('Generating grocery list for meals:', selectedMeals);
-
-                  // Extract recipe IDs from selected meals
-                  const recipeIds = selectedMeals
-                    .map(meal => meal.recipeId)
-                    .filter(id => id); // Remove any undefined/null IDs
-
-                  addDebugLog('Recipe IDs to send:', recipeIds);
-
-                  // Check for duplicate request based on recipe IDs
-                  const requestKey = JSON.stringify(recipeIds.sort());
-                  const now = Date.now();
-                  if (lastGroceryListRequest &&
-                      lastGroceryListRequest.key === requestKey &&
-                      (now - lastGroceryListRequest.timestamp) < 120000) { // 2 minutes
-                    addDebugLog('⚠️ Duplicate request detected within 2 minutes, ignoring');
-                    toast('A grocery list for these same recipes was recently requested. Please wait a moment before trying again.', { icon: '⚠️' });
-                    setIsGeneratingGroceryList(false);
-                    return;
-                  }
-
-                  // Record this request
-                  setLastGroceryListRequest({ key: requestKey, timestamp: now });
-
-                  if (recipeIds.length === 0) {
-                    addDebugLog('❌ No recipe IDs found in selected meals');
-                    toast.error('No recipe IDs found. Please make sure meals were added properly.');
-                    setIsGeneratingGroceryList(false);
-                    return;
-                  }
-
-                  try {
-                    // Call webhook with POST method and JSON body
-                    const baseWebhookURL = ENDPOINTS.getRecipeItems;
-
-                    // Get week information
-                    const weekInfo = getWeekDates();
-
-                    // Build JSON payload
-                    const recipePayload = {
-                      recipe_ids: JSON.stringify(recipeIds),
-                      session_id: sessionId,
-                      timestamp: new Date().toISOString(),
-                      meal_count: selectedMeals.length.toString(),
-                      meals: JSON.stringify(selectedMeals.map(meal => ({
-                        id: meal.recipeId,
-                        name: meal.name,
-                        description: meal.description
-                      }))),
-                      week_start_date: weekInfo.startDate,
-                      week_end_date: weekInfo.endDate,
-                      week_display_range: weekInfo.displayRange
-                    };
-
-                    addDebugLog('Sending POST request to get_recipe_items webhook');
-                    addDebugLog('Recipe IDs:', recipeIds);
-                    addDebugLog('Week info:', weekInfo);
-                    addDebugLog('Payload:', recipePayload);
-
-                    // Create AbortController for timeout handling
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => {
-                      controller.abort();
-                      addDebugLog('⏰ Request timed out after 90 seconds');
-                    }, 90000); // 90 second timeout
-
-                    const response = await apiFetch(baseWebhookURL, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                      },
-                      body: JSON.stringify(recipePayload),
-                      mode: 'cors',
-                      signal: controller.signal
-                    });
-
-                    // Clear timeout if request completes
-                    clearTimeout(timeoutId);
-
-                    addDebugLog('Webhook response status:', response.status);
-                    addDebugLog('Webhook response headers:', Object.fromEntries(response.headers.entries()));
-
-                    if (response.ok) {
-                      const responseData = await response.text();
-                      addDebugLog('✅ Successfully called get_recipe_items webhook');
-                      addDebugLog('Response data:', responseData);
-
-                      try {
-                        // Parse the JSON response and store it
-                        const parsedData = JSON.parse(responseData);
-                        setGroceryListData(parsedData);
-                        addDebugLog('✅ Grocery list data stored successfully');
-                        addDebugLog('Parsed data:', parsedData);
-
-                        // Navigate to the Recipe Ingredients page only after successful parse
-                        onNavigate('recipe-ingredients');
-                      } catch (parseError) {
-                        addDebugLog('❌ Error parsing webhook response JSON:', parseError.message);
-                        addDebugLog('Raw response data:', responseData);
-                        toast.error('Received invalid data from the server. Please try again.');
-                      }
-                    } else {
-                      const errorText = await response.text();
-                      addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
-                      addDebugLog('Error response:', errorText);
-                      toast.error('Failed to generate grocery list. The server returned an error. Please try again.');
-                    }
-
-                  } catch (error) {
-                    addDebugLog('❌ Error calling get_recipe_items webhook:', error.message);
-                    addDebugLog('Error details:', error);
-
-                    // Check for different types of errors
-                    if (error.name === 'AbortError') {
-                      addDebugLog('⏰ Request was aborted due to timeout (90 seconds)');
-                      toast.error('The grocery list generation timed out. Please try again.');
-                    } else if (error.message === 'Failed to fetch') {
-                      addDebugLog('🚨 This looks like a CORS error. The webhook may need CORS headers.');
-                      toast.error('Could not connect to the server. Please check your connection and try again.');
-                    } else {
-                      toast.error('Error generating grocery list. Please try again.');
-                    }
-                  } finally {
-                    // Always reset loading state
-                    setIsGeneratingGroceryList(false);
-                  }
-                }}
-                disabled={isGeneratingGroceryList}
-                className={`w-full px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 ${
-                  isGeneratingGroceryList
-                    ? 'bg-muted cursor-not-allowed'
-                    : 'bg-primary hover:bg-primary-hover'
-                } text-white`}
-              >
-                {isGeneratingGroceryList ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    Creating Your Grocery List...
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart size={16} />
-                    Generate Grocery List
-                  </>
                 )}
-              </button>
+              </div>
+
+              {/* CTA */}
+              {selectedMeals.length > 0 && (
+                <div className="border-t border-default p-3 bg-background">
+                  <button
+                    onClick={handleGenerateGroceryList}
+                    disabled={isGeneratingGroceryList}
+                    className="w-full py-2.5 bg-primary text-white font-semibold rounded-xl hover:bg-primary-hover disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+                  >
+                    {isGeneratingGroceryList ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Creating Grocery List...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart size={16} />
+                        Generate Grocery List ({selectedMeals.length})
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Desktop Sidebar — unchanged */}
+            <div className="hidden lg:flex lg:relative lg:inset-auto lg:w-96 bg-surface lg:rounded-2xl shadow-warm overflow-hidden flex-col z-auto">
+              <div className="bg-primary text-white p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ChefHat size={20} />
+                    <h2 className="text-lg font-semibold">Selected Meals</h2>
+                  </div>
+                  <button
+                    onClick={() => setShowMealsPanel(false)}
+                    className="p-1 hover:bg-white/20 rounded transition-colors"
+                    aria-label="Close meal plans"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-sm opacity-90">
+                    {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
+                  </p>
+                  {selectedMeals.length > 1 && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Remove all ${selectedMeals.length} meals from your plan?`)) {
+                          setSelectedMeals([]);
+                        }
+                      }}
+                      className="text-xs opacity-80 hover:opacity-100 hover:bg-white/20 px-2 py-1 rounded transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto overscroll-contain p-4">
+                {selectedMeals.length === 0 ? (
+                  <div className="text-center text-muted mt-8">
+                    <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
+                    <p>No meals selected yet</p>
+                    <p className="text-sm mt-1">Add meals from chat suggestions to start planning</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedMeals.map((meal) => (
+                      <div key={meal.id} className="border border-default rounded-2xl bg-surface transition-colors duration-200">
+                        <div className="p-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-heading">{meal.name}</h3>
+                              <p className="text-sm text-body mt-1">{meal.description}</p>
+                              {(meal.servings || meal.totalTime) && (
+                                <div className="flex items-center gap-2 mt-2 text-xs text-muted">
+                                  {meal.servings && <span>Serves {meal.servings}</span>}
+                                  {meal.totalTime && <span>{meal.servings ? '• ' : ''}{meal.totalTime} min cook time</span>}
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => removeMeal(meal.id)}
+                              className="text-danger hover:text-danger-hover transition-colors ml-2"
+                              title="Remove meal"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedMeals.length > 0 && (
+                <div className="border-t border-default p-4 bg-background">
+                  <div className="text-sm text-body mb-3">
+                    {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
+                  </div>
+                  <button
+                    onClick={handleGenerateGroceryList}
+                    disabled={isGeneratingGroceryList}
+                    className={`w-full px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                      isGeneratingGroceryList
+                        ? 'bg-muted cursor-not-allowed'
+                        : 'bg-primary hover:bg-primary-hover'
+                    } text-white`}
+                  >
+                    {isGeneratingGroceryList ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Creating Your Grocery List...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart size={16} />
+                        Generate Grocery List
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        </>
-      )}
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
