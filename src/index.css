@@ -77,6 +77,18 @@
     --color-sidebar-border: #3A3D44;
   }
 
+  /* Tab bar height — used ONLY by fixed-position floating elements (FAB, timer pill).
+     Screen content does NOT need this; the flex layout handles clearance automatically. */
+  :root {
+    --tab-bar-height: calc(3.75rem + max(0.5rem, env(safe-area-inset-bottom)));
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --tab-bar-height: 0px;
+    }
+  }
+
   html {
     font-family: 'DM Sans', system-ui, sans-serif;
   }

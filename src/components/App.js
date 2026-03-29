@@ -134,7 +134,7 @@ const App = () => {
     }
     setCurrentScreen(target);
     window.history.pushState({ screen: target }, "", `#${target}`);
-    window.scrollTo(0, 0);
+    document.querySelector('main')?.scrollTo(0, 0);
   }, []);
 
   const handleStartShopping = useCallback((data) => {
@@ -156,7 +156,7 @@ const App = () => {
       } else {
         setCurrentScreen("home");
       }
-      window.scrollTo(0, 0);
+      document.querySelector('main')?.scrollTo(0, 0);
     };
 
     window.addEventListener("popstate", handlePopState);

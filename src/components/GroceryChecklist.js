@@ -623,7 +623,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 pb-24 lg:pb-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
+      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-body">
@@ -640,7 +640,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   if (showFinalList) {
     const finalList = getFinalGroceryList();
     return (
-      <div className="max-w-4xl mx-auto p-6 pb-24 lg:pb-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
+      <div className="max-w-4xl mx-auto p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
         <div className="flex items-center gap-3 mb-6">
           <ShoppingCart className="text-primary" size={28} />
           <h1 className="text-2xl font-bold text-heading font-display">
@@ -915,7 +915,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   const currentGroupItems = getItemsByGroup(activeTab);
 
   return (
-    <div className="max-w-4xl mx-auto pb-24 lg:pb-0">
+    <div className="max-w-4xl mx-auto">
       {/* Add Item Side Panel */}
       {showAddPanel && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-end z-50">

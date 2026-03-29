@@ -35,16 +35,16 @@ const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 min-h-0 overflow-auto pb-24 lg:pb-0">
+        <main className="flex-1 min-h-0 overflow-auto">
           {children}
         </main>
-      </div>
 
-      {/* Mobile bottom tab bar */}
-      <BottomTabBar
-        currentScreen={currentScreen}
-        onNavigate={onNavigate}
-      />
+        {/* Mobile bottom tab bar — flex child, not fixed, takes natural height */}
+        <BottomTabBar
+          currentScreen={currentScreen}
+          onNavigate={onNavigate}
+        />
+      </div>
     </div>
   );
 };

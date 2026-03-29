@@ -44,7 +44,7 @@ const BottomTabBar = ({ currentScreen, onNavigate }) => {
   const activeTabId = SCREEN_TO_TAB[currentScreen] || null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
+    <div className="shrink-0 lg:hidden">
       <div
         className="bg-surface border-t border-default"
         style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}

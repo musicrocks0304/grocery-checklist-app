@@ -1373,7 +1373,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
       {/* Floating Timer Pill (Feature 6) */}
       {(timerRunning || timerSeconds > 0) && (
-        <div className={`fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-30 flex items-center gap-3
+        <div style={{ bottom: 'calc(var(--tab-bar-height) + 0.5rem)' }} className={`fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-3
           px-4 py-3 rounded-full shadow-warm-lg ${
           kitchenMode ? 'bg-gray-800 border border-amber-500/50' : 'bg-surface border border-accent'
         }`}>

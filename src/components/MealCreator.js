@@ -576,7 +576,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   };
 
   return (
-    <div className="h-full flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4 pb-16 lg:pb-0">
+    <div className="h-full flex flex-col lg:max-w-5xl lg:mx-auto lg:p-4">
       {/* Building Overlay */}
       {isBuilding && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -953,7 +953,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
 
         {/* Input Area (Phase 1 only) */}
         {phase === 1 && (
-          <div className="p-4 lg:p-6 bg-surface border-t border-default">
+          <div className="p-4 pb-6 lg:p-6 bg-surface border-t border-default">
             <div className="flex gap-3">
               <div className="flex-1 relative">
                 <textarea
