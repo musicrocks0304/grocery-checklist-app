@@ -956,7 +956,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                     }))
                   }
                   placeholder="Enter item name..."
-                  className="w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
                   required
                 />
               </div>
@@ -974,7 +974,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                       category: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
                   required
                 >
                   <option value="">Select category...</option>
@@ -1045,7 +1045,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                       store: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
                   required
                 >
                   <option value="">Select store...</option>
@@ -1071,7 +1071,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                       groceryStoreSection: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
+                  className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
                   required
                 >
                   <option value="">Select section...</option>

@@ -972,14 +972,14 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
           )}
         </div>
 
-        {/* Mobile Floating Meal Badge — left side to avoid FeedbackFAB on right */}
+        {/* Mobile Floating Meal Badge — left side, above chat input */}
         {selectedMeals.length > 0 && !showMealsPanel && (
           <button
             onClick={() => setShowMealsPanel(true)}
             className="lg:hidden fixed z-30 flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
             style={{
               left: '12px',
-              bottom: 'calc(var(--tab-bar-height) + 70px)',
+              bottom: 'calc(var(--tab-bar-height) + 4.5rem)',
               background: 'linear-gradient(135deg, #c17849, #d4915e)',
               borderRadius: '24px',
               padding: '10px 16px',
