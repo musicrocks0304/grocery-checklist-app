@@ -12,6 +12,7 @@ import {
   Layers,
   ShoppingBag,
   Zap,
+  SlidersHorizontal,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getWeekDateRange, getWeekDates } from "../utils/weekDates";
@@ -116,6 +117,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
   const [quickAddText, setQuickAddText] = useState(""); // One-off quick-add input
   const [isAddingOneOff, setIsAddingOneOff] = useState(false); // Loading state for one-off add
+  const [showFilters, setShowFilters] = useState(false); // Collapsed on mobile by default
 
   // Notify parent when user has unsaved changes (final list view)
   useEffect(() => {
@@ -1231,14 +1233,14 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           </div>
         )}
 
-        <div className="bg-primary-light border border-primary-border rounded-xl p-4 mb-6">
-          <p className="text-lg font-medium text-primary">
+        <div className="bg-primary-light border border-primary-border rounded-xl p-2.5 sm:p-4 mb-3 sm:mb-6">
+          <p className="text-sm sm:text-lg font-medium text-primary">
             {getWeekDateRange()}
           </p>
         </div>
 
         {/* Quick-add one-off item bar */}
-        <div className="mb-6 flex gap-2">
+        <div className="mb-3 sm:mb-6 flex gap-2">
           <div className="flex-1 relative">
             <Zap size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
@@ -1246,122 +1248,147 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
               value={quickAddText}
               onChange={(e) => setQuickAddText(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleQuickAddOneOff(); }}
-              placeholder="Quick add one-off item (this week only)..."
-              className="w-full pl-9 pr-3 py-2.5 border border-default rounded-xl bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm transition-colors duration-200"
+              placeholder="Quick add one-off item..."
+              className="w-full pl-9 pr-3 py-2 sm:py-2.5 border border-default rounded-xl bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-xs sm:text-sm transition-colors duration-200"
               disabled={isAddingOneOff}
             />
           </div>
           <button
             onClick={handleQuickAddOneOff}
             disabled={!quickAddText.trim() || isAddingOneOff}
-            className="px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center gap-1.5"
+            className="px-3 py-2 sm:px-4 sm:py-2.5 bg-accent text-white rounded-xl hover:bg-accent-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors text-xs sm:text-sm font-medium flex items-center gap-1.5"
           >
             <Plus size={16} />
             {isAddingOneOff ? "Adding..." : "Add"}
           </button>
         </div>
 
-        <p className="text-body mb-6">
+        <p className="hidden sm:block text-body mb-6">
           Please select items for this week's grocery list:
         </p>
 
-        {/* Grouping and Filtering Controls */}
-        <div className="mb-6 p-4 bg-background rounded-xl space-y-4">
-          {/* Item Type Filter Section */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-            <span className="font-medium text-body whitespace-nowrap">Item Type:</span>
-            <div className="flex flex-wrap gap-2">
-              {["All", "Basic", "Periodic"].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleTypeFilterChange(type)}
-                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
-                    typeFilter === type
-                      ? "bg-primary text-white"
-                      : "bg-surface text-body border border-default hover:bg-background"
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
+        {/* Grouping and Filtering Controls — collapsible on mobile */}
+        <div className="mb-3 sm:mb-6">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="sm:hidden flex items-center gap-2 px-3 py-2 mb-2 rounded-xl text-sm font-medium text-body bg-background border border-default w-full justify-between"
+          >
+            <span className="flex items-center gap-2">
+              <SlidersHorizontal size={16} />
+              Filters & Grouping
+              {(typeFilter !== "All" || dataSourceFilter !== "All" || groupBy !== "GroceryStoreSection") && (
+                <span className="w-2 h-2 rounded-full bg-primary inline-block" />
+              )}
+            </span>
+            {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          <div className={`${showFilters ? "block" : "hidden"} sm:block p-3 sm:p-4 bg-background rounded-xl space-y-3 sm:space-y-4`}>
+            {/* Item Type Filter Section */}
+            <div className="flex flex-row items-center gap-2 sm:gap-4">
+              <span className="font-medium text-body whitespace-nowrap text-xs sm:text-sm">Type:</span>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {["All", "Basic", "Periodic"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => handleTypeFilterChange(type)}
+                    className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
+                      typeFilter === type
+                        ? "bg-primary text-white"
+                        : "bg-surface text-body border border-default hover:bg-background"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Data Source Filter Section */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-            <span className="font-medium text-body whitespace-nowrap">Data Source:</span>
-            <div className="flex flex-wrap gap-2">
-              {["All", "Staples", "MealIngredients"].map((source) => (
-                <button
-                  key={source}
-                  onClick={() => handleDataSourceFilterChange(source)}
-                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
-                    dataSourceFilter === source
-                      ? "bg-primary text-white"
-                      : "bg-surface text-body border border-default hover:bg-background"
-                  }`}
-                >
-                  {source === "MealIngredients" ? "Meals" : source}
-                </button>
-              ))}
+            {/* Data Source Filter Section */}
+            <div className="flex flex-row items-center gap-2 sm:gap-4">
+              <span className="font-medium text-body whitespace-nowrap text-xs sm:text-sm">Source:</span>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {["All", "Staples", "MealIngredients"].map((source) => (
+                  <button
+                    key={source}
+                    onClick={() => handleDataSourceFilterChange(source)}
+                    className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
+                      dataSourceFilter === source
+                        ? "bg-primary text-white"
+                        : "bg-surface text-body border border-default hover:bg-background"
+                    }`}
+                  >
+                    {source === "MealIngredients" ? "Meals" : source}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Group By Section */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-            <div className="flex items-center gap-2 text-body">
-              <Layers size={20} />
-              <span className="font-medium whitespace-nowrap">Group by:</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {["Category", "Store", "GroceryStoreSection"].map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => handleGroupByChange(mode)}
-                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
-                    groupBy === mode
-                      ? "bg-primary text-white"
-                      : "bg-surface text-body border border-default hover:bg-background"
-                  }`}
-                >
-                  {mode === "GroceryStoreSection" ? "Store Section" : mode}
-                </button>
-              ))}
+            {/* Group By Section */}
+            <div className="flex flex-row items-center gap-2 sm:gap-4">
+              <span className="flex items-center gap-1 text-body">
+                <Layers size={16} className="sm:w-5 sm:h-5" />
+                <span className="font-medium whitespace-nowrap text-xs sm:text-sm">Group:</span>
+              </span>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {["Category", "Store", "GroceryStoreSection"].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => handleGroupByChange(mode)}
+                    className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
+                      groupBy === mode
+                        ? "bg-primary text-white"
+                        : "bg-surface text-body border border-default hover:bg-background"
+                    }`}
+                  >
+                    {mode === "GroceryStoreSection" ? "Section" : mode}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Group Tabs */}
-        <div className="mb-6 border-b border-default">
-          <div className="flex flex-wrap gap-2">
+        {/* Group Tabs — horizontal scroll on mobile, wrap on desktop */}
+        <div className="mb-3 sm:mb-6 relative">
+          <div
+            className="flex gap-1.5 sm:gap-2 overflow-x-auto py-1 px-0.5 sm:flex-wrap"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+          >
             {groups.map((group) => {
               const groupItems = getItemsByGroup(group);
               const selectedCount = groupItems.filter(item => selectedItems.has(item.ItemID.toString())).length;
+              const hasSelected = selectedCount > 0;
               return (
                 <button
                   key={group}
                   onClick={() => setActiveTab(group)}
-                  className={`px-4 py-2 font-medium rounded-t-xl transition-colors ${
+                  className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-all whitespace-nowrap flex-shrink-0 border ${
                     activeTab === group
-                      ? "bg-primary text-white"
-                      : "bg-background text-body hover:bg-default"
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : hasSelected
+                        ? "bg-surface text-heading border-primary/40 hover:border-primary/60"
+                        : "bg-surface text-muted border-default hover:border-primary/30 hover:text-body"
                   }`}
                 >
                   {group}
-                  <span className="ml-2 text-sm opacity-80">
-                    ({selectedCount}/{groupItems.length})
+                  <span className={`ml-1 sm:ml-1.5 text-[10px] sm:text-xs ${
+                    activeTab === group ? "opacity-80" : hasSelected ? "text-primary" : "opacity-60"
+                  }`}>
+                    {selectedCount}/{groupItems.length}
                   </span>
                 </button>
               );
             })}
           </div>
+          {/* Fade hint for scroll on mobile */}
+          <div className="sm:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
         </div>
 
         {/* Items for Active Group */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-heading">
-              {groupBy === "GroceryStoreSection" ? "Store Section" : groupBy}:{" "}
+        <div className="mb-3 sm:mb-6">
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
+            <h2 className="text-sm sm:text-lg font-semibold text-heading">
+              {groupBy === "GroceryStoreSection" ? "Section" : groupBy}:{" "}
               {activeTab}
             </h2>
             <div className="flex items-center gap-3">
