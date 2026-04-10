@@ -12,22 +12,28 @@ Run `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"` and verify 
 - **hsa-mysql** (MySQL database)
 - **hsa-postgres** (Postgres database)
 
-If any are down, alert the user and offer to start them with `docker start <name>`. Do NOT proceed until infrastructure is confirmed healthy.
+If Docker Desktop isn't running, offer to launch it: `"/c/Program Files/Docker/Docker/Docker Desktop.exe" &` then wait ~60s and re-check.
+
+If specific containers are down, offer to start them with `docker start <name>`. Do NOT proceed until infrastructure is confirmed healthy.
 
 ### 2. Check HEB Session
-Read the session file at `C:\New Grocery App\heb-coupon-scraper\cookies\heb-session.json` and check cookie expiration. Key cookies to check: `_session`, `sat`, `sst`.
-
-Run this check:
+The scraper checks **file age** (not cookie expiry). Run this check:
 ```bash
 cd "C:/New Grocery App/heb-coupon-scraper" && node -e "
-const fs=require('fs');
-const s=JSON.parse(fs.readFileSync('cookies/heb-session.json','utf8'));
-const cookies=s.cookies||[];
-const now=Date.now()/1000;
-const key=['_session','sat','sst'];
-const expired=cookies.filter(c=>key.includes(c.name)&&c.expires>0&&c.expires<now);
-if(expired.length) { console.log('EXPIRED:', expired.map(c=>c.name).join(', ')); process.exit(1); }
-else { console.log('Session valid'); cookies.filter(c=>key.includes(c.name)&&c.expires>0).forEach(c=>console.log(c.name,'expires',new Date(c.expires*1000).toLocaleDateString())); }
+const config = require('./src/config');
+const { isSessionFileValid } = require('./src/auth');
+const fs = require('fs');
+const path = require('path');
+const cookiePath = path.resolve(config.browser.cookiePath);
+if (!fs.existsSync(cookiePath)) { console.log('NO SESSION FILE'); process.exit(1); }
+const stats = fs.statSync(cookiePath);
+const ageHours = (Date.now() - stats.mtimeMs) / (1000 * 60 * 60);
+const maxAge = config.browser.sessionMaxAgeHours;
+const valid = isSessionFileValid(cookiePath);
+console.log('File age:', Math.round(ageHours), 'hours (max:', maxAge, 'hours)');
+console.log('Last modified:', new Date(stats.mtimeMs).toLocaleString());
+console.log('Status:', valid ? 'VALID' : 'EXPIRED');
+if (!valid) process.exit(1);
 "
 ```
 
@@ -47,10 +53,18 @@ cd "C:/New Grocery App/heb-coupon-scraper" && npm run scrape
 ```
 Run with a 10-minute timeout (this one takes about a minute). Report the count of new/updated coupons when done.
 
-### 5. Summary
+### 5. Start Clip Server Session
+Start a browser session on the clip server so coupons can be clipped from the app:
+```bash
+curl -s -X POST http://localhost:3847/api/heb/session/start
+```
+Confirm it returns `"status":"active"` and report the timeout duration.
+
+### 6. Summary
 After all steps complete, show a summary:
 - Infrastructure status
 - HEB session status
 - Frequently purchased: X new, Y updated
 - Coupons: X new, Y updated
+- Clip server: session active, X min timeout
 - "Ready to shop!"

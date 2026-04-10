@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   ClipboardList, Tag, Store, ShoppingBag, ChefHat,
   ArrowRight, TrendingUp, Sparkles, AlertCircle,
+  Server, Key, RefreshCw, Scissors, PlayCircle, CheckCircle, Circle, Loader,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
@@ -39,6 +40,19 @@ const StatBadgeSkeleton = () => (
 );
 
 // ---------------------------------------------------------------------------
+// Prep for Shopping — step definitions
+// ---------------------------------------------------------------------------
+
+const PREP_STEPS = [
+  { key: 'docker-check',    label: 'Checking infrastructure',  icon: Server },
+  { key: 'session-check',   label: 'Checking HEB session',     icon: Key },
+  { key: 'scrape-frequent', label: 'Scraping frequent items',  icon: RefreshCw },
+  { key: 'scrape-coupons',  label: 'Scraping coupons',         icon: Tag },
+  { key: 'clip-session',    label: 'Starting clip server',     icon: Scissors },
+  { key: 'done',            label: 'Ready to shop!',           icon: CheckCircle },
+];
+
+// ---------------------------------------------------------------------------
 // Home dashboard
 // ---------------------------------------------------------------------------
 
@@ -51,6 +65,9 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
   const [mealsCount, setMealsCount] = useState(null); // null = loading, falls back to prop
   const [topDeals, setTopDeals] = useState(null);
   const [fetchError, setFetchError] = useState(false);
+
+  // Prep job state — null | { status, jobId, currentStep, summary, error }
+  const [prepJob, setPrepJob] = useState(null);
 
   // Load weekly status from existing endpoints
   useEffect(() => {
@@ -129,6 +146,44 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
     fetchDeals();
     fetchMeals();
   }, []);
+
+  // Prep: start a new prep job
+  const startPrep = async () => {
+    try {
+      setPrepJob({ status: 'starting' });
+      const res = await apiFetch(ENDPOINTS.groceryPrep, { method: 'POST' });
+      const data = await res.json();
+      setPrepJob({ jobId: data.jobId, status: 'running', currentStep: 'docker-check' });
+    } catch (err) {
+      setPrepJob({ status: 'error', error: err.message });
+    }
+  };
+
+  // Prep: poll for status every 3 seconds while running
+  useEffect(() => {
+    if (!prepJob?.jobId || prepJob.status !== 'running') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const url = new URL(ENDPOINTS.groceryPrepStatus);
+        url.searchParams.append('jobId', prepJob.jobId);
+        const res = await apiFetch(url.toString());
+        const data = await res.json();
+
+        if (data.status === 'completed') {
+          setPrepJob(prev => ({ ...prev, status: 'completed', summary: data.summary, currentStep: 'done' }));
+        } else if (data.status === 'failed') {
+          setPrepJob(prev => ({ ...prev, status: 'error', error: data.error_message }));
+        } else {
+          setPrepJob(prev => ({ ...prev, currentStep: data.current_step }));
+        }
+      } catch {
+        // Silently retry on network error
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [prepJob?.jobId, prepJob?.status]);
 
   // Week boundary detection — auto-refresh if the week rolls over while page is open
   const weekStartRef = useRef(getWeekDates().startDate);
@@ -230,6 +285,99 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
           </div>
           <ArrowRight size={20} className="flex-shrink-0 text-white/70" />
         </motion.button>
+
+        {/* Prep for Shopping card */}
+        <motion.div variants={staggerItem} className={`${TOKENS.cardBase} p-4`}>
+          {(!prepJob || prepJob.status === 'starting') && (
+            <button
+              onClick={startPrep}
+              disabled={prepJob?.status === 'starting'}
+              className="w-full flex items-center gap-4 text-left"
+            >
+              <div className="p-3 rounded-xl bg-primary-light flex-shrink-0">
+                <PlayCircle size={24} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-heading">Prep for Shopping</h3>
+                <p className={TOKENS.caption}>Check infrastructure, scrape deals, get ready</p>
+              </div>
+              {prepJob?.status === 'starting' ? (
+                <Loader size={20} className="text-muted flex-shrink-0 animate-spin" />
+              ) : (
+                <ArrowRight size={20} className="text-muted flex-shrink-0" />
+              )}
+            </button>
+          )}
+
+          {prepJob?.status === 'running' && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Loader size={16} className="text-primary animate-spin" />
+                <h3 className="text-sm font-semibold text-heading">Prepping for Shopping…</h3>
+              </div>
+              <div className="space-y-2">
+                {PREP_STEPS.map((step, i) => {
+                  const currentIndex = PREP_STEPS.findIndex(s => s.key === prepJob.currentStep);
+                  const isDone = i < currentIndex;
+                  const isActive = i === currentIndex;
+                  const StepIcon = step.icon;
+                  return (
+                    <div key={step.key} className="flex items-center gap-3">
+                      <StepIcon size={16} className={isDone ? 'text-primary' : isActive ? 'text-primary' : 'text-muted'} />
+                      <span className={`text-sm flex-1 ${isDone || isActive ? 'text-heading' : 'text-muted'}`}>
+                        {step.label}
+                      </span>
+                      {isDone && <CheckCircle size={16} className="text-primary flex-shrink-0" />}
+                      {isActive && <Loader size={16} className="text-primary flex-shrink-0 animate-spin" />}
+                      {!isDone && !isActive && <Circle size={16} className="text-muted flex-shrink-0" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {prepJob?.status === 'completed' && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle size={18} className="text-primary" />
+                <h3 className="text-sm font-semibold text-heading">Ready to Shop!</h3>
+              </div>
+              {prepJob.summary?.sessionExpired && (
+                <div className="mb-3 flex items-start gap-2 bg-warning-light border border-warning-border rounded-xl px-3 py-2">
+                  <AlertCircle size={14} className="text-warning mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-warning-text">
+                    HEB session expired — coupon clipping won't work. Log in from your computer to refresh.
+                  </p>
+                </div>
+              )}
+              <button
+                onClick={() => setPrepJob(null)}
+                className={`${TOKENS.btnBase} ${TOKENS.btnSm} ${TOKENS.btnSecondary} mt-1`}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {prepJob?.status === 'error' && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle size={18} className="text-danger" />
+                <h3 className="text-sm font-semibold text-heading">Prep Failed</h3>
+              </div>
+              {prepJob.error && (
+                <p className="text-xs text-muted mb-3">{prepJob.error}</p>
+              )}
+              <button
+                onClick={startPrep}
+                className={`${TOKENS.btnBase} ${TOKENS.btnSm} bg-primary text-white hover:bg-primary-hover`}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+        </motion.div>
 
         {/* Hot Deals card */}
         {topDeals && topDeals.deals.length > 0 && (

@@ -98,6 +98,10 @@ export const ENDPOINTS = {
   // Feedback
   submitFeedback: `${API_BASE_URL}/submit_feedback`,
   fetchFeedback: `${API_BASE_URL}/fetch_feedback`,
+
+  // Grocery Prep
+  groceryPrep: `${API_BASE_URL}/grocery_prep`,
+  groceryPrepStatus: `${API_BASE_URL}/grocery_prep_status`,
 };
 
 /**
