@@ -47,6 +47,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   const [showDebug, setShowDebug] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [showMealsPanel, setShowMealsPanel] = useState(false);
+  const [isAddingToWeek, setIsAddingToWeek] = useState(false);
   const messagesEndRef = useRef(null);
   const lastProposeRef = useRef(null);
 
@@ -138,7 +139,13 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
 
         let msgId = 1000;
         historyRows.forEach((row) => {
-          const msg = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
+          let msg;
+          try {
+            msg = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
+          } catch (parseErr) {
+            console.warn('[creator-history] Skipping malformed row:', parseErr.message);
+            return;
+          }
           if (!msg || !msg.type) return;
 
           const content = msg.content || (msg.data && msg.data.content) || '';
@@ -419,7 +426,8 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
 
   // ===== ADD TO THIS WEEK =====
   const addToThisWeek = async () => {
-    if (!saveResult) return;
+    if (!saveResult || isAddingToWeek) return;
+    setIsAddingToWeek(true);
     const weekData = getWeekDates();
 
     // Call the webhook first, then refresh from DB on success
@@ -539,6 +547,8 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     } catch (error) {
       addDebugLog('Error adding to week:', error.message);
       toast.error('Failed to add meal. Check your connection.');
+    } finally {
+      setIsAddingToWeek(false);
     }
   };
 
@@ -633,7 +643,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
       )}
 
       {/* Main Content */}
-      <div className="bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden flex flex-col flex-1 transition-colors duration-200">
+      <div className="bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden flex flex-col flex-1 min-h-0 transition-colors duration-200">
         {/* Toolbar — slim phase indicator + actions, Plan tabs already provide navigation */}
         <div className="flex items-center justify-between px-3 py-2 lg:px-4 bg-surface border-b border-default">
           {/* Phase Indicator */}
@@ -948,10 +958,20 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                 <div className="space-y-3">
                   <button
                     onClick={addToThisWeek}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors font-semibold"
+                    disabled={isAddingToWeek}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Plus size={20} />
-                    Add to This Week's Meals
+                    {isAddingToWeek ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={20} />
+                        Add to This Week's Meals
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={startOver}
@@ -1049,7 +1069,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                 }}
                 onKeyDown={handleKeyPress}
                 placeholder="Describe what you're craving..."
-                className="w-full pl-4 pr-12 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
+                className="w-full pl-4 pr-12 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none overflow-hidden"
                 rows="1"
                 disabled={isLoading}
                 aria-label="Describe what you're craving"

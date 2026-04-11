@@ -1291,7 +1291,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
                       key={index}
                       className={`inline-flex items-center px-3 py-1.5 rounded-full font-medium ${
                         kitchenMode
-                          ? 'text-sm bg-gray-600 text-gray-200 border border-gray-500'
+                          ? 'text-sm bg-surface text-heading border border-default'
                           : 'text-sm bg-accent-light text-accent border border-accent'
                       }`}
                     >

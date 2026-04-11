@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   Zap,
   SlidersHorizontal,
+  Search,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getWeekDateRange, getWeekDates } from "../utils/weekDates";
@@ -52,11 +53,11 @@ const GroceryItem = React.memo(({
       <div className="flex items-center gap-2 w-20 flex-shrink-0">
         {isSelected ? (
           <>
-            <label className="text-sm text-body">Qty:</label>
+            <label className="text-sm text-heading">Qty:</label>
             <select
               value={quantity || 1}
               onChange={(e) => onQuantityChange(itemId, e.target.value)}
-              className="w-16 px-2 py-1 border border-default rounded focus:outline-none focus:ring-2 focus:ring-focus text-sm"
+              className="w-16 px-2 py-1 border border-default rounded focus:outline-none focus:ring-2 focus:ring-focus text-sm text-heading bg-surface"
             >
               {[...Array(10)].map((_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -118,6 +119,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   const [quickAddText, setQuickAddText] = useState(""); // One-off quick-add input
   const [isAddingOneOff, setIsAddingOneOff] = useState(false); // Loading state for one-off add
   const [showFilters, setShowFilters] = useState(false); // Collapsed on mobile by default
+  const [searchQuery, setSearchQuery] = useState(""); // Search filter for items
 
   // Notify parent when user has unsaved changes (final list view)
   useEffect(() => {
@@ -292,6 +294,14 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
     // Apply data source filter
     if (dataSourceFilter !== "All") {
       filteredData = filteredData.filter((item) => item.DataSource === dataSourceFilter);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filteredData = filteredData.filter((item) =>
+        item.ItemName.toLowerCase().includes(q)
+      );
     }
 
     return filteredData;
@@ -623,6 +633,91 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
     return groupedByCategory;
   };
 
+  // Standalone coupon matching — called on-demand from the "Match Coupons" button
+  const runCouponMatching = async () => {
+    const selectedItemIds = Array.from(selectedItems);
+    const selectedGroceryItems = groceryData
+      .filter((item) => selectedItemIds.includes(item.ItemID.toString()))
+      .map((item) => ({
+        ...item,
+        quantity: itemQuantities.get(item.ItemID.toString()) || 1,
+      }));
+
+    if (selectedGroceryItems.length === 0) {
+      toast.error("No items selected to match coupons.");
+      return;
+    }
+
+    console.log('[coupon-match] Starting coupon matching...');
+    setIsMatchingCoupons(true);
+    try {
+      const matchResponse = await apiFetch(
+        ENDPOINTS.matchCoupons,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            items: selectedGroceryItems.map((item) => ({
+              name: item.ItemName,
+              category: item.Category,
+              store: item.Store,
+              quantity: item.quantity,
+            })),
+          }),
+          mode: "cors",
+          timeout: 90000,
+        }
+      );
+      console.log('[coupon-match] Response status:', matchResponse.status);
+      if (matchResponse.ok) {
+        const matchData = await matchResponse.json();
+        console.log('[coupon-match] Raw response:', JSON.stringify(matchData).substring(0, 500));
+        let matches = [];
+        if (Array.isArray(matchData)) {
+          const firstItem = matchData[0];
+          if (firstItem && firstItem.matches) {
+            matches = firstItem.matches;
+          } else if (firstItem && firstItem.output) {
+            try {
+              const parsed = typeof firstItem.output === 'string' ? JSON.parse(firstItem.output) : firstItem.output;
+              matches = parsed.matches || [];
+            } catch { matches = []; }
+          }
+        }
+        if (matches.length > 0) {
+          setCouponMatches(matches);
+          apiFetch(ENDPOINTS.saveCouponMatches, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ matches, weekDateRange: getWeekDateRange() }),
+            mode: "cors",
+          }).catch(err => console.warn('[coupon-persist]', err.message));
+          toast.success(`Found ${matches.length} coupon matches! Scroll down to view.`);
+        } else {
+          toast("No coupon matches found for your items.", { icon: "ℹ️" });
+        }
+      } else {
+        console.log('[coupon-match] Non-OK response:', matchResponse.status);
+        toast.error(`Coupon matching failed (status ${matchResponse.status})`);
+      }
+    } catch (matchErr) {
+      console.error('[coupon-match] Error:', matchErr);
+      addDebugLog("⚠️ Coupon matching failed:", matchErr.message);
+      if (matchErr.name === 'AbortError') {
+        toast.error('Coupon matching timed out — try again or check your connection.');
+      } else if (matchErr.message === 'Failed to fetch') {
+        toast.error('Could not reach coupon matching service — check your connection.');
+      } else {
+        toast.error(`Coupon matching error: ${matchErr.message}`);
+      }
+    } finally {
+      setIsMatchingCoupons(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto p-6 bg-surface rounded-2xl shadow-warm border border-default transition-colors duration-200">
@@ -752,85 +847,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   addDebugLog("✅ Grocery list successfully sent to webhook");
                   toast.success("Grocery list saved successfully!");
                   setListSaved(true);
-
-                  // Trigger AI coupon matching in the background
-                  console.log('[coupon-match] Starting coupon matching...');
-                  setIsMatchingCoupons(true);
-                  try {
-                    const matchResponse = await apiFetch(
-                      ENDPOINTS.matchCoupons,
-                      {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Accept: "application/json",
-                        },
-                        body: JSON.stringify({
-                          items: selectedGroceryItems.map((item) => ({
-                            name: item.ItemName,
-                            category: item.Category,
-                            store: item.Store,
-                            quantity: item.quantity,
-                          })),
-                        }),
-                        mode: "cors",
-                      }
-                    );
-                    console.log('[coupon-match] Response status:', matchResponse.status);
-                    if (matchResponse.ok) {
-                      const matchData = await matchResponse.json();
-                      console.log('[coupon-match] Raw response:', JSON.stringify(matchData).substring(0, 500));
-                      // n8n returns array with one item containing matches
-                      let matches = [];
-                      if (Array.isArray(matchData)) {
-                        for (const item of matchData) {
-                          const m = item.matches || [];
-                          if (m.length > matches.length) matches = m;
-                        }
-                      } else {
-                        matches = matchData.matches || [];
-                      }
-                      console.log('[coupon-match] Parsed matches count:', matches.length);
-                      if (matches.length > 0) {
-                        setCouponMatches(matches);
-
-                        // Persist coupon matches to DB (fire-and-forget)
-                        apiFetch(ENDPOINTS.saveCouponMatches, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            weekDateRange: weekData.displayRange,
-                            matches: matches.map(m => ({
-                              groceryItemName: m.grocery_item,
-                              couponHashId: m.coupon_hash_id,
-                              confidence: m.confidence,
-                              matchReason: m.reason,
-                            })),
-                          }),
-                        }).catch(err => console.warn('[coupon-persist]', err.message));
-
-                        addDebugLog(`✅ Found ${matches.length} coupon matches`);
-                        toast.success(`Found ${matches.length} coupon matches! Scroll down to view.`);
-                        // Auto-scroll to coupon panel after a brief delay for render
-                        setTimeout(() => {
-                          const panel = document.querySelector('[data-coupon-panel]');
-                          if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 300);
-                      } else {
-                        addDebugLog("No coupon matches found for this list");
-                        toast("No coupon matches found for your items.", { icon: "ℹ️" });
-                      }
-                    } else {
-                      console.log('[coupon-match] Non-OK response:', matchResponse.status);
-                      toast.error(`Coupon matching failed (status ${matchResponse.status})`);
-                    }
-                  } catch (matchErr) {
-                    console.error('[coupon-match] Error:', matchErr);
-                    addDebugLog("⚠️ Coupon matching failed:", matchErr.message);
-                    toast.error(`Coupon matching error: ${matchErr.message}`);
-                  } finally {
-                    setIsMatchingCoupons(false);
-                  }
+                  // Coupon matching is now opt-in — user clicks "Match Coupons" button
                 } else {
                   addDebugLog(
                     "⚠️ Webhook returned non-OK status:",
@@ -891,6 +908,22 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             </button>
           )}
         </div>
+
+        {/* Match Coupons button — opt-in */}
+        {listSaved && !couponMatches && !isMatchingCoupons && (
+          <div className="mt-4 p-4 bg-background border border-default rounded-xl">
+            <p className="text-sm text-body mb-3">
+              Want to find coupon matches for your grocery list? This uses AI and takes about 30-60 seconds.
+            </p>
+            <button
+              onClick={runCouponMatching}
+              className="px-4 py-2 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors text-sm font-medium flex items-center gap-2"
+            >
+              <Zap size={16} />
+              Match Coupons
+            </button>
+          </div>
+        )}
 
         {/* Coupon matching status */}
         {isMatchingCoupons && (
@@ -1261,6 +1294,26 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             <Plus size={16} />
             {isAddingOneOff ? "Adding..." : "Add"}
           </button>
+        </div>
+
+        {/* Search Items */}
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search items..."
+            className="w-full pl-9 pr-8 py-2 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm transition-colors duration-200"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-heading transition-colors"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         <p className="hidden sm:block text-body mb-6">

@@ -60,10 +60,10 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
     try {
       const parsed = JSON.parse(contentString);
       if (parsed && parsed.responseType === 'recipe_list') {
-        const suggestedMeals = (parsed.recipes || []).map(recipe => ({
+        const suggestedMeals = (parsed.recipes || []).filter(r => r && r.name).map(recipe => ({
           name: recipe.name,
-          description: recipe.description,
-          recipeId: recipe.id,
+          description: recipe.description || '',
+          recipeId: recipe.id || null,
           servings: recipe.servings || 4,
           totalTime: recipe.totalTime || null
         }));
@@ -134,7 +134,13 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
 
         let msgId = 1000;
         historyRows.forEach(row => {
-          const msg = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
+          let msg;
+          try {
+            msg = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
+          } catch (parseErr) {
+            console.warn('[chat-history] Skipping malformed row:', parseErr.message);
+            return;
+          }
           if (!msg || !msg.type) return;
 
           // Support both formats: {type, content} (actual) and {type, data: {content}} (legacy)
@@ -1086,7 +1092,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
               }}
               onKeyDown={handleKeyPress}
               placeholder="Ask me about meal ideas..."
-              className="w-full pl-4 pr-12 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none"
+              className="w-full pl-4 pr-12 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none overflow-hidden"
               rows="1"
               disabled={isLoading}
               aria-label="Type your message"
