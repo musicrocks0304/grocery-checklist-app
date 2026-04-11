@@ -494,9 +494,8 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
               const transformedIngredients = rawIngredients.map(ing => ({
                 ItemID: itemId++,
                 ItemName: ing.name,
-                Category: ing.category || 'General',
+                Category: ing.grocery_category || ing.category || 'Pantry staples',
                 Store: 'HEB',
-                GroceryStoreSection: ing.category || 'General',
                 IsSelected: 1,
                 QuantitySelected: ing.purchaseQuantity || '1',
                 Unit: ing.purchaseUnit || null,

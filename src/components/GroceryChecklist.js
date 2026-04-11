@@ -20,6 +20,7 @@ import { getWeekDateRange, getWeekDates } from "../utils/weekDates";
 import CouponMatchPanel from "./CouponMatchPanel";
 import { ENDPOINTS, apiFetch, showApiError } from "../config/api";
 import { GROCERY_SAMPLE_DATA } from "../utils/fallbackData";
+import { GROCERY_CATEGORIES, DEFAULT_CATEGORY } from '../constants/categories';
 
 
 // Memoized grocery item component to prevent unnecessary re-renders
@@ -106,14 +107,13 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
     category: "",
     type: "Basic",
     store: "",
-    groceryStoreSection: "",
   });
   const [itemToRemove, setItemToRemove] = useState(null);
   const [isSavingList, setIsSavingList] = useState(false);
   const [listSaved, setListSaved] = useState(false);
   const [couponMatches, setCouponMatches] = useState(null);
   const [isMatchingCoupons, setIsMatchingCoupons] = useState(false);
-  const [groupBy, setGroupBy] = useState("GroceryStoreSection"); // New state for grouping mode
+  const [groupBy, setGroupBy] = useState("Category"); // New state for grouping mode
   const [typeFilter, setTypeFilter] = useState("All"); // New state for type filtering
   const [dataSourceFilter, setDataSourceFilter] = useState("All"); // New state for data source filtering
   const [quickAddText, setQuickAddText] = useState(""); // One-off quick-add input
@@ -460,10 +460,9 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       const newItem = {
         ItemID: Math.floor(Math.random() * 2147483647),
         ItemName: newItemForm.itemName.trim(),
-        Category: newItemForm.category || "General",
+        Category: newItemForm.category || DEFAULT_CATEGORY,
         Type: newItemForm.type,
         Store: newItemForm.store || "Tom Thumb",
-        GroceryStoreSection: newItemForm.groceryStoreSection || "Pantry",
       };
 
       const weekData = getWeekDates();
@@ -478,7 +477,6 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           category: newItem.Category,
           type: newItem.Type,
           store: newItem.Store,
-          groceryStoreSection: newItem.GroceryStoreSection,
           weekStartDate: weekData.startDate,
           weekEndDate: weekData.endDate,
           weekDateRange: weekData.displayRange,
@@ -513,7 +511,6 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             category: "",
             type: "Basic",
             store: "",
-            groceryStoreSection: "",
           });
           setShowAddPanel(false);
 
@@ -534,7 +531,6 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
       category: "",
       type: "Basic",
       store: "",
-      groceryStoreSection: "",
     });
     setShowAddPanel(false);
   };
@@ -580,9 +576,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         const oneOffItem = {
           ItemID: `oneoff_${Date.now()}`,
           ItemName: parsed.name,
-          Category: "General",
+          Category: DEFAULT_CATEGORY,
           Store: "HEB",
-          GroceryStoreSection: "Other",
           Type: "OneOff",
           DataSource: "OneOff",
           IsSelected: 1,
@@ -820,7 +815,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                     name: item.ItemName,
                     category: item.Category,
                     store: item.Store,
-                    section: item.GroceryStoreSection,
+                    section: item.Category,
                     type: item.Type || "Basic",
                     quantity: item.quantity.toString(),
                     unit: item.Unit || null,
@@ -1011,12 +1006,9 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                   required
                 >
                   <option value="">Select category...</option>
-                  <option value="Beverages">Beverages</option>
-                  <option value="Breakfast">Breakfast</option>
-                  <option value="Dinner">Dinner</option>
-                  <option value="Lunch">Lunch</option>
-                  <option value="Pantry">Pantry</option>
-                  <option value="Snacks">Snacks</option>
+                  {GROCERY_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
                 </select>
               </div>
 
@@ -1091,36 +1083,6 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 </select>
               </div>
 
-              {/* Grocery Store Section */}
-              <div>
-                <label className="block text-sm font-medium text-body mb-2">
-                  Grocery Store Section *
-                </label>
-                <select
-                  value={newItemForm.groceryStoreSection}
-                  onChange={(e) =>
-                    setNewItemForm((prev) => ({
-                      ...prev,
-                      groceryStoreSection: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent"
-                  required
-                >
-                  <option value="">Select section...</option>
-                  <option value="Bakery">Bakery</option>
-                  <option value="Beverages">Beverages</option>
-                  <option value="Dairy">Dairy</option>
-                  <option value="Frozen">Frozen</option>
-                  <option value="Health">Health</option>
-                  <option value="Household">Household</option>
-                  <option value="Meat">Meat & Seafood</option>
-                  <option value="Pantry">Pantry</option>
-                  <option value="Produce">Produce</option>
-                  <option value="Refrigerated">Refrigerated</option>
-                  <option value="Snacks">Snacks</option>
-                </select>
-              </div>
             </div>
 
             {/* Footer Actions */}
@@ -1136,8 +1098,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 disabled={
                   !newItemForm.itemName.trim() ||
                   !newItemForm.category ||
-                  !newItemForm.store ||
-                  !newItemForm.groceryStoreSection
+                  !newItemForm.store
                 }
                 className="flex-1 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors"
               >
@@ -1329,7 +1290,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
             <span className="flex items-center gap-2">
               <SlidersHorizontal size={16} />
               Filters & Grouping
-              {(typeFilter !== "All" || dataSourceFilter !== "All" || groupBy !== "GroceryStoreSection") && (
+              {(typeFilter !== "All" || dataSourceFilter !== "All" || groupBy !== "Category") && (
                 <span className="w-2 h-2 rounded-full bg-primary inline-block" />
               )}
             </span>
@@ -1383,7 +1344,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 <span className="font-medium whitespace-nowrap text-xs sm:text-sm">Group:</span>
               </span>
               <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {["Category", "Store", "GroceryStoreSection"].map((mode) => (
+                {["Category", "Store"].map((mode) => (
                   <button
                     key={mode}
                     onClick={() => handleGroupByChange(mode)}
@@ -1393,7 +1354,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                         : "bg-surface text-body border border-default hover:bg-background"
                     }`}
                   >
-                    {mode === "GroceryStoreSection" ? "Section" : mode}
+                    {mode}
                   </button>
                 ))}
               </div>
@@ -1441,7 +1402,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
         <div className="mb-3 sm:mb-6">
           <div className="flex items-center justify-between mb-2 sm:mb-4">
             <h2 className="text-sm sm:text-lg font-semibold text-heading">
-              {groupBy === "GroceryStoreSection" ? "Section" : groupBy}:{" "}
+              {groupBy}:{" "}
               {activeTab}
             </h2>
             <div className="flex items-center gap-3">

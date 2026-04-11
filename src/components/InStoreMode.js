@@ -581,9 +581,9 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         if (isChecking && shoppingList) {
           const item = shoppingList.items.find(i => i.ItemID.toString() === itemId);
           if (item) {
-            const sectionName = item.GroceryStoreSection || 'Other';
+            const sectionName = item.Category || 'Pantry staples';
             const sectionItems = shoppingList.items.filter(
-              i => (i.GroceryStoreSection || 'Other') === sectionName
+              i => (i.Category || 'Pantry staples') === sectionName
             );
             const allSectionChecked = sectionItems.every(
               i => next.has(i.ItemID.toString())
@@ -639,13 +639,13 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     }, 100);
   }, []);
 
-  // Group items by GroceryStoreSection, sort unchecked first within each group
+  // Group items by Category, sort unchecked first within each group
   const getGroupedItems = useCallback(() => {
     if (!shoppingList || !shoppingList.items) return [];
 
     const groups = {};
     shoppingList.items.forEach((item) => {
-      const section = item.GroceryStoreSection || "Other";
+      const section = item.Category || "Pantry staples";
       if (!groups[section]) {
         groups[section] = [];
       }

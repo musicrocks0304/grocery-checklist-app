@@ -7,23 +7,23 @@ export const GROCERY_SAMPLE_DATA = [
   {
     ItemID: 1,
     ItemName: "Grapes",
-    Category: "Lunches",
+    Category: "Fruit & vegetables",
     Store: "Tom Thumb",
-    GroceryStoreSection: "Produce",
+    GroceryStoreSection: "Fruit & vegetables",
   },
   {
     ItemID: 2,
     ItemName: "Pastry Pups",
-    Category: "Lunches",
+    Category: "Frozen food",
     Store: "Trader Joe's",
-    GroceryStoreSection: "Frozen",
+    GroceryStoreSection: "Frozen food",
   },
   {
     ItemID: 3,
     ItemName: "Almond Milk",
-    Category: "Breakfast",
+    Category: "Dairy & eggs",
     Store: "Whole Foods",
-    GroceryStoreSection: "Refrigerated",
+    GroceryStoreSection: "Dairy & eggs",
   },
   {
     ItemID: 4,
@@ -35,9 +35,9 @@ export const GROCERY_SAMPLE_DATA = [
   {
     ItemID: 5,
     ItemName: "Peanut Butter",
-    Category: "General",
+    Category: "Pantry staples",
     Store: "Costco",
-    GroceryStoreSection: "Pantry",
+    GroceryStoreSection: "Pantry staples",
   },
 ];
 
