@@ -20,6 +20,7 @@ export const ENDPOINTS = {
   deactivateGroceryItem: `${API_BASE_URL}/deactivate_grocery_item`,
   addGroceryItems: `${API_BASE_URL}/add_grocery_items`,
   createGroceryList: `${API_BASE_URL}/create_grocery_list`,
+  removeWeeklyItem: `${API_BASE_URL}/remove_weekly_item`,
 
   // Coupons
   matchCoupons: `${API_BASE_URL}/match_coupons`,

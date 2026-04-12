@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Check,
   ShoppingCart,
@@ -120,6 +120,8 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   const [isAddingOneOff, setIsAddingOneOff] = useState(false); // Loading state for one-off add
   const [showFilters, setShowFilters] = useState(false); // Collapsed on mobile by default
   const [searchQuery, setSearchQuery] = useState(""); // Search filter for items
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchInputRef = useRef(null);
 
   // Notify parent when user has unsaved changes (final list view)
   useEffect(() => {
@@ -760,13 +762,33 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 {items.map((item) => (
                   <li
                     key={item.ItemID}
-                    className="flex items-center gap-2 text-body"
+                    className="flex items-center gap-2 text-body group"
                   >
                     <div className="w-2 h-2 bg-primary rounded-full"></div>
                     <span className="flex-1">{item.ItemName}</span>
                     <span className="text-sm font-medium text-primary bg-primary-light px-2 py-1 rounded">
                       {item.Unit ? `${item.quantity} ${item.Unit}` : `Qty: ${item.quantity}`}
                     </span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await apiFetch(ENDPOINTS.removeWeeklyItem, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ itemName: item.ItemName, weekDateRange: getWeekDateRange() }),
+                          });
+                          // Remove from local state
+                          setSelectedItems(prev => { const s = new Set(prev); s.delete(item.ItemID.toString()); return s; });
+                          toast.success(`${item.ItemName} removed from this week`);
+                        } catch {
+                          toast.error('Failed to remove item');
+                        }
+                      }}
+                      className="opacity-60 sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded text-muted hover:text-red-500 transition-all"
+                      title="Remove from this week"
+                    >
+                      <X size={14} />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -1257,23 +1279,36 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           </button>
         </div>
 
-        {/* Search Items */}
-        <div className="relative mb-4">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search items..."
-            className="w-full pl-9 pr-8 py-2 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm transition-colors duration-200"
-          />
-          {searchQuery && (
+        {/* Search Items — collapsible icon on mobile */}
+        <div className="mb-4 flex items-center gap-2">
+          {!searchExpanded && !searchQuery ? (
             <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-heading transition-colors"
+              onClick={() => { setSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-muted hover:text-heading hover:bg-background border border-default transition-colors"
+              aria-label="Search items"
             >
-              <X size={14} />
+              <Search size={16} />
+              <span className="hidden sm:inline">Search</span>
             </button>
+          ) : (
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onBlur={() => { if (!searchQuery) setSearchExpanded(false); }}
+                placeholder="Search items..."
+                className="w-full pl-9 pr-8 py-2 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm transition-colors duration-200"
+              />
+              <button
+                onClick={() => { setSearchQuery(""); setSearchExpanded(false); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-heading transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
           )}
         </div>
 
