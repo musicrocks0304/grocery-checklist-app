@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Tag, Search, AlertCircle, Calendar, DollarSign, Loader,
   Scissors, CheckCircle, XCircle, ShoppingCart, RefreshCw,
-  ChevronDown, ChevronUp, Plus, Filter, Ticket, Percent, Gift,
+  ChevronDown, ChevronUp, Plus, Filter, Ticket, Percent, Gift, WifiOff, AlertTriangle,
 } from 'lucide-react';
 import { ENDPOINTS, apiFetch } from '../config/api';
 import { getWeekDates } from '../utils/weekDates';
 import { useClipCoupons } from '../hooks/useClipCoupons';
+import { useClipServerHealth } from '../hooks/useClipServerHealth';
 
 // ---------------------------------------------------------------------------
 // Shared constants
@@ -312,6 +313,8 @@ const Deals = ({ onNavigate }) => {
   // Selection + clip state (shared hook)
   const [selectedCoupons, setSelectedCoupons] = useState(new Set());
   const { clipSelected, clipProgress, clipResults, clipError, isClipping, resetClipState } = useClipCoupons();
+  const { status: clipServerStatus, health: clipServerHealth } = useClipServerHealth();
+  const clipServerUnavailable = clipServerStatus === 'unreachable' || clipServerStatus === 'expired';
 
   // Add-to-list state (smart deals only)
   const [addingToList, setAddingToList] = useState(new Map());
@@ -753,7 +756,7 @@ const Deals = ({ onNavigate }) => {
         <div className="bg-surface rounded-2xl shadow-warm border border-default p-3 mb-4 flex flex-wrap items-center gap-2 transition-colors duration-200">
           <button
             onClick={selectAllUnclipped}
-            disabled={isClipping}
+            disabled={isClipping || clipServerUnavailable}
             className="text-sm font-medium px-4 py-2 rounded-full bg-primary text-white hover:bg-primary-hover disabled:bg-default disabled:cursor-not-allowed transition-colors"
           >
             Select All Unclipped
@@ -779,7 +782,7 @@ const Deals = ({ onNavigate }) => {
               )}
               <button
                 onClick={handleClipSelected}
-                disabled={isClipping}
+                disabled={isClipping || clipServerUnavailable}
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-default disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
               >
                 {isClipping ? (
@@ -796,6 +799,37 @@ const Deals = ({ onNavigate }) => {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Clip server status banner */}
+      {clipServerStatus === 'unreachable' && (
+        <div className="mb-4 p-3 bg-danger-light border border-danger rounded-xl flex items-start gap-2">
+          <WifiOff className="text-danger flex-shrink-0 mt-0.5" size={16} />
+          <div>
+            <p className="text-sm font-medium text-danger">Clip server offline</p>
+            <p className="text-xs text-danger">Coupon clipping is unavailable. The clip server may need to be restarted.</p>
+          </div>
+        </div>
+      )}
+      {clipServerStatus === 'expired' && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2">
+          <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={16} />
+          <div>
+            <p className="text-sm font-medium text-amber-700">HEB session expired</p>
+            <p className="text-xs text-amber-600">Coupon clipping won't work until a new session is started in Session Manager.</p>
+          </div>
+        </div>
+      )}
+      {clipServerStatus === 'expiring' && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
+          <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={16} />
+          <div>
+            <p className="text-sm font-medium text-amber-600">HEB session expiring soon</p>
+            <p className="text-xs text-amber-500">
+              Session expires in {clipServerHealth?.sessionExpiresIn || 'a few hours'}. Clip coupons soon or refresh the session.
+            </p>
+          </div>
         </div>
       )}
 

@@ -71,6 +71,10 @@ export function useClipCoupons() {
               next.set(data.couponId, data.status);
               return next;
             });
+            // Detect session expiration and surface it immediately
+            if (data.message && data.message.includes('SESSION_EXPIRED')) {
+              setClipError('HEB session expired during clipping. Log in at heb-login.needexcelexpert.com and import the session, then retry.');
+            }
           } else if (data.type === 'complete') {
             setClipResults(data.summary);
             setIsClipping(false);

@@ -55,6 +55,7 @@ export const ENDPOINTS = {
   // Clip Server
   clipServerApi: `${CLIP_SERVER_URL}/api/clip`,
   clipServerProgress: `${CLIP_SERVER_URL}/api/clip-progress`,
+  clipServerHealth: `${CLIP_SERVER_URL}/api/health`,
 
   // HEB Cart Builder — session management
   hebSessionStart: `${CLIP_SERVER_URL}/api/heb/session/start`,

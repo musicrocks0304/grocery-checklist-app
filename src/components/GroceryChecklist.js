@@ -1255,42 +1255,10 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
           </p>
         </div>
 
-        {/* Quick-add one-off item bar */}
-        <div className="mb-3 sm:mb-6 flex gap-2">
-          <div className="flex-1 relative">
-            <Zap size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input
-              type="text"
-              value={quickAddText}
-              onChange={(e) => setQuickAddText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleQuickAddOneOff(); }}
-              placeholder="Quick add one-off item..."
-              className="w-full pl-9 pr-3 py-2 sm:py-2.5 border border-default rounded-xl bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-xs sm:text-sm transition-colors duration-200"
-              disabled={isAddingOneOff}
-            />
-          </div>
-          <button
-            onClick={handleQuickAddOneOff}
-            disabled={!quickAddText.trim() || isAddingOneOff}
-            className="px-3 py-2 sm:px-4 sm:py-2.5 bg-accent text-white rounded-xl hover:bg-accent-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors text-xs sm:text-sm font-medium flex items-center gap-1.5"
-          >
-            <Plus size={16} />
-            {isAddingOneOff ? "Adding..." : "Add"}
-          </button>
-        </div>
-
-        {/* Search Items — collapsible icon on mobile */}
-        <div className="mb-4 flex items-center gap-2">
-          {!searchExpanded && !searchQuery ? (
-            <button
-              onClick={() => { setSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-muted hover:text-heading hover:bg-background border border-default transition-colors"
-              aria-label="Search items"
-            >
-              <Search size={16} />
-              <span className="hidden sm:inline">Search</span>
-            </button>
-          ) : (
+        {/* Quick-add + Search — single row */}
+        <div className="mb-3 sm:mb-4 flex items-center gap-2">
+          {searchExpanded || searchQuery ? (
+            /* Expanded search replaces the one-off input */
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
@@ -1300,7 +1268,7 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onBlur={() => { if (!searchQuery) setSearchExpanded(false); }}
                 placeholder="Search items..."
-                className="w-full pl-9 pr-8 py-2 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-sm transition-colors duration-200"
+                className="w-full pl-9 pr-8 py-2 sm:py-2.5 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-xs sm:text-sm transition-colors duration-200"
               />
               <button
                 onClick={() => { setSearchQuery(""); setSearchExpanded(false); }}
@@ -1309,6 +1277,38 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                 <X size={14} />
               </button>
             </div>
+          ) : (
+            /* One-off input + Add button + collapsed search button */
+            <>
+              <div className="flex-1 relative">
+                <Zap size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={quickAddText}
+                  onChange={(e) => setQuickAddText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleQuickAddOneOff(); }}
+                  placeholder="Quick add one-off item..."
+                  className="w-full pl-9 pr-3 py-2 sm:py-2.5 border border-default rounded-xl bg-surface text-heading focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent text-xs sm:text-sm transition-colors duration-200"
+                  disabled={isAddingOneOff}
+                />
+              </div>
+              <button
+                onClick={handleQuickAddOneOff}
+                disabled={!quickAddText.trim() || isAddingOneOff}
+                className="px-3 py-2 sm:px-4 sm:py-2.5 bg-accent text-white rounded-xl hover:bg-accent-hover disabled:bg-muted disabled:cursor-not-allowed transition-colors text-xs sm:text-sm font-medium flex items-center gap-1.5"
+              >
+                <Plus size={16} />
+                {isAddingOneOff ? "Adding..." : "Add"}
+              </button>
+              <button
+                onClick={() => { setSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}
+                className="p-2 sm:py-2.5 sm:px-3 rounded-xl text-muted hover:text-heading hover:bg-background border border-default transition-colors flex items-center gap-1.5"
+                aria-label="Search items"
+              >
+                <Search size={16} />
+                <span className="hidden sm:inline text-sm">Search</span>
+              </button>
+            </>
           )}
         </div>
 
