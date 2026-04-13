@@ -503,6 +503,15 @@ const Deals = ({ onNavigate }) => {
     setVisibleCouponCount(50);
   }, [filterType, searchText, sortBy]);
 
+  // Re-fetch data after clipping completes so backend clipped_status is current
+  useEffect(() => {
+    if (clipResults && !isClipping) {
+      fetchAllCoupons();
+      fetchSmartDeals();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipResults, isClipping]);
+
   // -----------------------------------------------------------------------
   // Clip selected coupons via shared hook
   // -----------------------------------------------------------------------
@@ -525,6 +534,8 @@ const Deals = ({ onNavigate }) => {
           : c
       ));
     }
+    // Clear selection so the "Clip N" button disappears
+    setSelectedCoupons(new Set());
   };
 
   // -----------------------------------------------------------------------
