@@ -337,10 +337,10 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
                 })}
               </div>
               {prepJob.sessionExpired && (
-                <div className="mt-3 flex items-start gap-2 bg-warning-light border border-warning-border rounded-xl px-3 py-2">
-                  <AlertCircle size={14} className="text-warning mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-warning-text">
-                    <p>HEB session expired.</p>
+                <div className="mt-3 flex items-start gap-2 bg-danger-light border border-danger rounded-xl px-3 py-2">
+                  <AlertCircle size={14} className="text-danger mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-danger">
+                    <p className="font-semibold">HEB session expired.</p>
                     <a
                       href="https://heb-login.needexcelexpert.com"
                       target="_blank"
@@ -358,24 +358,20 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
           {prepJob?.status === 'completed' && (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <CheckCircle size={18} className="text-primary" />
-                <h3 className="text-sm font-semibold text-heading">Ready to Shop!</h3>
+                {prepJob.summary?.sessionExpired ? (
+                  <AlertCircle size={18} className="text-danger" />
+                ) : (
+                  <CheckCircle size={18} className="text-primary" />
+                )}
+                <h3 className="text-sm font-semibold text-heading">
+                  {prepJob.summary?.sessionExpired ? 'Login Required Before Shopping' : 'Ready to Shop!'}
+                </h3>
               </div>
-              {prepJob.summary && (
-                <div className="mb-2 text-xs text-muted space-y-0.5">
-                  {prepJob.summary.frequent?.output && (
-                    <p>{prepJob.summary.frequent.output.split('\n').filter(l => l.includes('new') || l.includes('updated') || l.includes('total')).slice(-1)[0] || 'Frequent items scraped'}</p>
-                  )}
-                  {prepJob.summary.coupons?.output && (
-                    <p>{prepJob.summary.coupons.output.split('\n').filter(l => l.includes('new') || l.includes('updated') || l.includes('total')).slice(-1)[0] || 'Coupons scraped'}</p>
-                  )}
-                </div>
-              )}
               {prepJob.summary?.sessionExpired && (
-                <div className="mb-3 flex items-start gap-2 bg-warning-light border border-warning-border rounded-xl px-3 py-2">
-                  <AlertCircle size={14} className="text-warning mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-warning-text">
-                    <p>HEB session expired — coupon clipping won't work.</p>
+                <div className="mb-3 flex items-start gap-2 bg-danger-light border border-danger rounded-xl px-3 py-2">
+                  <AlertCircle size={14} className="text-danger mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-danger">
+                    <p className="font-semibold">HEB session expired — coupon clipping and cart actions will fail until you re-authenticate.</p>
                     <a
                       href="https://heb-login.needexcelexpert.com"
                       target="_blank"
@@ -385,6 +381,16 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
                       Open Remote Login <ArrowRight size={12} />
                     </a>
                   </div>
+                </div>
+              )}
+              {prepJob.summary && (
+                <div className="mb-2 text-xs text-muted space-y-0.5">
+                  {prepJob.summary.frequent?.output && (
+                    <p>{prepJob.summary.frequent.output.split('\n').filter(l => l.includes('new') || l.includes('updated') || l.includes('total')).slice(-1)[0] || 'Frequent items scraped'}</p>
+                  )}
+                  {prepJob.summary.coupons?.output && (
+                    <p>{prepJob.summary.coupons.output.split('\n').filter(l => l.includes('new') || l.includes('updated') || l.includes('total')).slice(-1)[0] || 'Coupons scraped'}</p>
+                  )}
                 </div>
               )}
               <button

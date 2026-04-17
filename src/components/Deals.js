@@ -520,21 +520,9 @@ const Deals = ({ onNavigate }) => {
     if (selectedCount === 0) return;
     const selectedIds = Array.from(selectedCoupons);
     await clipSelected(selectedIds);
-    // Update local state for clipped coupons
-    if (activeTab === 'smart') {
-      setDeals(prev => prev.map(d =>
-        selectedCoupons.has(d.coupon.hashId)
-          ? { ...d, coupon: { ...d.coupon, clippedStatus: 1 } }
-          : d
-      ));
-    } else {
-      setCouponsData(prev => prev.map(c =>
-        selectedCoupons.has(c.hash_id)
-          ? { ...c, clipped_status: 1 }
-          : c
-      ));
-    }
-    // Clear selection so the "Clip N" button disappears
+    // Per-coupon status comes from clipProgress (SSE events); the post-completion
+    // refetch reconciles clipped_status from the DB. Don't optimistically set
+    // clippedStatus=1 here — that would paint failed clips as "Clipped".
     setSelectedCoupons(new Set());
   };
 
