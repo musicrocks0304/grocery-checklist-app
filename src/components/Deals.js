@@ -481,14 +481,16 @@ const Deals = ({ onNavigate }) => {
 
   const selectedCount = selectedCoupons.size;
   const selectedSavings = useMemo(() => {
+    // savings_amount is MySQL DECIMAL → JSON string ("10.00"). Coerce before sum
+    // or `0 + "10.00"` concatenates and the later .toFixed(2) crashes.
     if (activeTab === 'smart') {
       return deals
         .filter(d => selectedCoupons.has(d.coupon.hashId))
-        .reduce((sum, d) => sum + (d.coupon.savingsAmount || 0), 0);
+        .reduce((sum, d) => sum + (Number(d.coupon.savingsAmount) || 0), 0);
     }
     return couponsData
       .filter(c => selectedCoupons.has(c.hash_id))
-      .reduce((sum, c) => sum + (c.savings_amount || 0), 0);
+      .reduce((sum, c) => sum + (Number(c.savings_amount) || 0), 0);
   }, [activeTab, deals, couponsData, selectedCoupons]);
 
   // Clear selection on tab change
