@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   ClipboardList, Tag, Store, ShoppingBag, ChefHat,
   ArrowRight, TrendingUp, Sparkles, AlertCircle,
-  Server, Key, RefreshCw, Scissors, PlayCircle, CheckCircle, Circle, Loader,
+  Server, Key, RefreshCw, Scissors, PlayCircle, CheckCircle, Circle, Loader, History,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
@@ -48,6 +48,7 @@ const PREP_STEPS = [
   { key: 'session-check',   label: 'Checking HEB session',     icon: Key },
   { key: 'scrape-frequent', label: 'Scraping frequent items',  icon: RefreshCw },
   { key: 'scrape-coupons',  label: 'Scraping coupons',         icon: Tag },
+  { key: 'scrape-history',  label: 'Scraping purchase history', icon: History },
   { key: 'clip-session',    label: 'Starting clip server',     icon: Scissors },
   { key: 'done',            label: 'Ready to shop!',           icon: CheckCircle },
 ];
