@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import {
   ArrowLeft,
   Check,
-  ChevronDown,
   ChevronUp,
   ShoppingBag,
   PartyPopper,
@@ -11,162 +10,165 @@ import {
   Tag,
   AlertCircle,
   Clock,
+  Mic,
+  MoreHorizontal,
+  Filter,
+  User,
+  Undo2,
+  X,
+  Copy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/animations";
-import { EmptyState } from './ui';
+import { EmptyState } from "./ui";
 import confetti from "canvas-confetti";
 import { getWeekDates } from "../utils/weekDates";
 import { ENDPOINTS, apiFetch } from "../config/api";
+import { HEB_WALK_ORDER, DEFAULT_CATEGORY } from "../constants/categories";
 
-// Motivational messages based on shopping progress
-const getMotivationalMessage = (percentage) => {
-  if (percentage === 0) return "Let's go!";
-  if (percentage < 25) return "Great start!";
-  if (percentage < 50) return "Making progress!";
-  if (percentage < 75) return "Over halfway!";
-  if (percentage < 90) return "Almost there!";
-  if (percentage < 100) return "Final stretch!";
-  return "";
+const WALK_ORDER_STORAGE_KEY = "inStoreWalkOrder";
+
+// Orders the incoming sections array by the given walk order, with any
+// unknown categories appended in encounter order so nothing is dropped.
+const sortByWalkOrder = (sectionNames, walkOrder) => {
+  const known = walkOrder.filter((name) => sectionNames.includes(name));
+  const extras = sectionNames.filter((name) => !walkOrder.includes(name));
+  return [...known, ...extras];
 };
 
-// Memoized individual shopping item with large tap target
-const InStoreItem = React.memo(({ item, isChecked, onToggle, couponMatch }) => {
-  return (
-    <button
-      onClick={() => onToggle(item.ItemID.toString())}
-      className={`w-full flex items-center gap-4 px-4 py-3 min-h-[56px] rounded-xl transition-all duration-200 active:scale-[0.98] ${
-        isChecked
-          ? "bg-background"
-          : "bg-surface hover:bg-primary-light"
-      }`}
-    >
-      {/* Custom circle checkbox */}
-      <div
-        className={`w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-          isChecked
-            ? "bg-primary border-primary"
-            : "border-default"
-        }`}
-      >
-        {isChecked && <Check size={16} className="text-white" />}
-      </div>
-
-      {/* Item name + coupon reminder */}
-      <div className="flex-1 text-left min-w-0">
-        <span
-          className={`text-lg transition-all duration-200 ${
-            isChecked
-              ? "line-through text-muted opacity-50"
-              : "text-heading font-medium"
-          }`}
-        >
-          {item.ItemName}
-        </span>
-        {couponMatch && !isChecked && (
-          <div className="flex items-center gap-1 mt-0.5">
-            <Tag size={12} className="text-accent flex-shrink-0" />
-            <span className="text-xs font-medium text-accent truncate">
-              {couponMatch.couponDiscount}{couponMatch.couponClipped ? ' (clipped)' : ''}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Quantity badge */}
-      <span
-        className={`text-sm font-medium px-2 py-1 rounded-lg flex-shrink-0 transition-all duration-200 ${
-          isChecked
-            ? "bg-background text-muted"
-            : "bg-primary-light text-primary"
-        }`}
-      >
-        {item.Unit ? `${item.quantity || 1} ${item.Unit}` : `x${item.quantity || 1}`}
-      </span>
-    </button>
-  );
-});
-
-// Section header with collapse toggle, progress, and completion animation
-const SectionHeader = ({ name, checkedCount, totalCount, isCollapsed, onToggle, justCompleted }) => {
-  const allDone = checkedCount === totalCount && totalCount > 0;
-
-  return (
-    <motion.button
-      onClick={onToggle}
-      animate={justCompleted ? {
-        boxShadow: [
-          '0 0 0px rgba(91,138,114,0)',
-          '0 0 16px rgba(91,138,114,0.35)',
-          '0 0 0px rgba(91,138,114,0)',
-        ],
-      } : { boxShadow: '0 0 0px rgba(91,138,114,0)' }}
-      transition={{ duration: 1.2, ease: 'easeInOut' }}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors duration-200 ${
-        allDone
-          ? "bg-primary-light border border-primary-border"
-          : "bg-background border border-default"
-      }`}
-    >
-      {/* Animated section complete indicator */}
-      {allDone && (
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-          className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
-        >
-          <Check size={14} className="text-white" />
-        </motion.div>
-      )}
-
-      <span
-        className={`flex-1 text-left font-bold text-lg ${
-          allDone ? "text-primary" : "text-heading"
-        }`}
-      >
-        {name}
-      </span>
-
-      {/* Done badge or progress count */}
-      {allDone ? (
-        <motion.span
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
-          className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary text-white"
-        >
-          Done!
-        </motion.span>
-      ) : (
-        <span className="text-sm font-medium px-2 py-1 rounded-full bg-default text-body">
-          {checkedCount}/{totalCount}
-        </span>
-      )}
-
-      {/* Collapse chevron */}
-      {isCollapsed ? (
-        <ChevronDown size={20} className="text-muted flex-shrink-0" />
-      ) : (
-        <ChevronUp size={20} className="text-muted flex-shrink-0" />
-      )}
-    </motion.button>
-  );
+// Build { name, items[], checkedCount, totalCount }[] grouped by Category,
+// sorted by the user's walk order. Items keep their insertion order within a
+// section so a just-checked row doesn't jump — you stay anchored on the row
+// your thumb was just on.
+const groupByWalkOrder = (items, checked, walkOrder) => {
+  const buckets = {};
+  items.forEach((item) => {
+    const name = item.Category || DEFAULT_CATEGORY;
+    if (!buckets[name]) buckets[name] = [];
+    buckets[name].push(item);
+  });
+  const orderedNames = sortByWalkOrder(Object.keys(buckets), walkOrder);
+  return orderedNames.map((name) => {
+    const bucket = buckets[name];
+    const checkedCount = bucket.reduce(
+      (n, i) => (checked.has(i.ItemID.toString()) ? n + 1 : n),
+      0
+    );
+    return {
+      name,
+      items: bucket,
+      checkedCount,
+      totalCount: bucket.length,
+    };
+  });
 };
 
-// SVG progress ring
-const ProgressRing = ({ checked, total }) => {
-  const size = 48;
+// Web Speech API wrapper with a safe 2s simulation fallback for browsers that
+// don't support it (desktop Firefox, most Android WebViews). When real recog
+// isn't available we simulate a match against the first unchecked item in the
+// current aisle — purely for demo purposes; remove once speech is wired.
+//
+// Dev flag: append `?voiceSim=1` to the URL to force the simulation path even
+// on browsers that do support SpeechRecognition. Useful for demos and for
+// screenshotting the `recognized` state in headless tools like Playwright.
+const useVoiceRecognition = () => {
+  const recognitionRef = useRef(null);
+  const forceSim =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("voiceSim") === "1";
+  const SpeechRecognition =
+    !forceSim &&
+    typeof window !== "undefined" &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const isSupported = !!SpeechRecognition;
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          /* no-op */
+        }
+        recognitionRef.current = null;
+      }
+    };
+  }, []);
+
+  const start = useCallback(
+    ({ onResult, onEnd }) => {
+      if (!isSupported) return null;
+      const rec = new SpeechRecognition();
+      rec.lang = "en-US";
+      rec.interimResults = false;
+      rec.continuous = false;
+      rec.maxAlternatives = 3;
+      rec.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .flatMap((r) => Array.from(r).map((alt) => alt.transcript))
+          .join(" ")
+          .trim();
+        onResult?.(transcript);
+      };
+      rec.onerror = () => onEnd?.();
+      rec.onend = () => onEnd?.();
+      recognitionRef.current = rec;
+      try {
+        rec.start();
+      } catch {
+        onEnd?.();
+      }
+      return rec;
+    },
+    [isSupported, SpeechRecognition]
+  );
+
+  const stop = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* no-op */
+      }
+      recognitionRef.current = null;
+    }
+  }, []);
+
+  return { isSupported, start, stop };
+};
+
+// Case-insensitive "does transcript mention this item?" heuristic. Simple
+// substring + reverse-substring is enough for v1; swap in a fuzzy matcher
+// (Fuse.js, Levenshtein) if false negatives become a problem.
+const findBestMatch = (transcript, uncheckedItems) => {
+  if (!transcript) return null;
+  const t = transcript.toLowerCase().trim();
+  const byLength = [...uncheckedItems].sort(
+    (a, b) => b.ItemName.length - a.ItemName.length
+  );
+  for (const item of byLength) {
+    const name = item.ItemName.toLowerCase();
+    if (t.includes(name) || name.includes(t)) return item;
+  }
+  const words = t.split(/\s+/).filter((w) => w.length >= 3);
+  for (const item of uncheckedItems) {
+    const name = item.ItemName.toLowerCase();
+    if (words.some((w) => name.includes(w))) return item;
+  }
+  return null;
+};
+
+// 38px ring with centered `checked/total` in 11px bold.
+const ProgressRing = React.memo(({ checked, total }) => {
+  const size = 38;
   const strokeWidth = 3.5;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const percentage = total > 0 ? (checked / total) * 100 : 0;
-  const offset = circumference * (1 - percentage / 100);
-
+  const pct = total > 0 ? (checked / total) * 100 : 0;
+  const offset = circumference * (1 - pct / 100);
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        {/* Background track */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -175,7 +177,6 @@ const ProgressRing = ({ checked, total }) => {
           stroke="var(--color-border)"
           strokeWidth={strokeWidth}
         />
-        {/* Progress arc */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -186,52 +187,392 @@ const ProgressRing = ({ checked, total }) => {
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="transition-all duration-500 ease-out"
+          style={{ transition: "stroke-dashoffset 400ms ease-out" }}
         />
       </svg>
-      {/* Center text */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-sm font-bold text-heading leading-none">
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[11px] font-bold text-heading leading-none">
           {checked}/{total}
         </span>
-        <span className="text-[9px] text-muted leading-none mt-0.5">items</span>
       </div>
     </div>
   );
-};
+});
+ProgressRing.displayName = "ProgressRing";
 
-// Scrollable aisle quick-jump chips
-const AisleChips = ({ sections, onChipClick }) => (
+// Custom 30px checkmark circle. Fills with sage (or terracotta when the row
+// needs coupon attention) once checked.
+const Checkmark = React.memo(({ checked, attention }) => {
+  const fillClass = attention ? "bg-accent border-accent" : "bg-primary border-primary";
+  return (
+    <div
+      className={`w-[30px] h-[30px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-[180ms] ease-out border-2 ${
+        checked ? fillClass : "bg-transparent border-[#D8D3CD]"
+      }`}
+    >
+      {checked && <Check size={16} strokeWidth={3} className="text-white" />}
+    </div>
+  );
+});
+Checkmark.displayName = "Checkmark";
+
+// Pill showing the discount text. Prominent (solid terracotta) when the
+// coupon is unclipped; small tonal pill when already clipped.
+const CouponChip = React.memo(({ coupon, prominent }) => {
+  if (prominent) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-accent text-white px-2.5 py-0.5 text-[13px] font-bold leading-normal">
+        <Tag size={12} strokeWidth={2.5} />
+        {coupon.couponDiscount}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-accent-light text-accent px-2 py-0.5 text-[11px] font-bold leading-normal">
+      <Tag size={10} strokeWidth={2.5} />
+      {coupon.couponDiscount}
+    </span>
+  );
+});
+CouponChip.displayName = "CouponChip";
+
+const QuantityPill = React.memo(({ quantity, unit, dim }) => {
+  const label = unit ? `${quantity || 1} ${unit}` : `×${quantity || 1}`;
+  return (
+    <span
+      className={`flex-shrink-0 text-[14px] font-bold rounded-full px-[11px] py-[5px] transition-colors duration-200 ${
+        dim ? "text-muted bg-transparent" : "text-primary bg-primary-light"
+      }`}
+    >
+      {label}
+    </span>
+  );
+});
+QuantityPill.displayName = "QuantityPill";
+
+const ItemRow = React.memo(({ item, isChecked, couponMatch, onToggle, isFirst }) => {
+  const hasCoupon = !!couponMatch;
+  const needsAttention = hasCoupon && !couponMatch.couponClipped && !isChecked;
+
+  let bg = "bg-transparent";
+  if (isChecked) bg = "bg-[#FAFAFA]";
+  else if (needsAttention) bg = "bg-accent-light";
+
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={isChecked}
+      onClick={() => onToggle(item)}
+      className={`w-full text-left flex items-center gap-3 px-[14px] py-4 min-h-[68px] transition-colors duration-[180ms] ease-out ${bg} ${
+        isFirst ? "" : "border-t border-default"
+      }`}
+    >
+      <Checkmark checked={isChecked} attention={needsAttention} />
+      <div className="flex-1 min-w-0">
+        <div
+          className={`text-[17px] font-semibold leading-[1.25] ${
+            isChecked ? "text-muted line-through" : "text-heading"
+          }`}
+        >
+          {item.ItemName}
+        </div>
+        {hasCoupon && !isChecked && (
+          <div className="mt-[5px] flex items-center gap-1.5 flex-wrap">
+            <CouponChip coupon={couponMatch} prominent={needsAttention} />
+            {couponMatch.couponClipped && (
+              <span className="text-[11px] font-bold text-primary">✓ clipped</span>
+            )}
+            {needsAttention && (
+              <span className="text-[11px] font-bold text-accent">clip it</span>
+            )}
+          </div>
+        )}
+      </div>
+      <QuantityPill quantity={item.quantity} unit={item.Unit} dim={isChecked} />
+    </button>
+  );
+});
+ItemRow.displayName = "ItemRow";
+
+// Horizontal scrollable pill bar — first-word label per aisle, states for
+// default / active / complete.
+const AisleChipBar = React.memo(({ sections, currentIndex, onChipClick }) => (
   <div
-    className="flex gap-2 px-4 py-2 overflow-x-auto"
-    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+    className="flex gap-1.5 px-3 py-2.5 overflow-x-auto bg-surface border-b border-default"
+    style={{
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitOverflowScrolling: "touch",
+    }}
   >
-    {sections.map((section) => {
-      const isComplete = section.checkedCount === section.totalCount && section.totalCount > 0;
+    {sections.map((section, idx) => {
+      const done = section.totalCount > 0 && section.checkedCount === section.totalCount;
+      const active = idx === currentIndex;
+      let classes = "bg-surface text-body border-default";
+      if (active) classes = "bg-primary text-white border-primary";
+      else if (done) classes = "bg-primary-light text-primary border-primary-border";
       return (
         <button
           key={section.name}
+          type="button"
           onClick={() => onChipClick(section.name)}
-          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 min-h-[36px] ${
-            isComplete
-              ? "bg-primary-light border border-primary-border text-primary"
-              : "bg-surface border border-default text-body"
-          }`}
+          className={`flex-shrink-0 inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-colors ${classes}`}
         >
-          {isComplete && <Check size={12} className="text-primary" />}
-          <span className="whitespace-nowrap">
-            {isComplete ? section.name : `${section.name} ${section.checkedCount}/${section.totalCount}`}
-          </span>
+          {done && (
+            <Check
+              size={11}
+              strokeWidth={3}
+              className={active ? "text-white" : "text-primary"}
+            />
+          )}
+          {section.name.split(" ")[0]}
         </button>
       );
     })}
   </div>
+));
+AisleChipBar.displayName = "AisleChipBar";
+
+// Inline voice bar that slides down from below the header. Runs the listening
+// waveform, then a recognized state, then collapses. Real recognition uses
+// the Web Speech API where available; simulation falls back to a 2s demo.
+const VoiceBar = ({ state, heard, isSupported }) => (
+  <motion.div
+    initial={{ y: -10, opacity: 0 }}
+    animate={{ y: 0, opacity: 1 }}
+    exit={{ y: -10, opacity: 0 }}
+    transition={{ duration: 0.22, ease: "easeOut" }}
+    className={`border-b border-default px-4 py-[14px] flex items-center gap-3 ${
+      state === "recognized" ? "bg-primary-light" : "bg-surface"
+    }`}
+    aria-live="polite"
+  >
+    {state === "listening" ? (
+      <>
+        <div className="voice-pulse w-9 h-9 rounded-full bg-danger flex items-center justify-center flex-shrink-0">
+          <Mic size={18} className="text-white" />
+        </div>
+        <div className="flex-1 flex items-center gap-[3px] h-[30px]">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <span
+              key={i}
+              className="voice-wave block w-[3px] h-[30px] bg-primary rounded-sm"
+              style={{
+                animationDelay: `${i * 0.06}s`,
+                transformOrigin: "center",
+              }}
+            />
+          ))}
+        </div>
+        <span className="text-[13px] font-semibold text-danger">Listening…</span>
+      </>
+    ) : (
+      <>
+        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+          <Check size={18} className="text-white" strokeWidth={3} />
+        </div>
+        <span className="flex-1 text-[14px] font-semibold text-heading">
+          {heard ? (
+            <>
+              Heard <span className="italic">"{heard}"</span> — checked ✓
+            </>
+          ) : isSupported ? (
+            "No match found"
+          ) : (
+            "Voice not supported on this device"
+          )}
+        </span>
+      </>
+    )}
+  </motion.div>
 );
 
-// Trip summary card overlay
+const ReorderDrawer = ({ sections, onMoveUp, onClose }) => (
+  <div className="bg-primary-light border-b border-primary-border px-[14px] py-2.5">
+    <div className="flex items-center mb-2">
+      <div className="flex-1 text-[12px] font-bold text-primary uppercase tracking-[0.4px]">
+        Walk order · tap ↑ to move up
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="text-primary text-[12px] font-bold px-2 py-1 rounded-md hover:bg-surface/60"
+      >
+        Done
+      </button>
+    </div>
+    <div className="flex flex-col gap-1">
+      {sections.map((section, i) => (
+        <div
+          key={section.name}
+          className="bg-surface rounded-[10px] px-2.5 py-2 flex items-center gap-2 text-[13px]"
+        >
+          <span className="text-muted font-bold w-4 text-center">{i + 1}</span>
+          <span className="flex-1 font-semibold text-heading">{section.name}</span>
+          <button
+            type="button"
+            onClick={() => onMoveUp(i)}
+            disabled={i === 0}
+            aria-label={`Move ${section.name} up`}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-opacity ${
+              i === 0 ? "opacity-30 cursor-not-allowed" : "bg-primary-light"
+            }`}
+          >
+            <ChevronUp size={16} className="text-primary" />
+          </button>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const ModeMenu = ({ onReorder, onInvite, onClose }) => {
+  const menuRef = useRef(null);
+  useEffect(() => {
+    const handle = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
+    };
+    document.addEventListener("mousedown", handle);
+    document.addEventListener("touchstart", handle);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      document.removeEventListener("touchstart", handle);
+    };
+  }, [onClose]);
+  return (
+    <motion.div
+      ref={menuRef}
+      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+      transition={{ duration: 0.12, ease: "easeOut" }}
+      className="absolute right-2.5 top-[58px] z-30 w-[200px] bg-surface border border-default rounded-[14px] shadow-warm-lg p-1.5"
+    >
+      <button
+        type="button"
+        onClick={onReorder}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-left text-[14px] text-heading hover:bg-background transition-colors"
+      >
+        <Filter size={16} className="text-body" />
+        Reorder aisles
+      </button>
+      <button
+        type="button"
+        onClick={onInvite}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-left text-[14px] text-heading hover:bg-background transition-colors"
+      >
+        <User size={16} className="text-body" />
+        Invite partner
+      </button>
+    </motion.div>
+  );
+};
+
+// STUB: real implementation should POST /api/sessions/create, receive a
+// short-lived code, and open a websocket for live check-off sync. For now we
+// generate a random local code; the URL isn't actually joinable.
+const generateInviteCode = () =>
+  Math.random().toString(36).slice(2, 6).toUpperCase();
+
+const InviteModal = ({ onClose }) => {
+  const [code] = useState(() => generateInviteCode());
+  const [copied, setCopied] = useState(false);
+  const url = `grocery.app/join/${code}`;
+
+  const handleCopy = useCallback(async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+      setCopied(true);
+      setTimeout(onClose, 700);
+    } catch {
+      setCopied(true);
+      setTimeout(onClose, 700);
+    }
+  }, [url, onClose]);
+
+  return (
+    <motion.div
+      {...fadeIn}
+      className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-5"
+      onClick={onClose}
+    >
+      <motion.div
+        {...modalSpring}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-surface rounded-[18px] shadow-warm-xl p-5 w-full max-w-[340px]"
+      >
+        <div className="flex items-start mb-1">
+          <div className="flex-1 text-[18px] font-bold text-heading">
+            Invite a partner
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="-mt-1 -mr-1 p-1 text-muted hover:text-heading"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="text-[13px] text-muted mb-3.5">
+          Share a link so they can check off items live with you.
+        </div>
+        <div className="bg-background border border-default rounded-[10px] px-3 py-2.5 text-[13px] text-body font-mono mb-3">
+          {url}
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-[10px] border border-default bg-transparent text-body font-semibold hover:bg-background transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="flex-1 py-2.5 rounded-[10px] bg-primary text-white font-bold hover:bg-primary-hover transition-colors inline-flex items-center justify-center gap-1.5"
+          >
+            {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={14} />}
+            {copied ? "Copied" : "Copy link"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const UndoToast = ({ itemName, onUndo }) => (
+  <motion.div
+    initial={{ y: 20, opacity: 0 }}
+    animate={{ y: 0, opacity: 1 }}
+    exit={{ y: 20, opacity: 0 }}
+    transition={{ duration: 0.24, ease: "easeOut" }}
+    className="fixed left-3.5 right-3.5 bottom-[18px] z-20 bg-heading text-white rounded-[14px] px-3.5 py-3 flex items-center gap-2.5 shadow-warm-xl"
+  >
+    <Check size={18} strokeWidth={3} className="text-[#A8D5BD] flex-shrink-0" />
+    <span className="flex-1 text-[14px]">
+      Got <b>{itemName}</b>
+    </span>
+    <button
+      type="button"
+      onClick={onUndo}
+      className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#A8D5BD] px-2 py-1"
+    >
+      <Undo2 size={14} />
+      UNDO
+    </button>
+  </motion.div>
+);
+
+// Trip summary celebration card (confetti + stats) — preserved from the
+// previous implementation; triggers when every item is checked off.
 const TripSummaryCard = ({ totalItems, sectionsCleared, totalSections, shoppingMinutes, couponSavings, onExit }) => {
   useEffect(() => {
-    const colors = ['#5B8A72', '#7CB896', '#C17849', '#E09565', '#f59e0b'];
+    const colors = ["#5B8A72", "#7CB896", "#C17849", "#E09565", "#f59e0b"];
     const fire = () => {
       confetti({ particleCount: 80, spread: 70, origin: { x: 0.1, y: 0.6 }, colors });
       confetti({ particleCount: 80, spread: 70, origin: { x: 0.9, y: 0.6 }, colors });
@@ -241,54 +582,40 @@ const TripSummaryCard = ({ totalItems, sectionsCleared, totalSections, shoppingM
     const t3 = setTimeout(() => {
       confetti({ particleCount: 120, spread: 100, origin: { x: 0.5, y: 0.4 }, colors });
     }, 1000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
   }, []);
 
   const stats = [
-    { icon: Clock, label: 'Shopping Time', value: shoppingMinutes < 1 ? 'Under 1 min' : `${shoppingMinutes} min` },
-    { icon: Check, label: 'Items Checked', value: `${totalItems}` },
-    { icon: ShoppingBag, label: 'Aisles Cleared', value: `${sectionsCleared}/${totalSections}` },
+    { icon: Clock, label: "Shopping Time", value: shoppingMinutes < 1 ? "Under 1 min" : `${shoppingMinutes} min` },
+    { icon: Check, label: "Items Checked", value: `${totalItems}` },
+    { icon: ShoppingBag, label: "Aisles Cleared", value: `${sectionsCleared}/${totalSections}` },
   ];
   if (couponSavings > 0) {
-    stats.push({ icon: Tag, label: 'Coupon Savings', value: `$${couponSavings.toFixed(2)}` });
+    stats.push({ icon: Tag, label: "Coupon Savings", value: `$${couponSavings.toFixed(2)}` });
   }
 
   return (
-    <motion.div
-      {...fadeIn}
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-    >
-      <motion.div
-        {...modalSpring}
-        className="bg-surface rounded-2xl shadow-warm-xl p-6 max-w-sm w-full"
-      >
-        {/* Header */}
+    <motion.div {...fadeIn} className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <motion.div {...modalSpring} className="bg-surface rounded-2xl shadow-warm-xl p-6 max-w-sm w-full">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.2 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.2 }}
           className="flex items-center justify-center gap-2 mb-6"
         >
           <PartyPopper size={28} className="text-primary" />
           <h2 className="text-2xl font-bold font-display text-heading">All Done!</h2>
           <PartyPopper size={28} className="text-primary" />
         </motion.div>
-
-        {/* Stats */}
-        <motion.div
-          variants={staggerContainer}
-          initial="initial"
-          animate="animate"
-          className="space-y-3 mb-6"
-        >
+        <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-3 mb-6">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
-              <motion.div
-                key={stat.label}
-                variants={staggerItem}
-                className="flex items-center gap-3 p-3 rounded-xl bg-background"
-              >
+              <motion.div key={stat.label} variants={staggerItem} className="flex items-center gap-3 p-3 rounded-xl bg-background">
                 <div className="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
                   <Icon size={18} className="text-primary" />
                 </div>
@@ -300,8 +627,6 @@ const TripSummaryCard = ({ totalItems, sectionsCleared, totalSections, shoppingM
             );
           })}
         </motion.div>
-
-        {/* Exit button */}
         <motion.button
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -318,51 +643,54 @@ const TripSummaryCard = ({ totalItems, sectionsCleared, totalSections, shoppingM
 
 const InStoreMode = ({ inStoreData, onExit }) => {
   const [checkedItems, setCheckedItems] = useState(new Set());
-  const [collapsedSections, setCollapsedSections] = useState(new Set());
   const [shoppingList, setShoppingList] = useState(null);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
-  const [couponLookup, setCouponLookup] = useState({}); // ItemName → coupon data
+  const [couponLookup, setCouponLookup] = useState({});
   const [couponLoadFailed, setCouponLoadFailed] = useState(false);
   const [showTripSummary, setShowTripSummary] = useState(false);
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
-  const [recentlyCompletedSection, setRecentlyCompletedSection] = useState(null);
+
+  // V5 state
+  const [walkOrder, setWalkOrder] = useState(HEB_WALK_ORDER);
+  const [activeSection, setActiveSection] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [editOrder, setEditOrder] = useState(false);
+  const [voiceState, setVoiceState] = useState("idle");
+  const [voiceHeard, setVoiceHeard] = useState(null);
+
   const wakeLockRef = useRef(null);
   const celebratedRef = useRef(false);
   const startTimeRef = useRef(Date.now());
-  const autoCollapseTimerRef = useRef(null);
-  const sectionRefs = useRef({});
+  const toastTimerRef = useRef(null);
+  const voiceTimerRef = useRef(null);
+  const voice = useVoiceRecognition();
 
-  // Resolve shopping list from prop, localStorage, or auto-fetch from backend
+  // --- Shopping list resolution: prop → localStorage → backend ---
   useEffect(() => {
-    // Priority 1: Data passed from "Start Shopping" button
     if (inStoreData && inStoreData.items && inStoreData.items.length > 0) {
       setShoppingList(inStoreData);
       return;
     }
-
-    // Priority 2: Check localStorage for cached data from this week
     const stored = localStorage.getItem("inStoreShoppingList");
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.items && parsed.items.length > 0) {
-          // Check if the stored list is for the current week
           const weekData = getWeekDates();
           if (parsed.weekStartDate === weekData.startDate) {
             setShoppingList(parsed);
             return;
           }
-          // Stale week — clear it and fetch fresh
           localStorage.removeItem("inStoreShoppingList");
           localStorage.removeItem("inStoreCheckedItems");
         }
       } catch {
-        // Invalid JSON, ignore
+        /* invalid JSON, ignore */
       }
     }
-
-    // Priority 3: Auto-fetch current week's selected items from backend
     const fetchCurrentWeekItems = async () => {
       setIsAutoLoading(true);
       try {
@@ -372,37 +700,25 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         url.searchParams.append("weekEndDate", weekData.endDate);
         url.searchParams.append("weekDateRange", weekData.displayRange);
         url.searchParams.append("timestamp", new Date().toISOString());
-
         const response = await apiFetch(url.toString(), {
           method: "GET",
           mode: "cors",
           headers: { Accept: "application/json" },
         });
-
         if (!response.ok) return;
-
         const data = await response.json();
         if (!Array.isArray(data) || data.length === 0) return;
-
-        // Filter to only selected items (IsSelected === 1)
         const selectedItems = data
           .filter((item) => item.IsSelected === 1)
-          .map((item) => ({
-            ...item,
-            quantity: item.QuantitySelected || 1,
-          }));
-
+          .map((item) => ({ ...item, quantity: item.QuantitySelected || 1 }));
         if (selectedItems.length === 0) return;
-
         const listData = {
           items: selectedItems,
           savedAt: new Date().toISOString(),
           weekDateRange: weekData.displayRange,
           weekStartDate: weekData.startDate,
         };
-
         setShoppingList(listData);
-        // Cache it so it loads instantly next time
         localStorage.setItem("inStoreShoppingList", JSON.stringify(listData));
       } catch (err) {
         console.error("[in-store] Auto-fetch failed:", err.message);
@@ -410,14 +726,37 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         setIsAutoLoading(false);
       }
     };
-
     fetchCurrentWeekItems();
   }, [inStoreData]);
 
-  // Load checked items from DB, fall back to localStorage
+  // --- Load saved walk order ---
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(WALK_ORDER_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Merge with defaults so any newly-added categories still appear.
+          const merged = [...parsed, ...HEB_WALK_ORDER.filter((n) => !parsed.includes(n))];
+          setWalkOrder(merged);
+        }
+      }
+    } catch {
+      /* ignore bad storage */
+    }
+  }, []);
+
+  const persistWalkOrder = useCallback((order) => {
+    try {
+      localStorage.setItem(WALK_ORDER_STORAGE_KEY, JSON.stringify(order));
+    } catch {
+      /* ignore quota */
+    }
+  }, []);
+
+  // --- Load checked items from DB, fall back to localStorage ---
   useEffect(() => {
     if (!shoppingList) return;
-
     const loadCheckedItems = async () => {
       try {
         const weekData = getWeekDates();
@@ -429,15 +768,13 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         });
         if (response.ok) {
           const data = await response.json();
-          const checkedIds = Array.isArray(data) ? data.map(row => String(row.item_id)) : [];
+          const checkedIds = Array.isArray(data) ? data.map((row) => String(row.item_id)) : [];
           setCheckedItems(new Set(checkedIds));
           return;
         }
       } catch {
-        // Fall through to localStorage fallback
+        /* fall through to localStorage fallback */
       }
-
-      // Offline fallback: try localStorage
       try {
         const stored = localStorage.getItem("inStoreCheckedItems");
         if (stored) {
@@ -452,22 +789,23 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         localStorage.removeItem("inStoreCheckedItems");
       }
     };
-
     loadCheckedItems();
   }, [shoppingList]);
 
-  // Fetch coupon matches for inline reminders
+  // --- Coupon lookup ---
   useEffect(() => {
     if (!shoppingList?.weekDateRange) return;
     const fetchCoupons = async () => {
       try {
-        const url = `${ENDPOINTS.hebWeeklyItems}?weekDateRange=${encodeURIComponent(shoppingList.weekDateRange)}`;
+        const url = `${ENDPOINTS.hebWeeklyItems}?weekDateRange=${encodeURIComponent(
+          shoppingList.weekDateRange
+        )}`;
         const response = await apiFetch(url, { timeout: 10000 });
         if (response.ok) {
           const data = await response.json();
           const items = data.items || data || [];
           const lookup = {};
-          (Array.isArray(items) ? items : []).forEach(item => {
+          (Array.isArray(items) ? items : []).forEach((item) => {
             if (item.couponDiscount && item.ItemName) {
               lookup[item.ItemName.toLowerCase()] = {
                 couponDiscount: item.couponDiscount,
@@ -479,38 +817,31 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           });
           setCouponLookup(lookup);
         }
-      } catch { setCouponLoadFailed(true); }
+      } catch {
+        setCouponLoadFailed(true);
+      }
     };
     fetchCoupons();
   }, [shoppingList?.weekDateRange]);
 
-  // Screen Wake Lock
+  // --- Screen Wake Lock ---
   useEffect(() => {
     const requestWakeLock = async () => {
       try {
         if ("wakeLock" in navigator) {
           wakeLockRef.current = await navigator.wakeLock.request("screen");
           setWakeLockActive(true);
-
-          wakeLockRef.current.addEventListener("release", () => {
-            setWakeLockActive(false);
-          });
+          wakeLockRef.current.addEventListener("release", () => setWakeLockActive(false));
         }
       } catch {
-        // Wake Lock not supported or denied
+        /* wake lock not supported or denied */
       }
     };
-
     requestWakeLock();
-
-    // Re-acquire on visibility change (browser may release when tab is hidden)
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        requestWakeLock();
-      }
+      if (document.visibilityState === "visible") requestWakeLock();
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (wakeLockRef.current) {
@@ -520,7 +851,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     };
   }, []);
 
-  // Shopping timer — updates every 60 seconds
+  // --- Shopping timer ---
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsedMinutes(Math.floor((Date.now() - startTimeRef.current) / 60000));
@@ -528,80 +859,53 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Cleanup auto-collapse timer on unmount
+  // --- Cleanup timers on unmount ---
   useEffect(() => {
     return () => {
-      if (autoCollapseTimerRef.current) {
-        clearTimeout(autoCollapseTimerRef.current);
-      }
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (voiceTimerRef.current) clearTimeout(voiceTimerRef.current);
     };
   }, []);
 
-  // Toggle an item's checked state
+  // --- Toggle check (+ toast on newly-checked) ---
+  // TODO (offline): currently fires the DB POST fire-and-forget. Should queue
+  // on failure and drain when back online. Tracked separately.
   const handleToggleItem = useCallback(
-    (itemId) => {
+    (item) => {
+      const itemId = item.ItemID.toString();
       setCheckedItems((prev) => {
         const next = new Set(prev);
         const isChecking = !next.has(itemId);
+        if (isChecking) next.add(itemId);
+        else next.delete(itemId);
 
-        if (isChecking) {
-          next.add(itemId);
-        } else {
-          next.delete(itemId);
-        }
-
-        // Persist to DB (fire-and-forget, don't block UI)
         const weekData = getWeekDates();
         const endpoint = isChecking
           ? ENDPOINTS.shoppingProgressCheck
           : ENDPOINTS.shoppingProgressUncheck;
         apiFetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            week_start_date: weekData.startDate,
-            item_id: itemId,
-          }),
-        }).catch(() => {
-          // Silently fail — localStorage is backup
-        });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ week_start_date: weekData.startDate, item_id: itemId }),
+        }).catch(() => {});
 
-        // Also cache to localStorage (offline backup)
         if (shoppingList) {
           localStorage.setItem(
             "inStoreCheckedItems",
-            JSON.stringify({
-              savedAt: shoppingList.savedAt,
-              checkedIds: Array.from(next),
-            })
+            JSON.stringify({ savedAt: shoppingList.savedAt, checkedIds: Array.from(next) })
           );
         }
 
-        // Section completion detection (only when checking)
-        if (isChecking && shoppingList) {
-          const item = shoppingList.items.find(i => i.ItemID.toString() === itemId);
-          if (item) {
-            const sectionName = item.Category || 'Pantry staples';
-            const sectionItems = shoppingList.items.filter(
-              i => (i.Category || 'Pantry staples') === sectionName
-            );
-            const allSectionChecked = sectionItems.every(
-              i => next.has(i.ItemID.toString())
-            );
-            if (allSectionChecked) {
-              setRecentlyCompletedSection(sectionName);
-              if (autoCollapseTimerRef.current) {
-                clearTimeout(autoCollapseTimerRef.current);
-              }
-              autoCollapseTimerRef.current = setTimeout(() => {
-                setCollapsedSections(prev => {
-                  const s = new Set(prev);
-                  s.add(sectionName);
-                  return s;
-                });
-                setRecentlyCompletedSection(null);
-              }, 1200);
-            }
+        if (isChecking) {
+          setToast({ itemId, itemName: item.ItemName });
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+          toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+        } else {
+          // If we're un-checking the item currently shown in the toast, clear it.
+          setToast((current) => (current && current.itemId === itemId ? null : current));
+          if (toastTimerRef.current) {
+            clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = null;
           }
         }
 
@@ -611,68 +915,123 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     [shoppingList]
   );
 
-  // Toggle section collapse
-  const handleToggleSection = useCallback((sectionName) => {
-    setCollapsedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(sectionName)) {
-        next.delete(sectionName);
+  // Grouped items in walk order
+  const grouped = useMemo(
+    () => (shoppingList ? groupByWalkOrder(shoppingList.items, checkedItems, walkOrder) : []),
+    [shoppingList, checkedItems, walkOrder]
+  );
+
+  // Current aisle derivation
+  const currentIndex = useMemo(() => {
+    if (grouped.length === 0) return 0;
+    if (activeSection) {
+      const idx = grouped.findIndex((s) => s.name === activeSection);
+      return idx >= 0 ? idx : 0;
+    }
+    const idx = grouped.findIndex((s) => s.items.some((i) => !checkedItems.has(i.ItemID.toString())));
+    return idx >= 0 ? idx : 0;
+  }, [grouped, activeSection, checkedItems]);
+
+  const current = grouped[currentIndex];
+  const upcoming = grouped.slice(currentIndex + 1, currentIndex + 3);
+
+  const handleChipClick = useCallback((name) => {
+    setActiveSection(name);
+  }, []);
+
+  const handleMoveUp = useCallback(
+    (idx) => {
+      if (idx === 0) return;
+      setWalkOrder((prev) => {
+        const next = [...prev];
+        const name = grouped[idx].name;
+        const prevName = grouped[idx - 1].name;
+        const a = next.indexOf(name);
+        const b = next.indexOf(prevName);
+        if (a < 0 || b < 0) return prev;
+        [next[a], next[b]] = [next[b], next[a]];
+        persistWalkOrder(next);
+        return next;
+      });
+    },
+    [grouped, persistWalkOrder]
+  );
+
+  const handleUndo = useCallback(() => {
+    if (!toast) return;
+    const item = shoppingList?.items.find((i) => i.ItemID.toString() === toast.itemId);
+    if (item) handleToggleItem(item);
+    else setToast(null);
+  }, [toast, shoppingList, handleToggleItem]);
+
+  // Voice — start / stop / recognize
+  const stopVoiceEverything = useCallback(() => {
+    voice.stop();
+    if (voiceTimerRef.current) {
+      clearTimeout(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+    setVoiceState("idle");
+    setVoiceHeard(null);
+  }, [voice]);
+
+  const handleVoicePress = useCallback(() => {
+    if (voiceState !== "idle") {
+      stopVoiceEverything();
+      return;
+    }
+    setVoiceHeard(null);
+    setVoiceState("listening");
+
+    const uncheckedInCurrent = current
+      ? current.items.filter((i) => !checkedItems.has(i.ItemID.toString()))
+      : [];
+    const allUnchecked = shoppingList
+      ? shoppingList.items.filter((i) => !checkedItems.has(i.ItemID.toString()))
+      : [];
+
+    const finishWith = (matched) => {
+      if (matched) {
+        setVoiceHeard(matched.ItemName);
+        handleToggleItem(matched);
       } else {
-        next.add(sectionName);
+        setVoiceHeard(null);
       }
-      return next;
-    });
-  }, []);
+      setVoiceState("recognized");
+      voiceTimerRef.current = setTimeout(() => {
+        setVoiceState("idle");
+        setVoiceHeard(null);
+      }, 1400);
+    };
 
-  // Scroll to section from aisle chip
-  const handleChipClick = useCallback((sectionName) => {
-    setCollapsedSections(prev => {
-      const next = new Set(prev);
-      next.delete(sectionName);
-      return next;
-    });
-    setTimeout(() => {
-      sectionRefs.current[sectionName]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
+    if (voice.isSupported) {
+      voice.start({
+        onResult: (transcript) => {
+          const matched = findBestMatch(transcript, allUnchecked);
+          finishWith(matched);
+        },
+        onEnd: () => {
+          // If onEnd fires without a result, finalize as "no match".
+          if (voiceTimerRef.current) return; // already finalized
+          setVoiceState((prev) => (prev === "listening" ? "recognized" : prev));
+          setVoiceHeard(null);
+          voiceTimerRef.current = setTimeout(() => {
+            setVoiceState("idle");
+            setVoiceHeard(null);
+          }, 1400);
+        },
       });
-    }, 100);
-  }, []);
+    } else {
+      // DEMO fallback: simulate recognition after 2s by picking the first
+      // unchecked item in the current aisle. Remove once real speech is wired.
+      voiceTimerRef.current = setTimeout(() => {
+        const matched = uncheckedInCurrent[0] || allUnchecked[0] || null;
+        finishWith(matched);
+      }, 2000);
+    }
+  }, [voiceState, voice, current, checkedItems, shoppingList, handleToggleItem, stopVoiceEverything]);
 
-  // Group items by Category, sort unchecked first within each group
-  const getGroupedItems = useCallback(() => {
-    if (!shoppingList || !shoppingList.items) return [];
-
-    const groups = {};
-    shoppingList.items.forEach((item) => {
-      const section = item.Category || "Pantry staples";
-      if (!groups[section]) {
-        groups[section] = [];
-      }
-      groups[section].push(item);
-    });
-
-    // Sort sections alphabetically, then sort items within each section
-    return Object.entries(groups)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([sectionName, items]) => {
-        const unchecked = items
-          .filter((item) => !checkedItems.has(item.ItemID.toString()))
-          .sort((a, b) => a.ItemName.localeCompare(b.ItemName));
-        const checked = items
-          .filter((item) => checkedItems.has(item.ItemID.toString()))
-          .sort((a, b) => a.ItemName.localeCompare(b.ItemName));
-
-        return {
-          name: sectionName,
-          items: [...unchecked, ...checked],
-          checkedCount: checked.length,
-          totalCount: items.length,
-        };
-      });
-  }, [shoppingList, checkedItems]);
-
-  // Celebration when all items checked
+  // Totals + trip summary trigger
   const totalItems = shoppingList ? shoppingList.items.length : 0;
   const totalChecked = checkedItems.size;
   const allDone = totalItems > 0 && totalChecked === totalItems;
@@ -680,9 +1039,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   useEffect(() => {
     if (allDone && !celebratedRef.current) {
       celebratedRef.current = true;
-      setTimeout(() => {
-        setShowTripSummary(true);
-      }, 800);
+      setTimeout(() => setShowTripSummary(true), 800);
     }
     if (!allDone) {
       celebratedRef.current = false;
@@ -690,38 +1047,35 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     }
   }, [allDone]);
 
-  // Computed values for trip summary
   const couponSavingsTotal = useMemo(() => {
     if (!shoppingList?.items || !couponLookup) return 0;
     return shoppingList.items.reduce((sum, item) => {
       if (checkedItems.has(item.ItemID.toString())) {
         const match = couponLookup[item.ItemName?.toLowerCase()];
-        if (match?.couponSavings) {
-          return sum + parseFloat(match.couponSavings);
-        }
+        if (match?.couponSavings) return sum + parseFloat(match.couponSavings);
       }
       return sum;
     }, 0);
   }, [shoppingList, checkedItems, couponLookup]);
 
-  const groupedItems = getGroupedItems();
+  const sectionsCleared = useMemo(
+    () => grouped.filter((s) => s.checkedCount === s.totalCount && s.totalCount > 0).length,
+    [grouped]
+  );
 
-  const sectionsCleared = useMemo(() => {
-    return groupedItems.filter(s => s.checkedCount === s.totalCount && s.totalCount > 0).length;
-  }, [groupedItems]);
-
-  // Exit handler with confirmation
   const handleExit = useCallback(() => {
     if (totalChecked > 0 && totalChecked < totalItems) {
       const confirmed = window.confirm(
-        `You still have ${totalItems - totalChecked} item${totalItems - totalChecked === 1 ? "" : "s"} unchecked. Exit shopping mode?`
+        `You still have ${totalItems - totalChecked} item${
+          totalItems - totalChecked === 1 ? "" : "s"
+        } unchecked. Exit shopping mode?`
       );
       if (!confirmed) return;
     }
     onExit();
   }, [totalChecked, totalItems, onExit]);
 
-  // Loading state while auto-fetching
+  // Loading state
   if (isAutoLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -747,11 +1101,10 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     );
   }
 
-  // No data fallback
+  // Empty state
   if (!shoppingList || !shoppingList.items || shoppingList.items.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Header */}
         <div className="sticky top-0 z-10 bg-surface shadow-sm">
           <div className="flex items-center gap-3 px-4 h-14">
             <button
@@ -764,8 +1117,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
             <h1 className="text-lg font-bold font-display text-heading">Shopping List</h1>
           </div>
         </div>
-
-        {/* Empty state */}
         <div className="flex-1 flex items-center justify-center p-8">
           <EmptyState
             icon={ShoppingBag}
@@ -778,116 +1129,186 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     );
   }
 
-  const progressPercentage = totalItems > 0 ? (totalChecked / totalItems) * 100 : 0;
+  const totalAisles = grouped.length;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-surface shadow-sm">
-        {/* Top row: back, ring, message, timer, wake lock */}
-        <div className="flex items-center gap-3 px-4 py-2">
+    <div className="min-h-screen bg-background flex flex-col relative">
+      {/* Header + voice bar + (chip bar OR reorder drawer) */}
+      <div className="sticky top-0 z-20 bg-surface">
+        {/* Top row */}
+        <div className="flex items-center gap-1.5 px-3.5 py-2.5 border-b border-default relative">
           <button
+            type="button"
             onClick={handleExit}
-            className="p-2 -ml-2 rounded-lg text-body hover:text-heading hover:bg-background transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Go back"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-body hover:text-heading hover:bg-background transition-colors"
           >
-            <ArrowLeft size={24} />
+            <ArrowLeft size={22} />
           </button>
-
           <ProgressRing checked={totalChecked} total={totalItems} />
-
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-heading truncate">
-              {getMotivationalMessage(progressPercentage)}
-            </p>
+          <div className="flex-1 min-w-0 text-[14px] font-semibold text-heading truncate">
+            Aisle {currentIndex + 1} of {totalAisles}
             {elapsedMinutes > 0 && (
-              <p className="text-xs text-muted flex items-center gap-1">
-                <Clock size={10} />
-                Shopping for {elapsedMinutes} min
-              </p>
+              <span className="ml-2 text-[11px] font-normal text-muted">
+                · {elapsedMinutes}m
+              </span>
             )}
           </div>
-
           {wakeLockActive && (
-            <Smartphone size={16} className="text-primary flex-shrink-0" title="Screen stays awake" />
+            <Smartphone
+              size={14}
+              className="text-primary/60 flex-shrink-0"
+              aria-label="Screen stays awake"
+            />
           )}
+          <button
+            type="button"
+            onClick={handleVoicePress}
+            aria-label="Voice check-off"
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+              voiceState !== "idle" ? "bg-primary-light" : "hover:bg-background"
+            }`}
+          >
+            <Mic
+              size={18}
+              className={voiceState !== "idle" ? "text-primary" : "text-body"}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowMenu((v) => !v)}
+            aria-label="More"
+            aria-expanded={showMenu}
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-body hover:text-heading hover:bg-background transition-colors"
+          >
+            <MoreHorizontal size={20} />
+          </button>
+
+          <AnimatePresence>
+            {showMenu && (
+              <ModeMenu
+                onReorder={() => {
+                  setEditOrder((v) => !v);
+                  setShowMenu(false);
+                }}
+                onInvite={() => {
+                  setShowInvite(true);
+                  setShowMenu(false);
+                }}
+                onClose={() => setShowMenu(false)}
+              />
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Aisle quick-jump chips */}
-        <AisleChips sections={groupedItems} onChipClick={handleChipClick} />
+        {/* Voice bar (below header, above chip bar / drawer) */}
+        <AnimatePresence>
+          {voiceState !== "idle" && (
+            <VoiceBar state={voiceState} heard={voiceHeard} isSupported={voice.isSupported} />
+          )}
+        </AnimatePresence>
+
+        {/* Reorder drawer OR aisle chip bar */}
+        {editOrder ? (
+          <ReorderDrawer
+            sections={grouped}
+            onMoveUp={handleMoveUp}
+            onClose={() => setEditOrder(false)}
+          />
+        ) : (
+          <AisleChipBar
+            sections={grouped}
+            currentIndex={currentIndex}
+            onChipClick={handleChipClick}
+          />
+        )}
       </div>
 
-      {/* Week info */}
-      {shoppingList.weekDateRange && (
-        <div className="px-4 pt-3 pb-1">
-          <p className="text-sm text-muted">{shoppingList.weekDateRange}</p>
-        </div>
-      )}
+      {/* Scroll content */}
+      <div className="flex-1 overflow-y-auto px-3 pt-3.5 pb-24">
+        {current && (
+          <>
+            <div className="px-1.5 pb-2.5">
+              <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-muted">
+                You're in
+              </div>
+              <div className="text-[26px] font-bold leading-[1.1] text-heading mt-0.5">
+                {current.name}
+              </div>
+              <div className="text-[13px] text-muted mt-1">
+                {current.totalCount - current.checkedCount} of {current.totalCount} remaining
+              </div>
+            </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 px-4 py-3 space-y-4 pb-24">
-        {groupedItems.map((section) => (
-          <div
-            key={section.name}
-            ref={el => { sectionRefs.current[section.name] = el; }}
-          >
-            <SectionHeader
-              name={section.name}
-              checkedCount={section.checkedCount}
-              totalCount={section.totalCount}
-              isCollapsed={collapsedSections.has(section.name)}
-              onToggle={() => handleToggleSection(section.name)}
-              justCompleted={recentlyCompletedSection === section.name}
-            />
+            <div className="bg-surface rounded-[20px] border border-default overflow-hidden shadow-warm-sm">
+              {current.items.map((item, idx) => (
+                <ItemRow
+                  key={item.ItemID}
+                  item={item}
+                  isChecked={checkedItems.has(item.ItemID.toString())}
+                  couponMatch={couponLookup[item.ItemName?.toLowerCase()]}
+                  onToggle={handleToggleItem}
+                  isFirst={idx === 0}
+                />
+              ))}
+            </div>
 
-            {/* Section items with animated collapse */}
-            <AnimatePresence initial={false}>
-              {!collapsedSections.has(section.name) && (
-                <motion.div
-                  key={`items-${section.name}`}
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <div className="mt-1 space-y-1">
-                    {section.items.map((item) => (
-                      <InStoreItem
-                        key={item.ItemID}
-                        item={item}
-                        isChecked={checkedItems.has(item.ItemID.toString())}
-                        onToggle={handleToggleItem}
-                        couponMatch={couponLookup[item.ItemName?.toLowerCase()]}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        ))}
+            {upcoming.length > 0 && (
+              <div className="mt-5 px-1.5 text-[12px] text-muted">
+                Next:{" "}
+                <span className="text-body font-semibold">{upcoming[0].name}</span>
+                {upcoming[1] && <span> · then {upcoming[1].name}</span>}
+              </div>
+            )}
+          </>
+        )}
+
         {couponLoadFailed && (
-          <div className="px-4 py-2 text-xs text-muted flex items-center gap-1.5">
+          <div className="mt-4 px-2 text-xs text-muted flex items-center gap-1.5">
             <AlertCircle size={12} />
             Coupon reminders unavailable
           </div>
         )}
       </div>
 
-      {/* Trip Summary overlay */}
+      {/* Undo toast */}
+      <AnimatePresence>
+        {toast && <UndoToast itemName={toast.itemName} onUndo={handleUndo} />}
+      </AnimatePresence>
+
+      {/* Invite partner modal */}
+      <AnimatePresence>
+        {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
+      </AnimatePresence>
+
+      {/* Trip summary overlay */}
       <AnimatePresence>
         {showTripSummary && (
           <TripSummaryCard
             totalItems={totalItems}
             sectionsCleared={sectionsCleared}
-            totalSections={groupedItems.length}
+            totalSections={grouped.length}
             shoppingMinutes={Math.round((Date.now() - startTimeRef.current) / 60000)}
             couponSavings={couponSavingsTotal}
             onExit={onExit}
           />
         )}
       </AnimatePresence>
+
+      {/* Keyframes for voice bar — pulse on the mic disc, staggered waveform. */}
+      <style>{`
+        @keyframes voicePulse {
+          0%   { box-shadow: 0 0 0 0 rgba(201, 64, 64, 0.4); }
+          70%  { box-shadow: 0 0 0 14px rgba(201, 64, 64, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(201, 64, 64, 0); }
+        }
+        @keyframes voiceWave {
+          0%, 100% { transform: scaleY(0.2); }
+          50%      { transform: scaleY(1); }
+        }
+        .voice-pulse { animation: voicePulse 1.4s ease-out infinite; }
+        .voice-wave  { animation: voiceWave 0.9s ease-in-out infinite; }
+      `}</style>
     </div>
   );
 };
