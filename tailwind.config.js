@@ -29,6 +29,10 @@ module.exports = {
           hover: 'var(--color-danger-hover)',
           light: 'var(--color-danger-light)',
         },
+        meal: {
+          DEFAULT: 'var(--color-meal)',
+          light: 'var(--color-meal-light)',
+        },
         // Surfaces
         surface: 'var(--color-surface)',
         'surface-elevated': 'var(--color-surface-elevated)',
