@@ -1,12 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { Check } from 'lucide-react';
 import useWeekStaples from '../hooks/useWeekStaples';
+import useWeekMeals from '../hooks/useWeekMeals';
 import { getWeekDates } from '../utils/weekDates';
 import { GROCERY_CATEGORIES } from '../constants/categories';
 import InputToolbar from './staples/InputToolbar';
 import CategorySection from './staples/CategorySection';
 import OneOffCard from './staples/OneOffCard';
 import ReviewBar from './staples/ReviewBar';
+import MealPillBar from './staples/MealPillBar';
+import MealsCard from './staples/MealsCard';
 
 const formatMonthDay = (iso) => {
   const d = new Date(`${iso}T00:00:00`);
@@ -15,13 +18,43 @@ const formatMonthDay = (iso) => {
 
 const StaplesScreen = ({ onReview }) => {
   const { items, selected, loading, toggle, quickAdd, removeOneOff } = useWeekStaples();
+  const { meals: rawMeals } = useWeekMeals();
+  const [mealFocus, setMealFocus] = useState(null);
   const [query, setQuery] = useState('');
   const weekData = getWeekDates();
   const weekCompact = `${formatMonthDay(weekData.startDate)} – ${formatMonthDay(weekData.endDate)}`;
 
-  const { groups, oneOffs } = useMemo(() => {
+  const { groups, oneOffs, mealItems, mealsWithItemIds } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matches = (i) => !q || i.ItemName.toLowerCase().includes(q);
+
+    // Correlate meal ingredient names with actual items to discover MealName per item.
+    // Key: lowercase+trimmed item name → MealName (first match wins if in multiple meals).
+    const itemNameToMeal = {};
+    for (const m of rawMeals) {
+      for (const ingName of m.ingredientNames || []) {
+        const key = ingName.trim().toLowerCase();
+        if (!itemNameToMeal[key]) itemNameToMeal[key] = m.mealName;
+      }
+    }
+
+    // MealIngredients items that matched a known meal get a MealName injected.
+    // Drop unmatched ones (can't attribute to any meal).
+    const enrichedMealItems = items
+      .filter((i) => i.DataSource === 'MealIngredients')
+      .map((i) => ({
+        ...i,
+        MealName: itemNameToMeal[i.ItemName.trim().toLowerCase()] || null,
+      }))
+      .filter((i) => i.MealName !== null);
+
+    // Build meals-with-itemIds for MealPillBar.
+    const mealsOut = rawMeals.map((m) => ({
+      name: m.mealName,
+      itemIds: enrichedMealItems
+        .filter((i) => i.MealName === m.mealName && matches(i))
+        .map((i) => i.ItemID),
+    }));
 
     const oneOffsList = items.filter((i) => i.DataSource === 'OneOff' && matches(i));
     const stapleItems = items.filter(
@@ -41,8 +74,15 @@ const StaplesScreen = ({ onReview }) => {
         items: byCat[c].sort((a, b) => a.ItemName.localeCompare(b.ItemName)),
       }));
 
-    return { groups: ordered, oneOffs: oneOffsList };
-  }, [items, query]);
+    const visibleMealItems = enrichedMealItems.filter(matches);
+
+    return {
+      groups: ordered,
+      oneOffs: oneOffsList,
+      mealItems: visibleMealItems,
+      mealsWithItemIds: mealsOut,
+    };
+  }, [items, query, rawMeals]);
 
   const handleToggleAll = (group) => {
     const ids = group.items.map((i) => i.ItemID);
@@ -86,7 +126,15 @@ const StaplesScreen = ({ onReview }) => {
 
         <InputToolbar onQuickAdd={quickAdd} onSearchChange={setQuery} />
 
-        {oneOffs.length > 0 && (
+        <MealPillBar
+          meals={mealsWithItemIds}
+          selected={selected}
+          mealFocus={mealFocus}
+          onFocusChange={setMealFocus}
+        />
+
+        {/* OneOffs — hidden when focused on a specific meal */}
+        {!mealFocus && oneOffs.length > 0 && (
           <OneOffCard
             oneOffs={oneOffs}
             selected={selected}
@@ -95,13 +143,25 @@ const StaplesScreen = ({ onReview }) => {
           />
         )}
 
-        {groups.length === 0 && oneOffs.length === 0 && (
+        {/* MealsCard — always visible if there are meal items. Header hidden when a meal pill is active. */}
+        {mealItems.length > 0 && (
+          <MealsCard
+            activeMeal={mealFocus}
+            items={mealFocus ? mealItems.filter((i) => i.MealName === mealFocus) : mealItems}
+            selected={selected}
+            onToggle={toggle}
+          />
+        )}
+
+        {/* Empty state */}
+        {groups.length === 0 && oneOffs.length === 0 && mealItems.length === 0 && (
           <div className="mt-10 text-center text-sm text-muted">
             {query ? `No matches for "${query}"` : 'Nothing on this week\'s list yet'}
           </div>
         )}
 
-        {groups.map((g) => (
+        {/* Category sections — hidden when focused on a meal */}
+        {!mealFocus && groups.map((g) => (
           <CategorySection
             key={g.name}
             group={g}

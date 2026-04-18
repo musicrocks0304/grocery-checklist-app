@@ -1,18 +1,23 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import StaplesScreen from './StaplesScreen';
 
 jest.mock('../hooks/useWeekStaples');
 const useWeekStaples = require('../hooks/useWeekStaples').default;
 
+jest.mock('../hooks/useWeekMeals');
+const useWeekMeals = require('../hooks/useWeekMeals').default;
+
 const baseHook = {
   items: [
-    { ItemID: 1, ItemName: 'Milk',    Category: 'Dairy & eggs',     DataSource: 'Staples' },
-    { ItemID: 2, ItemName: 'Bread',   Category: 'Bakery & bread',   DataSource: 'Staples' },
-    { ItemID: 9, ItemName: 'Candles', Category: 'Household & other',DataSource: 'OneOff' },
+    { ItemID: 1, ItemName: 'Milk',            Category: 'Dairy & eggs',       DataSource: 'Staples' },
+    { ItemID: 2, ItemName: 'Bread',           Category: 'Bakery & bread',     DataSource: 'Staples' },
+    { ItemID: 9, ItemName: 'Candles',         Category: 'Household & other',  DataSource: 'OneOff' },
+    { ItemID: 100, ItemName: 'Chicken thighs',Category: 'Meat & seafood',     DataSource: 'MealIngredients' },
+    { ItemID: 101, ItemName: 'Cilantro',      Category: 'Fruit & vegetables', DataSource: 'MealIngredients' },
   ],
-  selected: new Set([1, 9]),
+  selected: new Set([1, 9, 100]),
   loading: false,
   error: null,
   toggle: jest.fn(),
@@ -20,8 +25,17 @@ const baseHook = {
   removeOneOff: jest.fn(),
 };
 
+const mealsHookBase = {
+  meals: [
+    { mealName: 'Chicken tacos', ingredientNames: ['Chicken thighs', 'Cilantro'] },
+  ],
+  loading: false,
+  error: null,
+};
+
 beforeEach(() => {
   useWeekStaples.mockReturnValue(baseHook);
+  useWeekMeals.mockReturnValue(mealsHookBase);
 });
 
 describe('StaplesScreen', () => {
@@ -44,18 +58,46 @@ describe('StaplesScreen', () => {
 
   test('running count shows selected count', () => {
     render(<StaplesScreen onReview={() => {}} />);
-    // 2 items selected (ItemID 1, ItemID 9)
-    expect(screen.getByText('2')).toBeInTheDocument();
+    // 3 items selected (ItemID 1, ItemID 9, ItemID 100)
+    expect(screen.getByText('3')).toBeInTheDocument();
   });
 
   test('ReviewBar shows correct total', () => {
     render(<StaplesScreen onReview={() => {}} />);
-    expect(screen.getByText(/2 items in your list/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 items in your list/i)).toBeInTheDocument();
   });
 
   test('loading state renders a spinner', () => {
     useWeekStaples.mockReturnValue({ ...baseHook, loading: true, items: [], selected: new Set() });
     render(<StaplesScreen onReview={() => {}} />);
     expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  test('renders MealPillBar when meals are present', () => {
+    render(<StaplesScreen onReview={() => {}} />);
+    expect(screen.getByText('All items')).toBeInTheDocument();
+    expect(screen.getByText('Chicken tacos')).toBeInTheDocument();
+  });
+
+  test('does not render MealPillBar when meals array is empty', () => {
+    useWeekMeals.mockReturnValue({ ...mealsHookBase, meals: [] });
+    render(<StaplesScreen onReview={() => {}} />);
+    expect(screen.queryByText('All items')).not.toBeInTheDocument();
+  });
+
+  test('renders MealsCard with meal-ingredient items in "all items" view', () => {
+    render(<StaplesScreen onReview={() => {}} />);
+    expect(screen.getByText(/from your meals/i)).toBeInTheDocument();
+    expect(screen.getByText('Chicken thighs')).toBeInTheDocument();
+    expect(screen.getByText('Cilantro')).toBeInTheDocument();
+  });
+
+  test('clicking a meal pill hides category sections and shows only meal items', () => {
+    render(<StaplesScreen onReview={() => {}} />);
+    fireEvent.click(screen.getByText('Chicken tacos'));
+    expect(screen.queryByText('Dairy & eggs')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bakery & bread')).not.toBeInTheDocument();
+    expect(screen.getByText('Chicken thighs')).toBeInTheDocument();
+    expect(screen.getByText('Cilantro')).toBeInTheDocument();
   });
 });
