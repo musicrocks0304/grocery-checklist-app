@@ -6,7 +6,6 @@ const InputToolbar = ({ onQuickAdd, onSearchChange }) => {
   const [quickAddText, setQuickAddText] = useState('');
   const [searchText, setSearchText] = useState('');
   const searchRef = useRef(null);
-  const quickAddRef = useRef(null);
 
   useEffect(() => {
     if (mode === 'search') searchRef.current?.focus();
@@ -25,7 +24,6 @@ const InputToolbar = ({ onQuickAdd, onSearchChange }) => {
         <div className="relative flex-1">
           <Zap size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
-            ref={quickAddRef}
             type="text"
             value={quickAddText}
             onChange={(e) => setQuickAddText(e.target.value)}
