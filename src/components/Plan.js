@@ -1,24 +1,8 @@
 import React from 'react';
-import GroceryChecklist from './GroceryChecklist';
+import StaplesScreen from './StaplesScreen';
 
-/**
- * Plan screen — renders the weekly grocery checklist.
- * Meal planning has been moved to the separate Meals screen.
- */
-const Plan = ({
-  onNavigate,
-  onUnsavedChanges,
-  onStartShopping,
-  debugMode,
-}) => {
-  return (
-    <GroceryChecklist
-      onNavigate={onNavigate}
-      onUnsavedChanges={onUnsavedChanges}
-      onStartShopping={onStartShopping}
-      debugMode={debugMode}
-    />
-  );
+const Plan = ({ onNavigate }) => {
+  return <StaplesScreen onReview={() => onNavigate('shop')} />;
 };
 
 export default Plan;
