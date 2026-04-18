@@ -17,6 +17,7 @@ import {
   Undo2,
   X,
   Copy,
+  Users,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/animations";
@@ -28,6 +29,18 @@ import { HEB_WALK_ORDER, DEFAULT_CATEGORY } from "../constants/categories";
 
 const WALK_ORDER_STORAGE_KEY = "inStoreWalkOrder";
 const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
+const HOST_SESSION_STORAGE_KEY = "hostShoppingSession";
+
+// The join_session webhook returns MySQL's naive datetime format
+// ("YYYY-MM-DD HH:MM:SS"); the create_session webhook returns ISO. Normalize
+// both to ms-since-epoch, treating naive strings as UTC (the server stores UTC).
+const parseExpiryMs = (value) => {
+  if (!value) return 0;
+  const str = String(value);
+  const iso = /[TZ]/.test(str) ? str : `${str.replace(" ", "T")}Z`;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) ? t : 0;
+};
 
 // Reads a partner-join session from sessionStorage, if one is active. Returns
 // `{code, week_start_date, expires_at}` or null. App.js writes this entry when
@@ -38,8 +51,26 @@ const readJoinedSession = () => {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.week_start_date) return null;
-    if (parsed.expires_at && new Date(parsed.expires_at).getTime() < Date.now()) {
+    if (parsed.expires_at && parseExpiryMs(parsed.expires_at) < Date.now()) {
       sessionStorage.removeItem(JOINED_SESSION_STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+// Reads the session the current user created as host (written by InviteModal
+// after a successful create_session). Used for the presence indicator on the
+// host's own device. Same shape as joined session.
+const readHostSession = () => {
+  try {
+    const raw = sessionStorage.getItem(HOST_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed.expires_at && parseExpiryMs(parsed.expires_at) < Date.now()) {
+      sessionStorage.removeItem(HOST_SESSION_STORAGE_KEY);
       return null;
     }
     return parsed;
@@ -514,6 +545,19 @@ const InviteModal = ({ weekStartDate, onClose }) => {
         if (!cancelled) {
           setCode(data.code);
           setLoading(false);
+          // Stash for the presence indicator on the host's own device.
+          try {
+            sessionStorage.setItem(
+              HOST_SESSION_STORAGE_KEY,
+              JSON.stringify({
+                code: data.code,
+                week_start_date: data.week_start_date,
+                expires_at: data.expires_at,
+              })
+            );
+          } catch {
+            /* quota — non-fatal */
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -609,6 +653,26 @@ const InviteModal = ({ weekStartDate, onClose }) => {
         </div>
       </motion.div>
     </motion.div>
+  );
+};
+
+// Quiet sage pill announcing a live partner session. Same visual for host or
+// partner — v1 doesn't distinguish "someone joined" from "invite pending"
+// (would need a server-side join counter; out of scope for this pass).
+const PartnerBadge = ({ expiresAt }) => {
+  const hoursLeft = expiresAt
+    ? Math.max(0, Math.ceil((parseExpiryMs(expiresAt) - Date.now()) / 3_600_000))
+    : null;
+  return (
+    <div className="flex items-center justify-center mb-3">
+      <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-light border border-primary-border px-3 py-1 text-[12px] font-semibold text-primary">
+        <Users size={12} strokeWidth={2.5} />
+        <span>Shopping with partner</span>
+        {hoursLeft !== null && hoursLeft > 0 && (
+          <span className="text-primary/70 font-normal">· {hoursLeft}h left</span>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -727,6 +791,11 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const [editOrder, setEditOrder] = useState(false);
   const [voiceState, setVoiceState] = useState("idle");
   const [voiceHeard, setVoiceHeard] = useState(null);
+  // Active partner session (either joined via invite or hosted). Refreshed
+  // when the invite modal closes so the badge appears after "Copy link".
+  const [partnerSession, setPartnerSession] = useState(
+    () => readJoinedSession() || readHostSession() || null
+  );
 
   const wakeLockRef = useRef(null);
   const celebratedRef = useRef(false);
@@ -1364,6 +1433,9 @@ const InStoreMode = ({ inStoreData, onExit }) => {
 
       {/* Scroll content */}
       <div className="flex-1 overflow-y-auto px-3 pt-3.5 pb-24">
+        {partnerSession && (
+          <PartnerBadge expiresAt={partnerSession.expires_at} />
+        )}
         {current && (
           <>
             <div className="px-1.5 pb-2.5">
@@ -1419,7 +1491,11 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         {showInvite && (
           <InviteModal
             weekStartDate={shoppingList?.weekStartDate}
-            onClose={() => setShowInvite(false)}
+            onClose={() => {
+              setShowInvite(false);
+              // Surface the presence badge as soon as the host has a code.
+              setPartnerSession(readJoinedSession() || readHostSession() || null);
+            }}
           />
         )}
       </AnimatePresence>

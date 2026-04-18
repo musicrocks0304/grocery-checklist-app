@@ -64,6 +64,7 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
   const [selectedCount, setSelectedCount] = useState(0);
   const [mealsCount, setMealsCount] = useState(null); // null = loading, falls back to prop
   const [topDeals, setTopDeals] = useState(null);
+  const [shoppedCount, setShoppedCount] = useState(0);
   const [fetchError, setFetchError] = useState(false);
 
   // Prep job state — null | { status, jobId, currentStep, summary, error }
@@ -142,9 +143,32 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
       }
     };
 
+    // Fetch shopping progress so Home can show how many items have been
+    // checked off in-store — same source of truth as In-Store Mode.
+    const fetchShoppingProgress = async () => {
+      try {
+        const weekData = getWeekDates();
+        const url = new URL(ENDPOINTS.shoppingProgress);
+        url.searchParams.append("week_start_date", weekData.startDate);
+        const response = await apiFetch(url.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          timeout: 8000,
+          retries: 1,
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setShoppedCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch {
+        /* silent — stat just won't show */
+      }
+    };
+
     fetchList();
     fetchDeals();
     fetchMeals();
+    fetchShoppingProgress();
   }, []);
 
   // Prep: start a new prep job
@@ -245,6 +269,12 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
                 <div className="text-xl font-bold">{selectedCount}</div>
                 <div className="text-xs text-white/70">Items</div>
               </div>
+              {shoppedCount > 0 && selectedCount > 0 && (
+                <div className="bg-white/15 rounded-xl px-3 py-2 text-center min-w-[70px]">
+                  <div className="text-xl font-bold">{shoppedCount}/{selectedCount}</div>
+                  <div className="text-xs text-white/70">Shopped</div>
+                </div>
+              )}
             </>
           )}
           {!topDeals && listItems !== null ? (
