@@ -1,4 +1,4 @@
-import { apiFetch } from './api';
+import { apiFetch, ENDPOINTS } from './api';
 
 // Save originals
 const originalFetch = global.fetch;
@@ -138,8 +138,6 @@ describe('apiFetch', () => {
 });
 
 describe('ENDPOINTS — per-tap selection', () => {
-  const { ENDPOINTS } = require('./api');
-
   test('selectionCheck endpoint is defined', () => {
     expect(ENDPOINTS.selectionCheck).toMatch(/\/selection_check$/);
   });
