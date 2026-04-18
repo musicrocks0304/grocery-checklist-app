@@ -41,6 +41,8 @@ const useWeekStaples = () => {
   }, [weekData.startDate, weekData.endDate, weekData.displayRange]);
 
   const toggle = useCallback(async (itemId) => {
+    const item = itemsRef.current.find((i) => i.ItemID === itemId);
+    if (!item) return;
     const wasSelected = selectedRef.current.has(itemId);
     // Update ref immediately (before re-render) so rapid back-to-back calls read
     // the correct optimistic state rather than the stale closed-over value.
@@ -49,9 +51,18 @@ const useWeekStaples = () => {
     selectedRef.current = next;
     setSelected(next);
     const endpoint = wasSelected ? ENDPOINTS.selectionUncheck : ENDPOINTS.selectionCheck;
+    // Backend has no IsSelected flag — presence of the row IS the selection.
+    // Check INSERTs a new row; uncheck DELETEs by itemName+week+DataSource='Staples'.
     const payload = wasSelected
-      ? { itemId, weekDateRange: weekData.displayRange }
-      : { itemId, weekDateRange: weekData.displayRange, quantitySelected: 1 };
+      ? { itemName: item.ItemName, weekDateRange: weekData.displayRange }
+      : {
+          itemId,
+          itemName: item.ItemName,
+          category: item.Category,
+          store: item.Store,
+          quantity: 1,
+          weekDateRange: weekData.displayRange,
+        };
     try {
       const res = await apiFetch(endpoint, {
         method: 'POST',

@@ -41,25 +41,39 @@ describe('useWeekStaples', () => {
     expect(result.current.selected.has(9)).toBe(true);
   });
 
-  test('toggle adds id to selected and POSTs selection_check', async () => {
+  test('toggle adds id to selected and POSTs selection_check with full row payload', async () => {
     apiFetch.mockImplementationOnce(() => mockOk(mockItems)); // initial fetch
     apiFetch.mockImplementationOnce(() => mockOk({ success: true })); // toggle
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.toggle(2); });
     expect(result.current.selected.has(2)).toBe(true);
-    const callUrl = apiFetch.mock.calls[1][0];
+    const [callUrl, callOpts] = apiFetch.mock.calls[1];
     expect(callUrl).toBe(ENDPOINTS.selectionCheck);
+    // Backend INSERT needs itemName + category + store to build the row
+    const body = JSON.parse(callOpts.body);
+    expect(body).toMatchObject({
+      itemId: 2,
+      itemName: 'Bread',
+      category: 'Bakery & bread',
+      quantity: 1,
+    });
+    expect(body.weekDateRange).toMatch(/week/i);
   });
 
-  test('toggle removes id from selected and POSTs selection_uncheck', async () => {
+  test('toggle removes id from selected and POSTs selection_uncheck with itemName payload', async () => {
     apiFetch.mockImplementationOnce(() => mockOk(mockItems));
     apiFetch.mockImplementationOnce(() => mockOk({ success: true }));
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.toggle(1); });
     expect(result.current.selected.has(1)).toBe(false);
-    expect(apiFetch.mock.calls[1][0]).toBe(ENDPOINTS.selectionUncheck);
+    const [callUrl, callOpts] = apiFetch.mock.calls[1];
+    expect(callUrl).toBe(ENDPOINTS.selectionUncheck);
+    // Backend DELETE matches by itemName + weekDateRange (no itemId needed)
+    const body = JSON.parse(callOpts.body);
+    expect(body.itemName).toBe('Milk');
+    expect(body.weekDateRange).toMatch(/week/i);
   });
 
   test('toggle rolls back on API failure', async () => {
