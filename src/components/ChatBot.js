@@ -825,7 +825,9 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
             <button
               onClick={() => {
                 if (window.confirm("Start a new chat session? Your current conversation will be cleared.")) {
-                  localStorage.removeItem('chatSessionId');
+                  const weekStart = getWeekDates().startDate;
+                  const newSessionId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                  localStorage.setItem(`chatSessionId_${weekStart}`, newSessionId);
                   window.location.reload();
                 }
               }}
