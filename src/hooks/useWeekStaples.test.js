@@ -95,4 +95,28 @@ describe('useWeekStaples', () => {
     expect(result.current.selected.has(9)).toBe(false);
     expect(apiFetch.mock.calls[1][0]).toBe(ENDPOINTS.removeWeeklyItem);
   });
+
+  test('rapid double-tap on same item dispatches check then uncheck', async () => {
+    apiFetch.mockImplementationOnce(() => mockOk(mockItems)); // initial fetch
+    apiFetch.mockImplementation(() => mockOk({ success: true })); // any subsequent POST
+    const { result } = renderHook(() => useWeekStaples());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Tap twice in quick succession on the same item (ItemID 2 starts unselected)
+    await act(async () => {
+      await Promise.all([
+        result.current.toggle(2),
+        result.current.toggle(2),
+      ]);
+    });
+
+    // After both toggles complete, ItemID 2 should be back to unselected (checked then unchecked)
+    expect(result.current.selected.has(2)).toBe(false);
+
+    // The two POSTs should be selectionCheck then selectionUncheck (not check twice)
+    const postCalls = apiFetch.mock.calls.slice(1); // skip initial fetch
+    expect(postCalls).toHaveLength(2);
+    expect(postCalls[0][0]).toBe(ENDPOINTS.selectionCheck);
+    expect(postCalls[1][0]).toBe(ENDPOINTS.selectionUncheck);
+  });
 });

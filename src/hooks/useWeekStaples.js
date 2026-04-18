@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ENDPOINTS, apiFetch, showApiError } from '../config/api';
 import { getWeekDates } from '../utils/weekDates';
 
@@ -7,6 +7,10 @@ const useWeekStaples = () => {
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const selectedRef = useRef(selected);
+  const itemsRef = useRef(items);
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+  useEffect(() => { itemsRef.current = items; }, [items]);
   const weekData = getWeekDates();
 
   useEffect(() => {
@@ -37,12 +41,13 @@ const useWeekStaples = () => {
   }, [weekData.startDate, weekData.endDate, weekData.displayRange]);
 
   const toggle = useCallback(async (itemId) => {
-    const wasSelected = selected.has(itemId);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (wasSelected) next.delete(itemId); else next.add(itemId);
-      return next;
-    });
+    const wasSelected = selectedRef.current.has(itemId);
+    // Update ref immediately (before re-render) so rapid back-to-back calls read
+    // the correct optimistic state rather than the stale closed-over value.
+    const next = new Set(selectedRef.current);
+    if (wasSelected) next.delete(itemId); else next.add(itemId);
+    selectedRef.current = next;
+    setSelected(next);
     const endpoint = wasSelected ? ENDPOINTS.selectionUncheck : ENDPOINTS.selectionCheck;
     const payload = wasSelected
       ? { itemId, weekDateRange: weekData.displayRange }
@@ -55,15 +60,14 @@ const useWeekStaples = () => {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (err) {
-      // roll back
-      setSelected((prev) => {
-        const next = new Set(prev);
-        if (wasSelected) next.add(itemId); else next.delete(itemId);
-        return next;
-      });
+      // roll back both ref and state
+      const rolled = new Set(selectedRef.current);
+      if (wasSelected) rolled.add(itemId); else rolled.delete(itemId);
+      selectedRef.current = rolled;
+      setSelected(rolled);
       showApiError(err);
     }
-  }, [selected, weekData.displayRange]);
+  }, [weekData.displayRange]);
 
   const quickAdd = useCallback(async (name) => {
     const trimmed = name.trim();
@@ -94,7 +98,7 @@ const useWeekStaples = () => {
   }, [weekData.displayRange]);
 
   const removeOneOff = useCallback(async (itemId) => {
-    const target = items.find((i) => i.ItemID === itemId);
+    const target = itemsRef.current.find((i) => i.ItemID === itemId);
     if (!target) return;
     try {
       const res = await apiFetch(ENDPOINTS.removeWeeklyItem, {
@@ -108,7 +112,7 @@ const useWeekStaples = () => {
     } catch (err) {
       showApiError(err);
     }
-  }, [items, weekData.displayRange]);
+  }, [weekData.displayRange]);
 
   return { items, selected, loading, error, toggle, quickAdd, removeOneOff };
 };
