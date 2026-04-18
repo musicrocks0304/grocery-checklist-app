@@ -1201,9 +1201,15 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                 </div>
               )}
             </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-            {/* Desktop Sidebar — unchanged */}
-            <div className="hidden lg:flex lg:relative lg:inset-auto lg:w-96 bg-surface lg:rounded-2xl shadow-warm overflow-hidden flex-col z-auto">
+      {/* Desktop Sidebar — rendered outside AnimatePresence so it unmounts
+          immediately on close, rather than waiting for the mobile sheet's
+          spring exit animation (which blocked click responsiveness). */}
+      {showMealsPanel && (
+          <div className="hidden lg:flex lg:relative lg:inset-auto lg:w-96 bg-surface lg:rounded-2xl shadow-warm overflow-hidden flex-col z-auto">
               <div className="bg-primary text-white p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1304,9 +1310,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                 </div>
               )}
             </div>
-          </>
-        )}
-      </AnimatePresence>
+          )}
     </div>
   );
 };

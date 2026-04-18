@@ -123,12 +123,17 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchInputRef = useRef(null);
 
-  // Notify parent when user has unsaved changes (final list view)
+  // Notify parent when user has unsaved changes (final list view, not yet saved)
   useEffect(() => {
     if (onUnsavedChanges) {
-      onUnsavedChanges(showFinalList);
+      onUnsavedChanges(showFinalList && !listSaved);
     }
-  }, [showFinalList, onUnsavedChanges]);
+  }, [showFinalList, listSaved, onUnsavedChanges]);
+
+  // Invalidate saved state when selection changes (forces re-save before shopping)
+  useEffect(() => {
+    setListSaved(false);
+  }, [selectedItems, itemQuantities]);
 
   // Debug logging function
   const addDebugLog = (message, data = null) => {
