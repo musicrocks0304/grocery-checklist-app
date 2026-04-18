@@ -1,0 +1,54 @@
+import { renderHook, waitFor } from '@testing-library/react';
+import useWeekMeals from './useWeekMeals';
+
+jest.mock('../config/api', () => {
+  const actual = jest.requireActual('../config/api');
+  return { ...actual, apiFetch: jest.fn() };
+});
+const { apiFetch, ENDPOINTS } = require('../config/api');
+
+const mockOk = (body) => Promise.resolve({
+  ok: true, status: 200,
+  text: () => Promise.resolve(JSON.stringify(body)),
+  json: () => Promise.resolve(body),
+});
+
+beforeEach(() => { apiFetch.mockReset(); });
+
+describe('useWeekMeals', () => {
+  test('loads meals and groups by mealName', async () => {
+    apiFetch.mockImplementationOnce(() => mockOk([
+      { mealName: 'Chicken tacos', ingredientNames: ['Chicken thighs', 'Cilantro'] },
+      { mealName: 'Pasta alfredo', ingredientNames: ['Pasta', 'Heavy cream'] },
+    ]));
+    const { result } = renderHook(() => useWeekMeals());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.meals).toHaveLength(2);
+    expect(result.current.meals[0].mealName).toBe('Chicken tacos');
+    expect(result.current.meals[0].ingredientNames).toEqual(['Chicken thighs', 'Cilantro']);
+  });
+
+  test('returns empty array when API returns []', async () => {
+    apiFetch.mockImplementationOnce(() => mockOk([]));
+    const { result } = renderHook(() => useWeekMeals());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.meals).toEqual([]);
+  });
+
+  test('fetches with weekDateRange query param', async () => {
+    apiFetch.mockImplementationOnce(() => mockOk([]));
+    renderHook(() => useWeekMeals());
+    await waitFor(() => expect(apiFetch).toHaveBeenCalled());
+    const url = apiFetch.mock.calls[0][0];
+    expect(url).toContain(ENDPOINTS.fetchWeeklyMealIngredients);
+    expect(url).toContain('weekDateRange=');
+  });
+
+  test('sets error state on API failure', async () => {
+    apiFetch.mockImplementationOnce(() => Promise.resolve({ ok: false, status: 500 }));
+    const { result } = renderHook(() => useWeekMeals());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.meals).toEqual([]);
+  });
+});
