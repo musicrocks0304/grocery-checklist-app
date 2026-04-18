@@ -278,65 +278,27 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
 
   // Remove meal from planning list
   const removeMeal = async (mealId) => {
-    // Find the meal to get its details for the webhook call
     const mealToRemove = selectedMeals.find(meal => meal.id === mealId);
+    if (!mealToRemove) return;
 
-    if (!mealToRemove) {
-      addDebugLog('❌ Meal not found for removal:', mealId);
-      return;
-    }
-
-    addDebugLog('Calling webhook to delete meal:', mealToRemove.name);
+    // Optimistic UI — drop the meal immediately so the click feels responsive.
+    // If the delete fails, refreshMeals restores the DB truth.
+    setSelectedMeals(prev => prev.filter(m => m.id !== mealId));
 
     try {
-      // Call the webhook with delete context
       const weekData = getWeekDates();
-
-      const payload = {
-        message: `Delete meal: ${mealToRemove.name}`,
-        context: 'delete_meal',
-        deleteFlag: 'true',
-        recipeId: mealToRemove.recipeId || '',
-        recipeName: mealToRemove.name,
-        timestamp: new Date().toISOString(),
-        sessionId: sessionId,
-        weekStartDate: weekData.startDate,
-        weekEndDate: weekData.endDate,
-        weekDateRange: weekData.displayRange
-      };
-
-      addDebugLog('Delete meal webhook payload:', payload);
-
-      const response = await apiFetch(CHATBOT_WEBHOOK_URL, {
+      await apiFetch(ENDPOINTS.removeWeeklySelection, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        mode: 'cors'
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weekDateRange: weekData.displayRange,
+          recipeId: Number(mealToRemove.recipeId),
+        }),
       });
-
-      if (response.ok) {
-        addDebugLog('✅ Delete meal webhook call successful');
-        // Also remove from weekly_selections via dedicated endpoint
-        await apiFetch(ENDPOINTS.removeWeeklySelection, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            weekDateRange: weekData.displayRange,
-            recipeId: Number(mealToRemove.recipeId),
-          }),
-        });
-        if (refreshMeals) await refreshMeals();
-        addDebugLog('Removed meal from DB and refreshed:', mealId);
-      } else {
-        addDebugLog('⚠️ Delete meal webhook call failed:', response.status);
-        toast.error(`Failed to remove "${mealToRemove.name}". Server returned ${response.status}.`);
-      }
+      if (refreshMeals) await refreshMeals();
     } catch (error) {
-      addDebugLog('❌ Error calling delete meal webhook:', error.message);
       toast.error(`Failed to remove "${mealToRemove.name}". Check your connection.`);
+      if (refreshMeals) await refreshMeals();
     }
   };
 
