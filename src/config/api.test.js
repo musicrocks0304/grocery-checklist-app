@@ -136,3 +136,15 @@ describe('apiFetch', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('ENDPOINTS — per-tap selection', () => {
+  const { ENDPOINTS } = require('./api');
+
+  test('selectionCheck endpoint is defined', () => {
+    expect(ENDPOINTS.selectionCheck).toMatch(/\/selection_check$/);
+  });
+
+  test('selectionUncheck endpoint is defined', () => {
+    expect(ENDPOINTS.selectionUncheck).toMatch(/\/selection_uncheck$/);
+  });
+});

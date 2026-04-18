@@ -45,6 +45,10 @@ export const ENDPOINTS = {
   shoppingProgressCheck: `${API_BASE_URL}/shopping_progress_check`,
   shoppingProgressUncheck: `${API_BASE_URL}/shopping_progress_uncheck`,
 
+  // Per-tap selection persistence (DB-backed)
+  selectionCheck: `${API_BASE_URL}/selection_check`,
+  selectionUncheck: `${API_BASE_URL}/selection_uncheck`,
+
   // Partner shopping sessions (invite + live polling)
   createSession: `${API_BASE_URL}/create_session`,
   joinSession: `${API_BASE_URL}/join_session`,
