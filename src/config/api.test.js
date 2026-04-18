@@ -146,3 +146,9 @@ describe('ENDPOINTS — per-tap selection', () => {
     expect(ENDPOINTS.selectionUncheck).toMatch(/\/selection_uncheck$/);
   });
 });
+
+describe('ENDPOINTS — weekly meal ingredients', () => {
+  test('fetchWeeklyMealIngredients endpoint is defined', () => {
+    expect(ENDPOINTS.fetchWeeklyMealIngredients).toMatch(/\/fetch_weekly_meal_ingredients$/);
+  });
+});

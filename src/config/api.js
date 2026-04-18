@@ -37,6 +37,7 @@ export const ENDPOINTS = {
 
   // Weekly meal selections (DB-backed)
   fetchWeeklyMeals: `${API_BASE_URL}/fetch_weekly_meals`,
+  fetchWeeklyMealIngredients: `${API_BASE_URL}/fetch_weekly_meal_ingredients`,
   addWeeklySelection: `${API_BASE_URL}/add_weekly_selection`,
   removeWeeklySelection: `${API_BASE_URL}/remove_weekly_selection`,
 
