@@ -27,6 +27,26 @@ import { ENDPOINTS, apiFetch } from "../config/api";
 import { HEB_WALK_ORDER, DEFAULT_CATEGORY } from "../constants/categories";
 
 const WALK_ORDER_STORAGE_KEY = "inStoreWalkOrder";
+const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
+
+// Reads a partner-join session from sessionStorage, if one is active. Returns
+// `{code, week_start_date, expires_at}` or null. App.js writes this entry when
+// a `#join/CODE` link resolves successfully.
+const readJoinedSession = () => {
+  try {
+    const raw = sessionStorage.getItem(JOINED_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.week_start_date) return null;
+    if (parsed.expires_at && new Date(parsed.expires_at).getTime() < Date.now()) {
+      sessionStorage.removeItem(JOINED_SESSION_STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+};
 
 // Orders the incoming sections array by the given walk order, with any
 // unknown categories appended in encounter order so nothing is dropped.
@@ -469,28 +489,57 @@ const ModeMenu = ({ onReorder, onInvite, onClose }) => {
   );
 };
 
-// STUB: real implementation should POST /api/sessions/create, receive a
-// short-lived code, and open a websocket for live check-off sync. For now we
-// generate a random local code; the URL isn't actually joinable.
-const generateInviteCode = () =>
-  Math.random().toString(36).slice(2, 6).toUpperCase();
-
-const InviteModal = ({ onClose }) => {
-  const [code] = useState(() => generateInviteCode());
+// Invite modal: POSTs to /create_session on mount to reserve a short-lived
+// code (4h TTL) server-side, then shows a shareable `#join/CODE` URL. Partner
+// who opens the URL is redirected to the same week's list and both devices
+// poll shopping_progress for live sync.
+const InviteModal = ({ weekStartDate, onClose }) => {
+  const [code, setCode] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
-  const url = `grocery.app/join/${code}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch(ENDPOINTS.createSession, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(weekStartDate ? { week_start_date: weekStartDate } : {}),
+          timeout: 10000,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) {
+          setCode(data.code);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError("Couldn't create invite — check your connection and try again.");
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [weekStartDate]);
+
+  const url = code ? `${window.location.origin}/#join/${code}` : "";
 
   const handleCopy = useCallback(async () => {
+    if (!url) return;
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
       }
-      setCopied(true);
-      setTimeout(onClose, 700);
     } catch {
-      setCopied(true);
-      setTimeout(onClose, 700);
+      /* ignore clipboard failure — still show copied feedback */
     }
+    setCopied(true);
+    setTimeout(onClose, 900);
   }, [url, onClose]);
 
   return (
@@ -518,11 +567,28 @@ const InviteModal = ({ onClose }) => {
           </button>
         </div>
         <div className="text-[13px] text-muted mb-3.5">
-          Share a link so they can check off items live with you.
+          Share a link so they can check off items live with you. Code expires in 4 hours.
         </div>
-        <div className="bg-background border border-default rounded-[10px] px-3 py-2.5 text-[13px] text-body font-mono mb-3">
-          {url}
-        </div>
+
+        {loading && (
+          <div className="bg-background border border-default rounded-[10px] px-3 py-4 mb-3 flex items-center justify-center gap-2 text-muted text-[13px]">
+            <Loader2 size={14} className="animate-spin" />
+            Creating invite…
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-danger-light border border-danger/30 rounded-[10px] px-3 py-3 mb-3 text-[13px] text-danger">
+            {error}
+          </div>
+        )}
+
+        {code && (
+          <div className="bg-background border border-default rounded-[10px] px-3 py-2.5 text-[13px] text-body font-mono mb-3 break-all">
+            {url}
+          </div>
+        )}
+
         <div className="flex gap-2">
           <button
             type="button"
@@ -534,7 +600,8 @@ const InviteModal = ({ onClose }) => {
           <button
             type="button"
             onClick={handleCopy}
-            className="flex-1 py-2.5 rounded-[10px] bg-primary text-white font-bold hover:bg-primary-hover transition-colors inline-flex items-center justify-center gap-1.5"
+            disabled={!code}
+            className="flex-1 py-2.5 rounded-[10px] bg-primary text-white font-bold hover:bg-primary-hover transition-colors inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={14} />}
             {copied ? "Copied" : "Copy link"}
@@ -666,38 +733,56 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const startTimeRef = useRef(Date.now());
   const toastTimerRef = useRef(null);
   const voiceTimerRef = useRef(null);
+  // Tracks the timestamp of the last local check/uncheck. The polling sync
+  // ignores remote updates that land within ~2s of a local mutation so the
+  // in-flight POST has time to land server-side (avoids brief flip-back).
+  const lastLocalMutationRef = useRef(0);
   const voice = useVoiceRecognition();
 
   // --- Shopping list resolution: prop → localStorage → backend ---
+  // If the user joined a partner session, that session's week_start_date
+  // overrides the current week. We bypass the localStorage cache for joined
+  // sessions so the partner always sees the host's up-to-date list.
   useEffect(() => {
-    if (inStoreData && inStoreData.items && inStoreData.items.length > 0) {
+    const joined = readJoinedSession();
+    const isJoined = !!joined;
+
+    if (inStoreData && inStoreData.items && inStoreData.items.length > 0 && !isJoined) {
       setShoppingList(inStoreData);
       return;
     }
-    const stored = localStorage.getItem("inStoreShoppingList");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.items && parsed.items.length > 0) {
-          const weekData = getWeekDates();
-          if (parsed.weekStartDate === weekData.startDate) {
-            setShoppingList(parsed);
-            return;
+
+    if (!isJoined) {
+      const stored = localStorage.getItem("inStoreShoppingList");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.items && parsed.items.length > 0) {
+            const weekData = getWeekDates();
+            if (parsed.weekStartDate === weekData.startDate) {
+              setShoppingList(parsed);
+              return;
+            }
+            localStorage.removeItem("inStoreShoppingList");
+            localStorage.removeItem("inStoreCheckedItems");
           }
-          localStorage.removeItem("inStoreShoppingList");
-          localStorage.removeItem("inStoreCheckedItems");
+        } catch {
+          /* invalid JSON, ignore */
         }
-      } catch {
-        /* invalid JSON, ignore */
       }
     }
-    const fetchCurrentWeekItems = async () => {
+
+    const fetchItemsForWeek = async () => {
       setIsAutoLoading(true);
       try {
         const weekData = getWeekDates();
+        const targetWeekStart = joined?.week_start_date || weekData.startDate;
+        // Display range for the joined week can't be computed cheaply from
+        // just a date string, so we fall back to current-week display when
+        // joined and expose the ISO date as the stable weekStartDate.
         const url = new URL(ENDPOINTS.fetchGroceryItems);
-        url.searchParams.append("weekStartDate", weekData.startDate);
-        url.searchParams.append("weekEndDate", weekData.endDate);
+        url.searchParams.append("weekStartDate", targetWeekStart);
+        url.searchParams.append("weekEndDate", joined?.week_start_date ? "" : weekData.endDate);
         url.searchParams.append("weekDateRange", weekData.displayRange);
         url.searchParams.append("timestamp", new Date().toISOString());
         const response = await apiFetch(url.toString(), {
@@ -716,17 +801,20 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           items: selectedItems,
           savedAt: new Date().toISOString(),
           weekDateRange: weekData.displayRange,
-          weekStartDate: weekData.startDate,
+          weekStartDate: targetWeekStart,
+          joined: isJoined ? { code: joined.code, expires_at: joined.expires_at } : undefined,
         };
         setShoppingList(listData);
-        localStorage.setItem("inStoreShoppingList", JSON.stringify(listData));
+        if (!isJoined) {
+          localStorage.setItem("inStoreShoppingList", JSON.stringify(listData));
+        }
       } catch (err) {
         console.error("[in-store] Auto-fetch failed:", err.message);
       } finally {
         setIsAutoLoading(false);
       }
     };
-    fetchCurrentWeekItems();
+    fetchItemsForWeek();
   }, [inStoreData]);
 
   // --- Load saved walk order ---
@@ -759,9 +847,9 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     if (!shoppingList) return;
     const loadCheckedItems = async () => {
       try {
-        const weekData = getWeekDates();
+        const weekStart = shoppingList.weekStartDate || getWeekDates().startDate;
         const url = new URL(ENDPOINTS.shoppingProgress);
-        url.searchParams.append("week_start_date", weekData.startDate);
+        url.searchParams.append("week_start_date", weekStart);
         const response = await apiFetch(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
@@ -873,20 +961,21 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const handleToggleItem = useCallback(
     (item) => {
       const itemId = item.ItemID.toString();
+      lastLocalMutationRef.current = Date.now();
       setCheckedItems((prev) => {
         const next = new Set(prev);
         const isChecking = !next.has(itemId);
         if (isChecking) next.add(itemId);
         else next.delete(itemId);
 
-        const weekData = getWeekDates();
+        const weekStart = shoppingList?.weekStartDate || getWeekDates().startDate;
         const endpoint = isChecking
           ? ENDPOINTS.shoppingProgressCheck
           : ENDPOINTS.shoppingProgressUncheck;
         apiFetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ week_start_date: weekData.startDate, item_id: itemId }),
+          body: JSON.stringify({ week_start_date: weekStart, item_id: itemId }),
         }).catch(() => {});
 
         if (shoppingList) {
@@ -1046,6 +1135,55 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       setShowTripSummary(false);
     }
   }, [allDone]);
+
+  // --- Live sync polling ---
+  // Polls shopping_progress every 4s so two devices (host + invited partner)
+  // see each other's check-offs within ~5s. Ignores poll results within 2s
+  // of a local mutation so in-flight POSTs don't get overwritten by a stale
+  // remote snapshot. Stops when tab is hidden to save battery.
+  useEffect(() => {
+    if (!shoppingList) return undefined;
+    const weekStart = shoppingList.weekStartDate;
+    if (!weekStart) return undefined;
+
+    let cancelled = false;
+
+    const poll = async () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastLocalMutationRef.current < 2000) return;
+      try {
+        const url = new URL(ENDPOINTS.shoppingProgress);
+        url.searchParams.append("week_start_date", weekStart);
+        const res = await apiFetch(url.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          timeout: 8000,
+          retries: 0,
+        });
+        if (cancelled || !res.ok) return;
+        const data = await res.json();
+        const remoteIds = Array.isArray(data) ? data.map((r) => String(r.item_id)) : [];
+        if (cancelled) return;
+        // Re-check mutation timestamp in case user toggled during the fetch.
+        if (Date.now() - lastLocalMutationRef.current < 2000) return;
+        setCheckedItems((prev) => {
+          const next = new Set(remoteIds);
+          if (prev.size === next.size && Array.from(prev).every((id) => next.has(id))) {
+            return prev;
+          }
+          return next;
+        });
+      } catch {
+        /* network hiccup — try again next tick */
+      }
+    };
+
+    const interval = setInterval(poll, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [shoppingList]);
 
   const couponSavingsTotal = useMemo(() => {
     if (!shoppingList?.items || !couponLookup) return 0;
@@ -1278,7 +1416,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
 
       {/* Invite partner modal */}
       <AnimatePresence>
-        {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
+        {showInvite && (
+          <InviteModal
+            weekStartDate={shoppingList?.weekStartDate}
+            onClose={() => setShowInvite(false)}
+          />
+        )}
       </AnimatePresence>
 
       {/* Trip summary overlay */}

@@ -45,6 +45,10 @@ export const ENDPOINTS = {
   shoppingProgressCheck: `${API_BASE_URL}/shopping_progress_check`,
   shoppingProgressUncheck: `${API_BASE_URL}/shopping_progress_uncheck`,
 
+  // Partner shopping sessions (invite + live polling)
+  createSession: `${API_BASE_URL}/create_session`,
+  joinSession: `${API_BASE_URL}/join_session`,
+
   grabInstructionsFast: `${API_BASE_URL}/grab_instructions_fast`,
 
   // Meal Creator

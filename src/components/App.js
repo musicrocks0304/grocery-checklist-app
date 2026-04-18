@@ -59,10 +59,23 @@ const navigation = [
   { id: "cook", name: "Cook Recipes", icon: ChefHat },
 ];
 
+// Partner invite: when a URL is opened with hash `#join/CODE`, extract the
+// code so App can call the join webhook before any regular screen renders.
+const extractJoinCode = () => {
+  const hash = window.location.hash.replace("#", "");
+  if (hash.startsWith("join/")) return hash.slice(5).trim().toUpperCase() || null;
+  return null;
+};
+
+const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
+
 const App = () => {
   const [debugMode] = useState(isDebugMode);
+  const [joinState, setJoinState] = useState(() => (extractJoinCode() ? "joining" : "idle"));
+  const [joinError, setJoinError] = useState(null);
   const [currentScreen, setCurrentScreen] = useState(() => {
     const hash = window.location.hash.replace("#", "");
+    if (hash.startsWith("join/")) return "home"; // placeholder; join effect redirects to #shop
     // Redirect legacy hashes to new screen IDs
     const redirected = LEGACY_REDIRECT[hash];
     if (redirected) return redirected;
@@ -144,11 +157,64 @@ const App = () => {
     navigateToScreen("shop");
   }, [navigateToScreen]);
 
+  // Partner invite: if URL hash is #join/CODE, validate the code via the
+  // join_session webhook, stash the session in sessionStorage, and redirect
+  // to #shop. Runs once on mount — the initial joinState='joining' means
+  // App renders a blocking loading view until this resolves.
+  useEffect(() => {
+    const code = extractJoinCode();
+    if (!code) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = new URL(ENDPOINTS.joinSession);
+        url.searchParams.append("code", code);
+        const res = await apiFetch(url.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          timeout: 8000,
+          retries: 1,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.found && data.week_start_date) {
+          sessionStorage.setItem(
+            JOINED_SESSION_STORAGE_KEY,
+            JSON.stringify({
+              code: data.code,
+              week_start_date: data.week_start_date,
+              expires_at: data.expires_at,
+            })
+          );
+          setJoinState("idle");
+          setCurrentScreen("shop");
+          window.history.replaceState({ screen: "shop" }, "", "#shop");
+        } else {
+          setJoinError("That invite is invalid or expired.");
+          setJoinState("error");
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setJoinError("Couldn't reach the server — check your connection and try again.");
+        setJoinState("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Browser back/forward button support
   useEffect(() => {
     const hash = window.location.hash.replace("#", "") || "home";
-    const initialScreen = LEGACY_REDIRECT[hash] || (VALID_SCREENS.includes(hash) ? hash : "home");
-    window.history.replaceState({ screen: initialScreen }, "", `#${initialScreen}`);
+    // Skip the URL normalization when arriving via `#join/CODE` — the
+    // partner-invite effect above reads the code then rewrites the URL to
+    // `#shop` itself. Still wire up popstate so back/forward work afterward.
+    if (!hash.startsWith("join/")) {
+      const initialScreen = LEGACY_REDIRECT[hash] || (VALID_SCREENS.includes(hash) ? hash : "home");
+      window.history.replaceState({ screen: initialScreen }, "", `#${initialScreen}`);
+    }
 
     const handlePopState = (event) => {
       const screen = event.state?.screen || "home";
@@ -295,6 +361,48 @@ const App = () => {
         );
     }
   };
+
+  // Partner join: block the app while we resolve the invite code. A fresh
+  // partner hitting #join/CODE sees this briefly before redirect to #shop.
+  if (joinState === "joining") {
+    return (
+      <ThemeProvider>
+        {toaster}
+        <div className="min-h-screen bg-background flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="w-10 h-10 rounded-full border-2 border-default border-t-primary animate-spin mx-auto mb-4" />
+            <p className="text-body">Joining shopping session…</p>
+          </div>
+        </div>
+      </ThemeProvider>
+    );
+  }
+
+  if (joinState === "error") {
+    return (
+      <ThemeProvider>
+        {toaster}
+        <div className="min-h-screen bg-background flex items-center justify-center p-8">
+          <div className="max-w-sm bg-surface border border-default rounded-2xl p-6 text-center shadow-warm">
+            <h2 className="text-lg font-bold text-heading mb-2">Can't join</h2>
+            <p className="text-sm text-body mb-5">{joinError}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setJoinState("idle");
+                setJoinError(null);
+                window.history.replaceState({ screen: "home" }, "", "#home");
+                setCurrentScreen("home");
+              }}
+              className="w-full py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover"
+            >
+              Go home
+            </button>
+          </div>
+        </div>
+      </ThemeProvider>
+    );
+  }
 
   // Shop screen (InStoreMode) renders fullscreen without navigation chrome
   if (currentScreen === "shop") {
