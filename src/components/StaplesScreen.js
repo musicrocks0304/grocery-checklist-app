@@ -108,7 +108,7 @@ const StaplesScreen = ({ onReview }) => {
 
   return (
     <div className="relative h-full bg-background">
-      <div className="max-w-2xl mx-auto px-4 pt-4 pb-32">
+      <div className="max-w-6xl mx-auto px-4 pt-4 pb-32">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center flex-shrink-0">
             <Check size={12} className="text-primary" strokeWidth={3} />
@@ -161,15 +161,19 @@ const StaplesScreen = ({ onReview }) => {
         )}
 
         {/* Category sections — hidden when focused on a meal */}
-        {!mealFocus && groups.map((g) => (
-          <CategorySection
-            key={g.name}
-            group={g}
-            selected={selected}
-            onToggle={toggle}
-            onToggleAll={() => handleToggleAll(g)}
-          />
-        ))}
+        {!mealFocus && groups.length > 0 && (
+          <div className="lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4">
+            {groups.map((g) => (
+              <CategorySection
+                key={g.name}
+                group={g}
+                selected={selected}
+                onToggle={toggle}
+                onToggleAll={() => handleToggleAll(g)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <ReviewBar count={totalSelected} onReview={onReview} />
