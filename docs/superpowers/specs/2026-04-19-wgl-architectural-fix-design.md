@@ -266,12 +266,19 @@ const INGREDIENT_TO_CANONICAL = {
 };
 ```
 
-### Pass `ingredient_id` through ([RecipeIngredients.js:178-200](src/components/RecipeIngredients.js#L178-L200))
+### Hardening note (added during plan-review pass, 2026-04-19)
 
-```js
-ItemID: ingredient.ingredient_id,  // from upstream ingredients.ingredient_id
-// (Backend will add +1000 offset before WGL insert.)
-```
+Verified the actual data flow during the hardening pass. Two important corrections to the v1 design:
+
+1. **Ingredient Agent (`Ingredient Agent` workflow id `UqXlXX5uPWlGvhU6`) has its own CATEGORY_MAP** that produces non-canonical names ("Produce", "Pantry", "Dairy", "Bakery", "Frozen"). This is the upstream root cause of dirty categories reaching WGL via the meal-ingredients flow. **Fix this workflow's CATEGORY_MAP at the source** (canonical 14 names) rather than relying solely on frontend defense.
+
+2. **`ingredient.ingredient_id` is NOT in the Ingredient Agent webhook response.** The response shape is `{name, category, purchaseQuantity, purchaseUnit, recipeNeeds, usedInRecipes}`. So the frontend cannot pass through a stable `ingredient_id`; the stable-ID resolution happens entirely in the backend (`Create Grocery List - Meals` looks up `ingredients.ingredient_id` by name).
+
+Additional data-flow oddity (out of scope, documented for awareness): **Ingredient Agent has a side-effect write to `weekly_selections`** via its "Transform for Weekly Selections" + "Execute SQL" branch. When meal ingredients are generated, the workflow also INSERT IGNOREs the meal selections. This dual-write is benign (uses INSERT IGNORE) but is one of two paths populating `weekly_selections`.
+
+### ID stability (revised by hardening pass)
+
+Originally proposed passing `ingredient.ingredient_id` from frontend. **Withdrawn** — verified the field doesn't exist in the Ingredient Agent webhook response. Instead, stable ID resolution lives entirely in the backend: `Create Grocery List - Meals` looks up `ingredients.ingredient_id` by ingredient name and writes `ingredient_id + 1000` as the WGL.ItemID. The frontend can keep its local sequential counter (which becomes a no-op label that the backend ignores).
 
 ### Walk order from DB ([categories.js](src/constants/categories.js), [InStoreMode.js:786-905](src/components/InStoreMode.js#L786-L905))
 

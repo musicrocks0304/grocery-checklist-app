@@ -14,6 +14,24 @@
 
 ---
 
+## Plan Revision Notes (v2 — 2026-04-19, post-hardening pass)
+
+After applying the 7-discipline hardening review against the v1 plan, 12 gaps were surfaced and incorporated. Highlights:
+
+- **NEW Task 1.19**: Update Ingredient Agent CATEGORY_MAP to canonical names (root-cause fix — was missing entirely from v1).
+- **REVISED Task 2.7**: Selection Check now also updates Selection Uncheck's WHERE clause precision (`week_start_date` constraint).
+- **REVISED Task 2.11**: Added pre-flight verification that bulk Create Grocery List path is still actively used; if not, simplify scope.
+- **REVISED Task 2.12**: Dropped the `ingredient.ingredient_id` passthrough — that field doesn't exist in webhook output; backend name-based lookup in Task 2.9 is the actual stable-ID mechanism.
+- **NEW Task 2.15**: Phase 2 gate gains automated Playwright verification for cascade + allDone scenarios.
+- **NEW Task 3.1.5**: Phase 3 prep — audit ALL workflows for `WGL.Category` references before column drop.
+- **NEW step in workflow tasks**: Query `n8n_list_executions?status=error&limit=5` after each workflow update to catch immediate breakage.
+- **Naming standardization**: All migration workflows named `Migration: WGL-Fix Phase N - <description>` for clustering.
+- **Backups**: Use credentials from `C:\hsa-automation\.env` (no `<user>` placeholder).
+- **Documented limitation**: Walk order localStorage may keep stale entry if a category is deleted from DB (low priority, won't happen in practice).
+- **Documented data flow oddity**: Ingredient Agent has a side-effect write to `weekly_selections` — out of scope but worth knowing.
+
+---
+
 ## File Inventory
 
 **Created:**
@@ -36,7 +54,7 @@
 - `src/components/InStoreMode.js`
 - `src/constants/categories.js`
 - `src/config/api.js`
-- n8n workflows (8 total): Pull Grocery Staples, Add One-Off Grocery Item, Selection Check, Selection Uncheck (verify only), Remove Weekly Grocery Item (verify only), Create Grocery List, Create Grocery List - Meals, Remove Weekly Selection
+- n8n workflows (9 total): Pull Grocery Staples, Add One-Off Grocery Item, Selection Check, Selection Uncheck (precision tightening), Remove Weekly Grocery Item (verify only), Create Grocery List, Create Grocery List - Meals, Remove Weekly Selection, **Ingredient Agent (CATEGORY_MAP fix)**
 - n8n workflows (1 new): Categories API
 
 **Note on file storage:** SQL files in `migrations/` are reference scripts. Actual execution is via n8n migration workflows that wrap each SQL block. Each migration workflow follows the existing pattern: webhook → MySQL executeQuery → respond. Workflows are created via n8n MCP and executed once via REST API.
@@ -304,7 +322,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: Create n8n workflow** (same pattern as Task 1.3, with SQL from `2026-04-19_phase1_oneoff_items_table.sql`)
 
 Use the same JSON structure as Task 1.3 but:
-- name: `Migration: Phase 1 - Oneoff Items Table`
+- name: `Migration: WGL-Fix Phase 1 - Oneoff Items Table`
 - path: `migration_phase1_oneoff_items`
 - webhookId: `mig-2026-04-19-oneoff-table`
 - Run Migration query: full SQL from the .sql file
@@ -377,7 +395,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Create + activate + trigger n8n workflow** (same pattern as Task 1.3/1.5)
 
-- name: `Migration: Phase 1 - WGL Add Columns`
+- name: `Migration: WGL-Fix Phase 1 - WGL Add Columns`
 - path: `migration_phase1_wgl_columns`
 - webhookId: `mig-2026-04-19-wgl-cols`
 
@@ -466,7 +484,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Create + activate + trigger workflow**
 
-- name: `Migration: Phase 1 - WGL Backfill`
+- name: `Migration: WGL-Fix Phase 1 - WGL Backfill`
 - path: `migration_phase1_wgl_backfill`
 - webhookId: `mig-2026-04-19-wgl-backfill`
 
@@ -1188,7 +1206,80 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 1.18: PHASE 1 VERIFICATION GATE
+## Task 1.18: Update Ingredient Agent CATEGORY_MAP to canonical names (root-cause fix)
+
+**Files:** n8n workflow `Ingredient Agent` (id `UqXlXX5uPWlGvhU6`)
+
+**Why:** The "Convert to Shopping List" Code node has its own CATEGORY_MAP that produces non-canonical names ("Produce", "Pantry", "Dairy", "Bakery", "Frozen") instead of the canonical 14. This is the upstream source of dirty categories that flow through to WGL. Fixing this at the source means the frontend `mapToCanonicalCategory` becomes belt-and-suspenders defense rather than a permanent crutch.
+
+- [ ] **Step 1: Locate and update the CATEGORY_MAP in the Code node**
+
+Use `mcp__n8n-mcp__n8n_get_workflow` with `id: "UqXlXX5uPWlGvhU6"` to fetch the workflow. Find the `Convert to Shopping List` Code node (id `c1d2e3f4-convert-0001`). Inside its `jsCode`, replace the `CATEGORY_MAP` object with this canonical version:
+
+```javascript
+const CATEGORY_MAP = {
+  'produce': 'Fruit & vegetables', 'vegetable': 'Fruit & vegetables', 'vegetables': 'Fruit & vegetables',
+  'fruit': 'Fruit & vegetables', 'fruits': 'Fruit & vegetables', 'herb': 'Fruit & vegetables', 'herbs': 'Fruit & vegetables',
+  'protein': 'Meat & seafood', 'meat': 'Meat & seafood', 'seafood': 'Meat & seafood', 'poultry': 'Meat & seafood',
+  'dairy': 'Dairy & eggs', 'cheese': 'Dairy & eggs',
+  'grain': 'Pasta, rice & grains', 'grains': 'Pasta, rice & grains', 'pasta': 'Pasta, rice & grains', 'rice': 'Pasta, rice & grains',
+  'pantry': 'Pantry staples', 'baking': 'Pantry staples', 'canned': 'Pantry staples', 'sweeteners': 'Pantry staples',
+  'spice': 'Spices & seasonings', 'spices': 'Spices & seasonings', 'seasoning': 'Spices & seasonings',
+  'condiment': 'Condiments & sauces', 'condiments': 'Condiments & sauces', 'sauce': 'Condiments & sauces', 'sauces': 'Condiments & sauces',
+  'oil': 'Condiments & sauces', 'oils': 'Condiments & sauces', 'vinegar': 'Condiments & sauces',
+  'bread': 'Bakery & bread', 'bakery': 'Bakery & bread',
+  'frozen': 'Frozen food',
+  'beverage': 'Beverages', 'beverages': 'Beverages',
+  'snack': 'Snacks', 'snacks': 'Snacks', 'nuts': 'Snacks',
+  'other': 'Pantry staples',
+};
+
+function mapCategory(cat) {
+  if (!cat) return 'Pantry staples';
+  const lower = cat.toLowerCase().trim();
+  return CATEGORY_MAP[lower] || 'Pantry staples';
+}
+```
+
+The `mapCategory` function changes too — fallback is now always "Pantry staples" (a canonical name) instead of pass-through capitalization (which would create new dirty categories).
+
+Use `mcp__n8n-mcp__n8n_update_partial_workflow` to patch the node's `jsCode` parameter.
+
+- [ ] **Step 2: Trigger the workflow with sample input and verify response**
+
+```bash
+curl -s -X POST "https://n8n-grocery.needexcelexpert.com/webhook/get_recipe_items" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <api-key>" \
+  -d '{"recipe_ids":"[\"22\",\"32\",\"33\"]","session_id":"hardening-test","timestamp":"2026-04-19T00:00:00Z","meal_count":"3","meals":"[{\"id\":\"22\",\"name\":\"Pork and Butternut Chili\"}]","week_start_date":"2026-04-19","week_end_date":"2026-04-25","week_display_range":"For the week of April 19th to April 25th, 2026"}' | python -c "
+import sys, json
+d = json.load(sys.stdin)
+ingredients = d.get('output', {}).get('ingredients', [])
+cats = sorted(set(i['category'] for i in ingredients))
+print('Distinct categories returned:')
+for c in cats: print(f'  {repr(c)}')
+canonical = {'Fruit & vegetables','Bakery & bread','Deli & prepared food','Meat & seafood','Dairy & eggs','Cereal & breakfast','Pasta, rice & grains','Pantry staples','Condiments & sauces','Spices & seasonings','Snacks','Beverages','Household & other','Frozen food'}
+non_canonical = [c for c in cats if c not in canonical]
+print('Non-canonical:', non_canonical or 'NONE — OK')
+"
+```
+
+Expected: `Non-canonical: NONE — OK`. The api-key value is in `C:\hsa-automation\.env` if the curl needs auth.
+
+- [ ] **Step 3: Check for n8n execution errors**
+
+```bash
+source /c/hsa-automation/.env && curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+  "http://localhost:5679/api/v1/executions?limit=5&status=error&workflowId=UqXlXX5uPWlGvhU6"
+```
+
+Expected: empty `data` array.
+
+- [ ] **Step 4: Update MEMORY.md** with the workflow update note.
+
+---
+
+## Task 1.19: PHASE 1 VERIFICATION GATE
 
 **Files:** none (verification only)
 
@@ -1293,12 +1384,15 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```bash
 cd "c:/New Grocery App/grocery-checklist-app"
 mkdir -p backups
-mysqldump -h localhost -P 3307 -u <user> -p hsa --routines --triggers --single-transaction \
+# Source MySQL credentials from the existing automation env file
+source /c/hsa-automation/.env
+mysqldump -h localhost -P 3307 -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" hsa \
+  --routines --triggers --single-transaction \
   WeeklyGroceryList shopping_progress weekly_selections oneoff_items categories \
   > backups/hsa-pre-phase2-2026-04-19.sql
 ```
 
-If credentials need lookup, read them from `C:\hsa-automation\.env` (look for MYSQL_* env vars) or check existing n8n MySQL credentials.
+If `$MYSQL_USER` / `$MYSQL_PASSWORD` aren't in `.env`, look for `MYSQL_*` or `DB_*` variables and adjust. As fallback, copy from existing n8n MySQL credential (id `lqIXlvVVqfE4v7DF`).
 
 - [ ] **Step 2: Verify the dump is non-empty and parseable**
 
@@ -1326,7 +1420,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Create + activate + trigger workflow** (same pattern as Phase 1 migrations)
 
-- name: `Migration: Phase 2 - Orphan Backfill`
+- name: `Migration: WGL-Fix Phase 2 - Orphan Backfill`
 - path: `migration_phase2_orphans`
 - webhookId: `mig-2026-04-19-orphans`
 
@@ -1398,7 +1492,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Create + activate + trigger n8n workflow**
 
-- name: `Migration: Phase 2 - UNIQUE and FK`
+- name: `Migration: WGL-Fix Phase 2 - UNIQUE and FK`
 - path: `migration_phase2_unique_fk`
 - webhookId: `mig-2026-04-19-unique-fk`
 
@@ -1575,9 +1669,54 @@ Expected: newest row has populated `category_id` and `week_start_date`.
 
 ---
 
+## Task 2.7b: Tighten Selection Uncheck WHERE clause precision
+
+**Files:** n8n workflow `Selection Uncheck` (id `IgQIsJCu5RZ9TYKJ`)
+
+**Why:** Current WHERE matches by `(LOWER(TRIM(ItemName)), WeekDateRange, DataSource='Staples')`. After Phase 2, `week_start_date` is the canonical reference. Adding it to the WHERE prevents potential edge-case wrong-row deletes if any weird data ever surfaces with mismatched display string vs week_start_date.
+
+- [ ] **Step 1: Update the DELETE query**
+
+Replace the `Uncheck Item` MySQL node's query with:
+
+```sql
+DELETE FROM WeeklyGroceryList
+WHERE LOWER(TRIM(ItemName)) = LOWER(TRIM('{{ $json.body.itemName }}'))
+  AND week_start_date = STR_TO_DATE('{{ $json.body.weekStartDate }}', '%Y-%m-%d')
+  AND DataSource = 'Staples'
+```
+
+The frontend already sends `weekStartDate` in ISO format (`2026-04-19`) per [useWeekStaples.js:62](src/hooks/useWeekStaples.js#L62). The shopping_progress FK CASCADE fires automatically on the deleted row.
+
+- [ ] **Step 2: Test cascade still works**
+
+Execute the cascade-test from Task 2.5 step 3, but trigger via Selection Uncheck instead of raw DELETE.
+
+```bash
+# Trigger Selection Uncheck via curl
+curl -s -X POST "https://n8n-grocery.needexcelexpert.com/webhook/selection_uncheck" \
+  -H "Content-Type: application/json" \
+  -d '{"itemName":"CASCADE-TEST","weekDateRange":"For the week of April 19th to April 25th, 2026","weekStartDate":"2026-04-19"}'
+```
+
+Verify both WGL row and shopping_progress row are gone (cascade fired).
+
+- [ ] **Step 3: Check for n8n execution errors**
+
+```bash
+source /c/hsa-automation/.env && curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
+  "http://localhost:5679/api/v1/executions?limit=5&status=error"
+```
+
+Expected: empty `data` array (no errors).
+
+- [ ] **Step 4: Update MEMORY.md**
+
+---
+
 ## Task 2.8: Verify Selection Uncheck and Remove Weekly Grocery Item cascade correctly
 
-**Files:** Selection Uncheck (id `IgQIsJCu5RZ9TYKJ`), Remove Weekly Grocery Item (id `HMe8bs6E93s0a1QN`) — no code changes, verification only.
+**Files:** Selection Uncheck (id `IgQIsJCu5RZ9TYKJ` — verified in Task 2.7b above), Remove Weekly Grocery Item (id `HMe8bs6E93s0a1QN`) — no code changes, verification only.
 
 - [ ] **Step 1: Test cascade via the Plan screen**
 
@@ -1803,7 +1942,25 @@ Expected: 0 (no orphans).
 
 **Files:** n8n workflow `Create Grocery List` (id `o0FnsnU6DaU9CqKD`)
 
-- [ ] **Step 1: Restructure the workflow nodes**
+- [ ] **PRE-FLIGHT: Verify the bulk Create Grocery List path is still actively used**
+
+The Plan screen is migrating to per-item Selection Check ([useWeekStaples.js:53](src/hooks/useWeekStaples.js#L53)). The bulk Create Grocery List path is called from [GroceryChecklist.js:836](src/components/GroceryChecklist.js#L836), which may be on a legacy screen.
+
+Verify:
+
+```bash
+# Check whether GroceryChecklist is still routed in App.js
+```
+
+Use Grep tool: pattern `GroceryChecklist`, path `src/components/App.js`, output_mode `content`.
+
+If GroceryChecklist is still rendered for any active route → proceed with the upsert refactor below.
+
+If GroceryChecklist is dead code (no routes render it) → SIMPLIFIED scope: just update Create Grocery List workflow to write `category_id` and `week_start_date` (so historical re-runs don't break the FK), then mark for removal in a future cleanup. Skip the upsert refactor.
+
+Document the decision before proceeding.
+
+- [ ] **Step 1: Restructure the workflow nodes (only if pre-flight says it's still used)**
 
 New flow (replacing Webhook → Extract Week Range → Delete Old Staples → Transform → Insert):
 
@@ -1943,10 +2100,12 @@ Uncheck a Staple item on Plan, save. Verify:
 
 ---
 
-## Task 2.12: Update RecipeIngredients.js to use canonical category mapping and pass ingredient_id
+## Task 2.12: Update RecipeIngredients.js to use canonical category mapping
 
 **Files:**
 - Modify: `src/components/RecipeIngredients.js`
+
+**Note:** The original v1 plan included passing `ingredient.ingredient_id` from the frontend. Verified during hardening: **the Ingredient Agent webhook does NOT return `ingredient_id`** in its response shape (returns `{name, category, purchaseQuantity, purchaseUnit, recipeNeeds, usedInRecipes}`). Stable ID generation happens entirely in the backend (Task 2.9 maps by name in `Create Grocery List - Meals`). No frontend ingredient_id passthrough needed.
 
 - [ ] **Step 1: Replace getCategorySection and capitalizeCategory with mapToCanonicalCategory**
 
@@ -1967,7 +2126,7 @@ GroceryStoreSection: getCategorySection(capitalizeCategory(ingredient.category))
 
 Replace with:
 ```javascript
-ItemID: ingredient.ingredient_id || itemId++,  // prefer stable ID from upstream
+ItemID: itemId++,  // local sequential — backend resolves to stable ingredients.ingredient_id+1000 via name lookup
 ItemName: ingredient.name,
 Category: mapToCanonicalCategory(ingredient.category),
 GroceryStoreSection: mapToCanonicalCategory(ingredient.category),
@@ -2095,7 +2254,69 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 2.14: PHASE 2 VERIFICATION GATE
+## Task 2.14: Browser-based cascade and allDone verification (Playwright)
+
+**Files:** none (verification only — uses `mcp__plugin_playwright_playwright__*` tools)
+
+**Why:** Unit tests prove logic correctness; only the browser proves the feature works end-to-end against the real backend. This task is the final gate before Phase 2 cleanup.
+
+- [ ] **Step 1: Open the app**
+
+```
+Use mcp__plugin_playwright_playwright__browser_navigate with url: http://localhost:3000/#shop
+```
+
+- [ ] **Step 2: Snapshot the aisle list**
+
+```
+Use mcp__plugin_playwright_playwright__browser_snapshot
+```
+
+Verify in the snapshot:
+- Aisle chip bar shows ≤ 14 distinct labels (the canonical 14 set or subset).
+- No "Pantry", "Produce", "Dairy", "Seasoning", or "General" labels visible.
+
+- [ ] **Step 3: Test cascade — uncheck Plan item, verify InStoreMode reflects it**
+
+Navigate to `http://localhost:3000/#plan`. Snapshot. Identify a checked staple item.
+
+```
+Use mcp__plugin_playwright_playwright__browser_click on the checked item to uncheck it
+Use mcp__plugin_playwright_playwright__browser_wait_for (text containing the success indicator or 1s delay)
+```
+
+Then query DB to verify the WGL row is gone AND any matching shopping_progress row is also gone (cascade fired):
+
+```sql
+SELECT 'wgl' AS tbl, COUNT(*) AS n FROM WeeklyGroceryList WHERE ItemName='<unchecked_name>' AND week_start_date='2026-04-19' UNION ALL SELECT 'sp', COUNT(*) FROM shopping_progress WHERE item_id=<id> AND week_start_date='2026-04-19'
+```
+Expected: both `n=0`.
+
+- [ ] **Step 4: Test allDone — check all items in InStoreMode, verify success banner**
+
+Navigate to `http://localhost:3000/#shop`. Snapshot to find unchecked items.
+
+```
+Use mcp__plugin_playwright_playwright__browser_evaluate to programmatically click each unchecked item button:
+  function: () => document.querySelectorAll('button[aria-checked="false"]').forEach(btn => btn.click())
+```
+
+Snapshot again. Verify the "All Done!" trip summary modal is visible.
+
+- [ ] **Step 5: Test premature-done regression — partially check, verify NO banner**
+
+Reset by re-loading the page (or unchecking a few items). With some items still unchecked, take a snapshot. Verify NO trip-summary modal.
+
+- [ ] **Step 6: Capture browser console for any errors**
+
+```
+Use mcp__plugin_playwright_playwright__browser_console_messages
+```
+Expected: no error-level messages related to fetch failures, FK violations, or missing fields.
+
+---
+
+## Task 2.15: PHASE 2 VERIFICATION GATE
 
 **Files:** none (verification only)
 
@@ -2151,11 +2372,49 @@ Phase 3 drops the legacy `WGL.Category` text column and is harder to roll back. 
 
 ```bash
 cd "c:/New Grocery App/grocery-checklist-app"
-mysqldump -h localhost -P 3307 -u <user> -p hsa --routines --triggers --single-transaction \
+source /c/hsa-automation/.env
+mysqldump -h localhost -P 3307 -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" hsa \
+  --routines --triggers --single-transaction \
   WeeklyGroceryList shopping_progress weekly_selections oneoff_items categories heb_cart_sessions \
   > backups/hsa-pre-phase3-$(date -I).sql
 ls -lh backups/hsa-pre-phase3-*.sql
 ```
+
+---
+
+## Task 3.1.5: Audit ALL n8n workflows for `WGL.Category` text column references
+
+**Why:** Phase 3 drops the `WGL.Category` column. Any workflow still SELECTing or referencing it will fail after the drop. Pull Grocery Staples is covered, but there could be ad-hoc reporting or analytics workflows we don't know about.
+
+- [ ] **Step 1: List all active workflows**
+
+Use `mcp__n8n-mcp__n8n_list_workflows` with `active: true, limit: 100`. Save the list.
+
+- [ ] **Step 2: For each workflow, fetch and grep for `WGL.Category` or `WeeklyGroceryList.Category` references**
+
+For each workflow id:
+```
+Use mcp__n8n-mcp__n8n_get_workflow with id
+Search the returned JSON for any string containing "Category" in conjunction with WeeklyGroceryList or WGL
+```
+
+This is best done as a parallel batch — dispatch a subagent (`Agent` with `subagent_type: Explore`) with the prompt:
+
+> "For each n8n workflow id in this list: [...], fetch via mcp__n8n-mcp__n8n_get_workflow and report any node whose query parameter references `WGL.Category`, `WeeklyGroceryList.Category`, or selects `Category` from WeeklyGroceryList. Report under 200 words."
+
+- [ ] **Step 3: For each found reference, update to use `c.name AS Category` via JOIN to categories**
+
+Apply the same JOIN pattern as Task 1.15 / 3.3 to each affected workflow.
+
+- [ ] **Step 4: Re-trigger each updated workflow with sample data**
+
+Verify response shape unchanged (still returns a `Category` field, just sourced via JOIN).
+
+- [ ] **Step 5: STOP if any workflow can't be updated cleanly. Re-evaluate Phase 3 scope.**
+
+If a workflow legitimately needs the legacy text column (e.g., for historical reasons), defer the column drop and just enforce NOT NULL on `category_id` for now.
+
+- [ ] **Step 6: Update MEMORY.md with findings**
 
 ---
 
@@ -2236,7 +2495,7 @@ Expected: response works, all categories canonical.
 
 - [ ] **Step 1: Create + activate + trigger workflow** with multi-statement migration. Use 4 sequential MySQL nodes (one per ALTER) to isolate failures.
 
-- name: `Migration: Phase 3 - Drop Legacy Columns`
+- name: `Migration: WGL-Fix Phase 3 - Drop Legacy Columns`
 - path: `migration_phase3_cleanup`
 
 - [ ] **Step 2: Verify state**
