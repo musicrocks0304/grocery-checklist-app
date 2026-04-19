@@ -25,7 +25,8 @@ import { EmptyState } from "./ui";
 import confetti from "canvas-confetti";
 import { getWeekDates } from "../utils/weekDates";
 import { ENDPOINTS, apiFetch } from "../config/api";
-import { HEB_WALK_ORDER, DEFAULT_CATEGORY } from "../constants/categories";
+import { DEFAULT_CATEGORY } from "../constants/categories";
+import { useCategories } from "../hooks/useCategories";
 
 const WALK_ORDER_STORAGE_KEY = "inStoreWalkOrder";
 const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
@@ -783,7 +784,14 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
 
   // V5 state
-  const [walkOrder, setWalkOrder] = useState(HEB_WALK_ORDER);
+  const { categories: dbCategories } = useCategories();
+  const defaultWalkOrder = useMemo(
+    () => (dbCategories && dbCategories.length > 0
+      ? [...dbCategories].sort((a, b) => a.walk_order - b.walk_order).map((c) => c.name)
+      : []),
+    [dbCategories]
+  );
+  const [walkOrder, setWalkOrder] = useState([]);
   const [activeSection, setActiveSection] = useState(null);
   const [toast, setToast] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -886,22 +894,24 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     fetchItemsForWeek();
   }, [inStoreData]);
 
-  // --- Load saved walk order ---
+  // --- Load saved walk order (merge localStorage override with DB-sourced defaults) ---
   useEffect(() => {
+    if (defaultWalkOrder.length === 0) return;
     try {
       const stored = localStorage.getItem(WALK_ORDER_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge with defaults so any newly-added categories still appear.
-          const merged = [...parsed, ...HEB_WALK_ORDER.filter((n) => !parsed.includes(n))];
+          const merged = [...parsed, ...defaultWalkOrder.filter((n) => !parsed.includes(n))];
           setWalkOrder(merged);
+          return;
         }
       }
     } catch {
       /* ignore bad storage */
     }
-  }, []);
+    setWalkOrder(defaultWalkOrder);
+  }, [defaultWalkOrder]);
 
   const persistWalkOrder = useCallback((order) => {
     try {
