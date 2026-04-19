@@ -1,5 +1,5 @@
 export const STORAGE_VERSION_KEY = 'schema_version';
-export const CURRENT_VERSION = 2;
+export const CURRENT_VERSION = 3;
 
 export const INVALIDATED_KEYS = [
   'inStoreCheckedItems',
