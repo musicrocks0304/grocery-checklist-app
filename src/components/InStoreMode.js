@@ -1202,7 +1202,9 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   // Totals + trip summary trigger
   const totalItems = shoppingList ? shoppingList.items.length : 0;
   const totalChecked = checkedItems.size;
-  const allDone = totalItems > 0 && totalChecked === totalItems;
+  const allDone = totalItems > 0 && shoppingList.items.every(
+    (i) => checkedItems.has(String(i.ItemID))
+  );
 
   useEffect(() => {
     if (allDone && !celebratedRef.current) {
