@@ -42,7 +42,7 @@ const OneOffCard = ({ oneOffs, selected, onToggle, onRemove }) => {
                   id={inputId}
                   checked={isChecked}
                   onChange={() => onToggle(o.ItemID)}
-                  className="w-5 h-5 text-primary rounded focus:ring-focus flex-shrink-0"
+                  className="w-5 h-5 accent-primary rounded focus:ring-focus flex-shrink-0"
                 />
                 <label
                   htmlFor={inputId}

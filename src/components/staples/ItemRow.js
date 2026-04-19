@@ -13,7 +13,7 @@ const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
         id={inputId}
         checked={checked}
         onChange={() => onToggle(item.ItemID)}
-        className="w-5 h-5 text-primary rounded focus:ring-focus flex-shrink-0"
+        className="w-5 h-5 accent-primary rounded focus:ring-focus flex-shrink-0"
       />
       <label
         htmlFor={inputId}
