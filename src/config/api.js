@@ -16,6 +16,7 @@ const CLIP_SERVER_URL = process.env.REACT_APP_CLIP_SERVER_URL
  */
 export const ENDPOINTS = {
   // Grocery
+  categories: `${API_BASE_URL}/categories`,
   fetchGroceryItems: `${API_BASE_URL}/fetch_grocery_items`,
   deactivateGroceryItem: `${API_BASE_URL}/deactivate_grocery_item`,
   addGroceryItems: `${API_BASE_URL}/add_grocery_items`,
