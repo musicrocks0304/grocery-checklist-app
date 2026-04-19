@@ -1,4 +1,9 @@
-// The 14 HEB-aligned grocery categories
+// The 14 canonical grocery categories now live in the database (table: categories).
+// Components should fetch them via the useCategories hook (src/hooks/useCategories.js).
+// The constants below are retained as a compat shim for legacy consumers
+// (GroceryChecklist, StaplesScreen, ReviewScreen). TODO: migrate those consumers
+// to useCategories, then remove these exports.
+
 export const GROCERY_CATEGORIES = [
   'Bakery & bread',
   'Beverages',
@@ -18,11 +23,6 @@ export const GROCERY_CATEGORIES = [
 
 export const DEFAULT_CATEGORY = 'Pantry staples';
 
-// Default walk order through an HEB store — roughly produce → deli → meat →
-// dairy → center store → frozen. Users can reorder this per-session via the
-// In-Store Mode walk-order editor; the chosen order is persisted to
-// localStorage ('inStoreWalkOrder'). A future improvement is per-user/per-store
-// persistence in the backend.
 export const HEB_WALK_ORDER = [
   'Fruit & vegetables',
   'Bakery & bread',
