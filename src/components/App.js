@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
 import { pageTransition } from "../utils/animations";
 import { ENDPOINTS, apiFetch, normalizeDbMeals } from "../config/api";
+import { ensureStorageVersion } from "../utils/storageVersion";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import { HeaderProvider } from "../contexts/HeaderContext";
 import AppShell from "./AppShell";
@@ -97,6 +98,10 @@ const App = () => {
 
   const setHasUnsavedChanges = useCallback((value) => {
     hasUnsavedChangesRef.current = value;
+  }, []);
+
+  useEffect(() => {
+    ensureStorageVersion();
   }, []);
 
   // Shared helper: fetch meals from DB, normalize, and cache to localStorage
