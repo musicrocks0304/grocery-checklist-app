@@ -16,6 +16,7 @@ import {
 import { ENDPOINTS, apiFetch } from '../config/api';
 import toast from 'react-hot-toast';
 import { getWeekDateRange, getWeekDates } from '../utils/weekDates';
+import { mapToCanonicalCategory } from '../utils/categoryMap';
 
 const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, debugMode = false }) => {
   const [ingredientsList, setIngredientsList] = useState([]);
@@ -182,9 +183,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
           transformedIngredients.push({
             ItemID: itemId++,
             ItemName: ingredient.name,
-            Category: capitalizeCategory(ingredient.category),
+            Category: mapToCanonicalCategory(ingredient.category),
             Store: 'HEB', // Default store
-            GroceryStoreSection: getCategorySection(capitalizeCategory(ingredient.category)),
+            GroceryStoreSection: mapToCanonicalCategory(ingredient.category),
             Type: 'Basic',
             IsActive: 1,
             IsSelected: 1, // Pre-select all items from recipes
@@ -234,34 +235,6 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Helper function to capitalize category names
-  const capitalizeCategory = (category) => {
-    if (!category) return 'General';
-    return category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
-  };
-
-
-
-  // Helper function to map categories to store sections
-  const getCategorySection = (category) => {
-    const sectionMap = {
-      'Protein': 'Meat & Seafood',
-      'Proteins': 'Meat & Seafood',
-      'Produce': 'Produce',
-      'Vegetables': 'Produce',
-      'Fruits': 'Produce',
-      'Dairy': 'Dairy',
-      'Pantry': 'Pantry',
-      'Grains': 'Pantry',
-      'Spices': 'Spices & Seasonings',
-      'Seasoning': 'Spices & Seasonings',
-      'Condiments': 'Condiments',
-      'Oils': 'Condiments',
-      'Beverages': 'Beverages'
-    };
-    return sectionMap[category] || 'General';
   };
 
   // Helper functions matching main screen pattern
