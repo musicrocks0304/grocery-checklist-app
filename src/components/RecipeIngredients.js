@@ -773,7 +773,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                               <select
                                 value={quantity}
                                 onChange={(e) => updateQuantity(item.ItemID, e.target.value)}
-                                className="w-16 px-2 py-1 border border-default rounded text-sm focus:ring-focus"
+                                className="w-16 px-2 py-1 border border-default rounded text-sm bg-surface text-heading focus:ring-focus"
                               >
                                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                                   <option key={num} value={num}>&times;{num}</option>

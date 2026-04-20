@@ -991,25 +991,6 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
           )}
         </div>
 
-        {/* Mobile Floating Meal Badge — left side, above chat input */}
-        {selectedMeals.length > 0 && !showMealsPanel && (
-          <button
-            onClick={() => setShowMealsPanel(true)}
-            className="lg:hidden fixed z-30 flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
-            style={{
-              left: '12px',
-              bottom: 'calc(var(--tab-bar-height) + 4.5rem)',
-              background: 'linear-gradient(135deg, #c17849, #d4915e)',
-              borderRadius: '24px',
-              padding: '10px 16px',
-              boxShadow: '0 4px 16px rgba(193,120,73,0.4)',
-            }}
-          >
-            <ChefHat size={16} className="text-white" />
-            <span className="text-white text-sm font-bold">{selectedMeals.length}</span>
-          </button>
-        )}
-
         {/* Selected Meals Strip — desktop only */}
         {selectedMeals.length > 0 && (
           <button
@@ -1058,7 +1039,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
         {/* Input Area (Phase 1 only) */}
         {phase === 1 && (
           <div className="p-3 lg:p-6 bg-surface border-t border-default">
-            <div className="relative">
+            <div className="flex items-end gap-2">
               <textarea
                 value={inputMessage}
                 onChange={(e) => {
@@ -1068,7 +1049,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                 }}
                 onKeyDown={handleKeyPress}
                 placeholder="Describe what you're craving..."
-                className="w-full pl-4 pr-12 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none overflow-hidden"
+                className="flex-1 px-4 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent resize-none overflow-hidden"
                 rows="1"
                 disabled={isLoading}
                 aria-label="Describe what you're craving"
@@ -1076,7 +1057,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
               <button
                 onClick={sendMessage}
                 disabled={!inputMessage.trim() || isLoading}
-                className="absolute right-2 bottom-2 w-9 h-9 flex items-center justify-center bg-accent text-white rounded-full hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="flex-shrink-0 w-11 h-11 flex items-center justify-center bg-accent text-white rounded-xl hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 aria-label="Send message"
               >
                 <Send size={18} />

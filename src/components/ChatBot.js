@@ -1046,7 +1046,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
 
         {/* Input Area */}
         <div className="p-3 lg:p-6 bg-surface border-t border-default">
-          <div className="relative">
+          <div className="flex items-end gap-2">
             <textarea
               value={inputMessage}
               onChange={(e) => {
@@ -1056,7 +1056,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
               }}
               onKeyDown={handleKeyPress}
               placeholder="Ask me about meal ideas..."
-              className="w-full pl-4 pr-12 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none overflow-hidden"
+              className="flex-1 px-4 py-3 border border-default rounded-xl bg-surface text-heading placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent resize-none overflow-hidden"
               rows="1"
               disabled={isLoading}
               aria-label="Type your message"
@@ -1064,7 +1064,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
             <button
               onClick={sendMessage}
               disabled={!inputMessage.trim() || isLoading}
-              className="absolute right-2 bottom-2 w-9 h-9 flex items-center justify-center bg-primary text-white rounded-full hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="flex-shrink-0 w-11 h-11 flex items-center justify-center bg-primary text-white rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               aria-label="Send message"
             >
               <Send size={18} />
