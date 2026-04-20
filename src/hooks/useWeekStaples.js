@@ -84,7 +84,7 @@ const useWeekStaples = () => {
       setSelected(rolled);
       showApiError(err);
     }
-  }, [weekData.displayRange]);
+  }, [weekData.displayRange, weekData.startDate]);
 
   const quickAdd = useCallback(async (name) => {
     const trimmed = name.trim();
@@ -133,7 +133,7 @@ const useWeekStaples = () => {
     } catch (err) {
       showApiError(err);
     }
-  }, [weekData.displayRange]);
+  }, [weekData.displayRange, weekData.startDate]);
 
   return { items, selected, loading, error, toggle, quickAdd, removeOneOff };
 };
