@@ -780,7 +780,11 @@ const GroceryChecklist = ({ onNavigate, onUnsavedChanges, onStartShopping, debug
                           await apiFetch(ENDPOINTS.removeWeeklyItem, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ itemName: item.ItemName, weekDateRange: getWeekDateRange() }),
+                            body: JSON.stringify({
+                              itemName: item.ItemName,
+                              weekDateRange: getWeekDateRange(),
+                              weekStartDate: getWeekDates().startDate,
+                            }),
                           });
                           // Remove from local state
                           setSelectedItems(prev => { const s = new Set(prev); s.delete(item.ItemID.toString()); return s; });

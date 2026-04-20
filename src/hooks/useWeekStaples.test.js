@@ -74,6 +74,19 @@ describe('useWeekStaples', () => {
     const body = JSON.parse(callOpts.body);
     expect(body.itemName).toBe('Milk');
     expect(body.weekDateRange).toMatch(/week/i);
+    // weekStartDate is required by the backend cascade-delete of shopping_progress
+    expect(body.weekStartDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  test('removeOneOff payload includes weekStartDate for shopping_progress cascade', async () => {
+    apiFetch.mockImplementationOnce(() => mockOk(mockItems));
+    apiFetch.mockImplementationOnce(() => mockOk({ success: true }));
+    const { result } = renderHook(() => useWeekStaples());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { await result.current.removeOneOff(9); });
+    const [, callOpts] = apiFetch.mock.calls[1];
+    const body = JSON.parse(callOpts.body);
+    expect(body.weekStartDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   test('toggle rolls back on API failure', async () => {

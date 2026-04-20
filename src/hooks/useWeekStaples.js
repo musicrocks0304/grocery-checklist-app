@@ -52,9 +52,15 @@ const useWeekStaples = () => {
     setSelected(next);
     const endpoint = wasSelected ? ENDPOINTS.selectionUncheck : ENDPOINTS.selectionCheck;
     // Backend has no IsSelected flag — presence of the row IS the selection.
-    // Check INSERTs a new row; uncheck DELETEs by itemName+week+DataSource='Staples'.
+    // Check INSERTs a new row; uncheck DELETEs by itemName+week+DataSource='Staples'
+    // and also cascade-deletes matching shopping_progress rows (prevents the
+    // zombie re-check bug where un-then-re-added items return pre-checked).
     const payload = wasSelected
-      ? { itemName: item.ItemName, weekDateRange: weekData.displayRange }
+      ? {
+          itemName: item.ItemName,
+          weekDateRange: weekData.displayRange,
+          weekStartDate: weekData.startDate,
+        }
       : {
           itemId,
           itemName: item.ItemName,
@@ -115,7 +121,11 @@ const useWeekStaples = () => {
       const res = await apiFetch(ENDPOINTS.removeWeeklyItem, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ itemName: target.ItemName, weekDateRange: weekData.displayRange }),
+        body: JSON.stringify({
+          itemName: target.ItemName,
+          weekDateRange: weekData.displayRange,
+          weekStartDate: weekData.startDate,
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setItems((prev) => prev.filter((i) => i.ItemID !== itemId));
