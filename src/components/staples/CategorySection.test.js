@@ -65,11 +65,26 @@ describe('CategorySection', () => {
     expect(onToggleAll).toHaveBeenCalled();
   });
 
-  test('renders all items', () => {
+  test('items are hidden by default when nothing is selected', () => {
     render(
       <CategorySection group={group} selected={new Set()} onToggle={() => {}} onToggleAll={() => {}} />
     );
+    expect(screen.queryByText('Whole milk')).not.toBeInTheDocument();
+  });
+
+  test('items are visible by default when at least one is selected', () => {
+    render(
+      <CategorySection group={group} selected={new Set([1])} onToggle={() => {}} onToggleAll={() => {}} />
+    );
     expect(screen.getByText('Whole milk')).toBeInTheDocument();
     expect(screen.getByText('Large eggs')).toBeInTheDocument();
+  });
+
+  test('clicking the header expands a collapsed section', () => {
+    render(
+      <CategorySection group={group} selected={new Set()} onToggle={() => {}} onToggleAll={() => {}} />
+    );
+    fireEvent.click(screen.getByText('Dairy & eggs'));
+    expect(screen.getByText('Whole milk')).toBeInTheDocument();
   });
 });

@@ -70,30 +70,34 @@ describe('StaplesScreen', () => {
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
-  test('renders MealPillBar when meals are present', () => {
+  test('does not render any meal pill bar', () => {
     renderWith();
-    expect(screen.getByText('All items')).toBeInTheDocument();
-    expect(screen.getByText('Chicken tacos')).toBeInTheDocument();
-  });
-
-  test('does not render MealPillBar when meals array is empty', () => {
-    renderWith({ mealsHook: { meals: [] } });
     expect(screen.queryByText('All items')).not.toBeInTheDocument();
   });
 
-  test('renders MealsCard with meal-ingredient items in "all items" view', () => {
+  test('renders MealsCard with meal-ingredient items', () => {
     renderWith();
     expect(screen.getByText(/from your meals/i)).toBeInTheDocument();
     expect(screen.getByText('Chicken thighs')).toBeInTheDocument();
     expect(screen.getByText('Cilantro')).toBeInTheDocument();
   });
 
-  test('clicking a meal pill hides category sections and shows only meal items', () => {
+  test('category section auto-expands when it has selections', () => {
     renderWith();
-    fireEvent.click(screen.getByText('Chicken tacos'));
-    expect(screen.queryByText('Dairy & eggs')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bakery & bread')).not.toBeInTheDocument();
-    expect(screen.getByText('Chicken thighs')).toBeInTheDocument();
-    expect(screen.getByText('Cilantro')).toBeInTheDocument();
+    // Dairy & eggs contains Milk (ItemID 1, selected) — should be expanded by default.
+    expect(screen.getByText('Milk')).toBeInTheDocument();
+  });
+
+  test('category section is collapsed by default when it has no selections', () => {
+    renderWith();
+    // Bakery & bread contains Bread (ItemID 2, not selected) — header visible, item hidden.
+    expect(screen.getByText('Bakery & bread')).toBeInTheDocument();
+    expect(screen.queryByText('Bread')).not.toBeInTheDocument();
+  });
+
+  test('clicking a collapsed category header expands it', () => {
+    renderWith();
+    fireEvent.click(screen.getByText('Bakery & bread'));
+    expect(screen.getByText('Bread')).toBeInTheDocument();
   });
 });
