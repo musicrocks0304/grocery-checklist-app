@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   ChevronUp,
   ShoppingBag,
   PartyPopper,
@@ -347,44 +348,76 @@ const ItemRow = React.memo(({ item, isChecked, couponMatch, onToggle, isFirst })
 });
 ItemRow.displayName = "ItemRow";
 
-// Horizontal scrollable pill bar — first-word label per aisle, states for
-// default / active / complete.
-const AisleChipBar = React.memo(({ sections, currentIndex, onChipClick }) => (
-  <div
-    className="flex gap-1.5 px-3 py-2.5 overflow-x-auto bg-surface border-b border-default"
-    style={{
-      scrollbarWidth: "none",
-      msOverflowStyle: "none",
-      WebkitOverflowScrolling: "touch",
-    }}
-  >
-    {sections.map((section, idx) => {
-      const done = section.totalCount > 0 && section.checkedCount === section.totalCount;
-      const active = idx === currentIndex;
-      let classes = "bg-surface text-body border-default";
-      if (active) classes = "bg-primary text-white border-primary";
-      else if (done) classes = "bg-primary-light text-primary border-primary-border";
-      return (
+// Collapsible section for a single aisle — header toggles body visibility.
+// Whole header is clickable; chevron rotates to indicate state. Completed
+// sections get a checkmark in the header but remain expandable for uncheck.
+const AisleSection = React.memo(
+  ({ section, collapsed, onToggle, checkedItems, couponLookup, onItemToggle }) => {
+    const done = section.totalCount > 0 && section.checkedCount === section.totalCount;
+    const remaining = section.totalCount - section.checkedCount;
+    return (
+      <div className="mb-3">
         <button
-          key={section.name}
           type="button"
-          onClick={() => onChipClick(section.name)}
-          className={`flex-shrink-0 inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-colors ${classes}`}
+          onClick={() => onToggle(section.name)}
+          aria-expanded={!collapsed}
+          className="w-full flex items-center gap-2 px-1.5 py-2 text-left"
         >
+          <div className="flex-1 min-w-0">
+            <div className="text-[20px] font-bold leading-tight text-heading">
+              {section.name}
+            </div>
+            <div className="text-[12px] text-muted mt-0.5">
+              {done ? (
+                <span className="text-primary font-semibold">All done</span>
+              ) : (
+                <>
+                  {remaining} of {section.totalCount} remaining
+                </>
+              )}
+            </div>
+          </div>
           {done && (
-            <Check
-              size={11}
-              strokeWidth={3}
-              className={active ? "text-white" : "text-primary"}
-            />
+            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+              <Check size={12} strokeWidth={3} className="text-white" />
+            </div>
           )}
-          {section.name.split(" ")[0]}
+          <ChevronDown
+            size={20}
+            className={`text-muted transition-transform duration-200 flex-shrink-0 ${
+              collapsed ? "-rotate-90" : ""
+            }`}
+          />
         </button>
-      );
-    })}
-  </div>
-));
-AisleChipBar.displayName = "AisleChipBar";
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              style={{ overflow: "hidden" }}
+            >
+              <div className="bg-surface rounded-[20px] border border-default overflow-hidden shadow-warm-sm">
+                {section.items.map((item, idx) => (
+                  <ItemRow
+                    key={item.ItemID}
+                    item={item}
+                    isChecked={checkedItems.has(item.ItemID.toString())}
+                    couponMatch={couponLookup[item.ItemName?.toLowerCase()]}
+                    onToggle={onItemToggle}
+                    isFirst={idx === 0}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+);
+AisleSection.displayName = "AisleSection";
 
 // Inline voice bar that slides down from below the header. Runs the listening
 // waveform, then a recognized state, then collapses. Real recognition uses
@@ -792,7 +825,9 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     [dbCategories]
   );
   const [walkOrder, setWalkOrder] = useState([]);
-  const [activeSection, setActiveSection] = useState(null);
+  // Section names the user has manually collapsed. Default-expanded; adding
+  // a name here hides that section's body until the user taps the header.
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set());
   const [toast, setToast] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
@@ -816,30 +851,39 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const lastLocalMutationRef = useRef(0);
   const voice = useVoiceRecognition();
 
-  // --- Shopping list resolution: prop → localStorage → backend ---
-  // If the user joined a partner session, that session's week_start_date
-  // overrides the current week. We bypass the localStorage cache for joined
-  // sessions so the partner always sees the host's up-to-date list.
+  // --- Shopping list resolution: fetch-fresh-first with cache as offline fallback ---
+  // Always re-fetch on mount so a mid-week addition/removal on the Plan screen
+  // shows up here. The localStorage cache is a fallback for the API-down case
+  // (spotty reception in the store), not a source of truth. A stale cache used
+  // to cause "42/7" style counters because shopping_progress kept growing
+  // while the cached list stayed frozen.
   useEffect(() => {
     const joined = readJoinedSession();
     const isJoined = !!joined;
+    const weekData = getWeekDates();
+    const targetWeekStart = joined?.week_start_date || weekData.startDate;
 
+    // 1) Seed from prop (explicit pass-through, e.g. "Start Shopping" button)
+    //    or from localStorage (if the cache matches this week). This gives an
+    //    instant paint so the user isn't staring at a spinner.
+    let seeded = false;
     if (inStoreData && inStoreData.items && inStoreData.items.length > 0 && !isJoined) {
       setShoppingList(inStoreData);
-      return;
-    }
-
-    if (!isJoined) {
+      seeded = true;
+    } else if (!isJoined) {
       const stored = localStorage.getItem("inStoreShoppingList");
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          if (parsed && parsed.items && parsed.items.length > 0) {
-            const weekData = getWeekDates();
-            if (parsed.weekStartDate === weekData.startDate) {
-              setShoppingList(parsed);
-              return;
-            }
+          if (
+            parsed &&
+            parsed.items &&
+            parsed.items.length > 0 &&
+            parsed.weekStartDate === targetWeekStart
+          ) {
+            setShoppingList(parsed);
+            seeded = true;
+          } else {
             localStorage.removeItem("inStoreShoppingList");
             localStorage.removeItem("inStoreCheckedItems");
           }
@@ -849,14 +893,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       }
     }
 
+    // 2) Always refresh from backend in the background. Overwrites the seed
+    //    with live data — that's the whole point of this refactor.
+    let cancelled = false;
     const fetchItemsForWeek = async () => {
-      setIsAutoLoading(true);
+      if (!seeded) setIsAutoLoading(true);
       try {
-        const weekData = getWeekDates();
-        const targetWeekStart = joined?.week_start_date || weekData.startDate;
-        // Display range for the joined week can't be computed cheaply from
-        // just a date string, so we fall back to current-week display when
-        // joined and expose the ISO date as the stable weekStartDate.
         const url = new URL(ENDPOINTS.fetchGroceryItems);
         url.searchParams.append("weekStartDate", targetWeekStart);
         url.searchParams.append("weekEndDate", joined?.week_start_date ? "" : weekData.endDate);
@@ -867,13 +909,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           mode: "cors",
           headers: { Accept: "application/json" },
         });
-        if (!response.ok) return;
+        if (cancelled || !response.ok) return;
         const data = await response.json();
-        if (!Array.isArray(data) || data.length === 0) return;
+        if (!Array.isArray(data)) return;
         const selectedItems = data
           .filter((item) => item.IsSelected === 1)
           .map((item) => ({ ...item, quantity: item.QuantitySelected || 1 }));
-        if (selectedItems.length === 0) return;
         const listData = {
           items: selectedItems,
           savedAt: new Date().toISOString(),
@@ -881,17 +922,23 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           weekStartDate: targetWeekStart,
           joined: isJoined ? { code: joined.code, expires_at: joined.expires_at } : undefined,
         };
+        if (cancelled) return;
         setShoppingList(listData);
         if (!isJoined) {
           localStorage.setItem("inStoreShoppingList", JSON.stringify(listData));
         }
       } catch (err) {
         console.error("[in-store] Auto-fetch failed:", err.message);
+        // Seed (if any) stays on screen. If there was no seed, caller sees the
+        // empty-list state and can retry.
       } finally {
-        setIsAutoLoading(false);
+        if (!cancelled && !seeded) setIsAutoLoading(false);
       }
     };
     fetchItemsForWeek();
+    return () => {
+      cancelled = true;
+    };
   }, [inStoreData]);
 
   // --- Load saved walk order (merge localStorage override with DB-sourced defaults) ---
@@ -927,8 +974,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     const loadCheckedItems = async () => {
       try {
         const weekStart = shoppingList.weekStartDate || getWeekDates().startDate;
+        const weekRange = shoppingList.weekDateRange || getWeekDates().displayRange;
         const url = new URL(ENDPOINTS.shoppingProgress);
         url.searchParams.append("week_start_date", weekStart);
+        // Backend JOINs against WeeklyGroceryList on WeekDateRange so stale
+        // rows (items no longer on the list) are filtered out server-side.
+        url.searchParams.append("week_date_range", weekRange);
         const response = await apiFetch(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
@@ -1089,23 +1140,36 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     [shoppingList, checkedItems, walkOrder]
   );
 
-  // Current aisle derivation
-  const currentIndex = useMemo(() => {
-    if (grouped.length === 0) return 0;
-    if (activeSection) {
-      const idx = grouped.findIndex((s) => s.name === activeSection);
-      return idx >= 0 ? idx : 0;
-    }
-    const idx = grouped.findIndex((s) => s.items.some((i) => !checkedItems.has(i.ItemID.toString())));
-    return idx >= 0 ? idx : 0;
-  }, [grouped, activeSection, checkedItems]);
-
-  const current = grouped[currentIndex];
-  const upcoming = grouped.slice(currentIndex + 1, currentIndex + 3);
-
-  const handleChipClick = useCallback((name) => {
-    setActiveSection(name);
+  const toggleSection = useCallback((name) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
   }, []);
+
+  // Auto-collapse a section when its last unchecked item gets checked off.
+  // Tracks the previous "done" state per section so we only fire on the
+  // transition (not-done → done), not on every render — otherwise an expanded
+  // completed section would keep snapping shut when the user re-expanded it.
+  const prevDoneRef = useRef({});
+  useEffect(() => {
+    const updates = [];
+    grouped.forEach((s) => {
+      const isDone = s.totalCount > 0 && s.checkedCount === s.totalCount;
+      const wasDone = prevDoneRef.current[s.name];
+      if (isDone && !wasDone) updates.push(s.name);
+      prevDoneRef.current[s.name] = isDone;
+    });
+    if (updates.length > 0) {
+      setCollapsedSections((prev) => {
+        const next = new Set(prev);
+        updates.forEach((n) => next.add(n));
+        return next;
+      });
+    }
+  }, [grouped]);
 
   const handleMoveUp = useCallback(
     (idx) => {
@@ -1151,9 +1215,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     setVoiceHeard(null);
     setVoiceState("listening");
 
-    const uncheckedInCurrent = current
-      ? current.items.filter((i) => !checkedItems.has(i.ItemID.toString()))
-      : [];
     const allUnchecked = shoppingList
       ? shoppingList.items.filter((i) => !checkedItems.has(i.ItemID.toString()))
       : [];
@@ -1191,17 +1252,26 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       });
     } else {
       // DEMO fallback: simulate recognition after 2s by picking the first
-      // unchecked item in the current aisle. Remove once real speech is wired.
+      // unchecked item on the whole list. Remove once real speech is wired.
       voiceTimerRef.current = setTimeout(() => {
-        const matched = uncheckedInCurrent[0] || allUnchecked[0] || null;
+        const matched = allUnchecked[0] || null;
         finishWith(matched);
       }, 2000);
     }
-  }, [voiceState, voice, current, checkedItems, shoppingList, handleToggleItem, stopVoiceEverything]);
+  }, [voiceState, voice, checkedItems, shoppingList, handleToggleItem, stopVoiceEverything]);
 
-  // Totals + trip summary trigger
+  // Totals + trip summary trigger. `totalChecked` intersects the raw checked
+  // set against the items actually on the list — this makes the counter
+  // resilient to stale shopping_progress rows (items that were once checked
+  // but have since been removed from the weekly list).
   const totalItems = shoppingList ? shoppingList.items.length : 0;
-  const totalChecked = checkedItems.size;
+  const totalChecked = useMemo(() => {
+    if (!shoppingList) return 0;
+    return shoppingList.items.reduce(
+      (n, i) => (checkedItems.has(i.ItemID.toString()) ? n + 1 : n),
+      0
+    );
+  }, [shoppingList, checkedItems]);
   const allDone = totalItems > 0 && shoppingList.items.every(
     (i) => checkedItems.has(String(i.ItemID))
   );
@@ -1229,12 +1299,15 @@ const InStoreMode = ({ inStoreData, onExit }) => {
 
     let cancelled = false;
 
+    const weekRange = shoppingList.weekDateRange;
+
     const poll = async () => {
       if (document.visibilityState !== "visible") return;
       if (Date.now() - lastLocalMutationRef.current < 2000) return;
       try {
         const url = new URL(ENDPOINTS.shoppingProgress);
         url.searchParams.append("week_start_date", weekStart);
+        if (weekRange) url.searchParams.append("week_date_range", weekRange);
         const res = await apiFetch(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
@@ -1348,11 +1421,11 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     );
   }
 
-  const totalAisles = grouped.length;
+  const itemsLeft = totalItems - totalChecked;
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative">
-      {/* Header + voice bar + (chip bar OR reorder drawer) */}
+      {/* Header + voice bar + (reorder drawer when editing walk order) */}
       <div className="sticky top-0 z-20 bg-surface">
         {/* Top row */}
         <div className="flex items-center gap-1.5 px-3.5 py-2.5 border-b border-default relative">
@@ -1366,7 +1439,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           </button>
           <ProgressRing checked={totalChecked} total={totalItems} />
           <div className="flex-1 min-w-0 text-[14px] font-semibold text-heading truncate">
-            Aisle {currentIndex + 1} of {totalAisles}
+            {itemsLeft === 0 ? "All done!" : `${itemsLeft} item${itemsLeft === 1 ? "" : "s"} left`}
             {elapsedMinutes > 0 && (
               <span className="ml-2 text-[11px] font-normal text-muted">
                 · {elapsedMinutes}m
@@ -1427,63 +1500,33 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           )}
         </AnimatePresence>
 
-        {/* Reorder drawer OR aisle chip bar */}
-        {editOrder ? (
+        {/* Reorder drawer shown when editing walk order */}
+        {editOrder && (
           <ReorderDrawer
             sections={grouped}
             onMoveUp={handleMoveUp}
             onClose={() => setEditOrder(false)}
           />
-        ) : (
-          <AisleChipBar
-            sections={grouped}
-            currentIndex={currentIndex}
-            onChipClick={handleChipClick}
-          />
         )}
       </div>
 
-      {/* Scroll content */}
-      <div className="flex-1 overflow-y-auto px-3 pt-3.5 pb-24">
+      {/* Scroll content — all aisles as collapsible sections, in walk order */}
+      <div className="flex-1 overflow-y-auto px-3 pt-3 pb-24">
         {partnerSession && (
           <PartnerBadge expiresAt={partnerSession.expires_at} />
         )}
-        {current && (
-          <>
-            <div className="px-1.5 pb-2.5">
-              <div className="text-[11px] font-bold uppercase tracking-[0.6px] text-muted">
-                You're in
-              </div>
-              <div className="text-[26px] font-bold leading-[1.1] text-heading mt-0.5">
-                {current.name}
-              </div>
-              <div className="text-[13px] text-muted mt-1">
-                {current.totalCount - current.checkedCount} of {current.totalCount} remaining
-              </div>
-            </div>
 
-            <div className="bg-surface rounded-[20px] border border-default overflow-hidden shadow-warm-sm">
-              {current.items.map((item, idx) => (
-                <ItemRow
-                  key={item.ItemID}
-                  item={item}
-                  isChecked={checkedItems.has(item.ItemID.toString())}
-                  couponMatch={couponLookup[item.ItemName?.toLowerCase()]}
-                  onToggle={handleToggleItem}
-                  isFirst={idx === 0}
-                />
-              ))}
-            </div>
-
-            {upcoming.length > 0 && (
-              <div className="mt-5 px-1.5 text-[12px] text-muted">
-                Next:{" "}
-                <span className="text-body font-semibold">{upcoming[0].name}</span>
-                {upcoming[1] && <span> · then {upcoming[1].name}</span>}
-              </div>
-            )}
-          </>
-        )}
+        {grouped.map((section) => (
+          <AisleSection
+            key={section.name}
+            section={section}
+            collapsed={collapsedSections.has(section.name)}
+            onToggle={toggleSection}
+            checkedItems={checkedItems}
+            couponLookup={couponLookup}
+            onItemToggle={handleToggleItem}
+          />
+        ))}
 
         {couponLoadFailed && (
           <div className="mt-4 px-2 text-xs text-muted flex items-center gap-1.5">

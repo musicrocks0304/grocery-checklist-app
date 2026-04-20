@@ -151,6 +151,9 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
         const weekData = getWeekDates();
         const url = new URL(ENDPOINTS.shoppingProgress);
         url.searchParams.append("week_start_date", weekData.startDate);
+        // Backend JOINs shopping_progress with WeeklyGroceryList on
+        // WeekDateRange, so this param is now required.
+        url.searchParams.append("week_date_range", weekData.displayRange);
         const response = await apiFetch(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
