@@ -1,7 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { Check } from 'lucide-react';
-import useWeekStaples from '../hooks/useWeekStaples';
-import useWeekMeals from '../hooks/useWeekMeals';
 import { getWeekDates } from '../utils/weekDates';
 import { GROCERY_CATEGORIES } from '../constants/categories';
 import InputToolbar from './staples/InputToolbar';
@@ -16,9 +14,10 @@ const formatMonthDay = (iso) => {
   return `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`;
 };
 
-const StaplesScreen = ({ onReview }) => {
-  const { items, selected, loading, toggle, quickAdd, removeOneOff } = useWeekStaples();
-  const { meals: rawMeals } = useWeekMeals();
+// Receives hook data as props so Plan can share state with ReviewScreen.
+const StaplesScreen = ({ onReview, staplesHook, mealsHook }) => {
+  const { items, selected, loading, toggle, quickAdd, removeOneOff } = staplesHook;
+  const { meals: rawMeals } = mealsHook;
   const [mealFocus, setMealFocus] = useState(null);
   const [query, setQuery] = useState('');
   const weekData = getWeekDates();

@@ -3,12 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import StaplesScreen from './StaplesScreen';
 
-jest.mock('../hooks/useWeekStaples');
-const useWeekStaples = require('../hooks/useWeekStaples').default;
-
-jest.mock('../hooks/useWeekMeals');
-const useWeekMeals = require('../hooks/useWeekMeals').default;
-
 const baseHook = {
   items: [
     { ItemID: 1, ItemName: 'Milk',            Category: 'Dairy & eggs',       DataSource: 'Staples' },
@@ -33,67 +27,69 @@ const mealsHookBase = {
   error: null,
 };
 
-beforeEach(() => {
-  useWeekStaples.mockReturnValue(baseHook);
-  useWeekMeals.mockReturnValue(mealsHookBase);
-});
+const renderWith = (overrides = {}) =>
+  render(
+    <StaplesScreen
+      onReview={() => {}}
+      staplesHook={{ ...baseHook, ...(overrides.staplesHook || {}) }}
+      mealsHook={{ ...mealsHookBase, ...(overrides.mealsHook || {}) }}
+    />
+  );
 
 describe('StaplesScreen', () => {
   test('renders the title', () => {
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith();
     expect(screen.getByText(/grocery staples/i)).toBeInTheDocument();
   });
 
   test('renders category sections for non-one-off items', () => {
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith();
     expect(screen.getByText('Dairy & eggs')).toBeInTheDocument();
     expect(screen.getByText('Bakery & bread')).toBeInTheDocument();
   });
 
   test('renders one-offs in the OneOffCard, not in a category', () => {
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith();
     expect(screen.getByText('One-offs this week')).toBeInTheDocument();
     expect(screen.getByText('Candles')).toBeInTheDocument();
   });
 
   test('running count shows selected count', () => {
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith();
     // 3 items selected (ItemID 1, ItemID 9, ItemID 100)
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
   test('ReviewBar shows correct total', () => {
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith();
     expect(screen.getByText(/3 items in your list/i)).toBeInTheDocument();
   });
 
   test('loading state renders a spinner', () => {
-    useWeekStaples.mockReturnValue({ ...baseHook, loading: true, items: [], selected: new Set() });
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith({ staplesHook: { loading: true, items: [], selected: new Set() } });
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   test('renders MealPillBar when meals are present', () => {
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith();
     expect(screen.getByText('All items')).toBeInTheDocument();
     expect(screen.getByText('Chicken tacos')).toBeInTheDocument();
   });
 
   test('does not render MealPillBar when meals array is empty', () => {
-    useWeekMeals.mockReturnValue({ ...mealsHookBase, meals: [] });
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith({ mealsHook: { meals: [] } });
     expect(screen.queryByText('All items')).not.toBeInTheDocument();
   });
 
   test('renders MealsCard with meal-ingredient items in "all items" view', () => {
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith();
     expect(screen.getByText(/from your meals/i)).toBeInTheDocument();
     expect(screen.getByText('Chicken thighs')).toBeInTheDocument();
     expect(screen.getByText('Cilantro')).toBeInTheDocument();
   });
 
   test('clicking a meal pill hides category sections and shows only meal items', () => {
-    render(<StaplesScreen onReview={() => {}} />);
+    renderWith();
     fireEvent.click(screen.getByText('Chicken tacos'));
     expect(screen.queryByText('Dairy & eggs')).not.toBeInTheDocument();
     expect(screen.queryByText('Bakery & bread')).not.toBeInTheDocument();
