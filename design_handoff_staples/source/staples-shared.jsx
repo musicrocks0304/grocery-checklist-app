@@ -1,5 +1,5 @@
 // Shared primitives for Grocery Staples explorations.
-// Matches the real app's dark theme (see screenshot) + data shape from GroceryChecklist.js
+// Matches the real app's dark theme (see screenshot).
 
 const ST = {
   // Dark theme tokens pulled from the screenshot

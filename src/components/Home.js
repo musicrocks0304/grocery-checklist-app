@@ -73,7 +73,6 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
 
   // Load weekly status from existing endpoints
   useEffect(() => {
-    // Fetch grocery items for this week (GET with query params, matching GroceryChecklist)
     const fetchList = async () => {
       try {
         const weekData = getWeekDates();
