@@ -82,9 +82,15 @@ export const getWeekDates = () => {
   const targetSaturday = new Date(targetSunday);
   targetSaturday.setDate(targetSunday.getDate() + 6);
 
-  // Format dates for SQL (YYYY-MM-DD)
+  // Format dates for SQL (YYYY-MM-DD) using local time components.
+  // toISOString() converts to UTC — in evening hours that shifts the date forward
+  // by one day, causing weekStartDate to disagree with WGL.week_start_date and
+  // breaking selection_check/uncheck DELETEs (silent no-op).
   const formatDateForSQL = (date) => {
-    return date.toISOString().split("T")[0];
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   };
 
   return {
