@@ -50,14 +50,15 @@ describe('useWeekStaples', () => {
     expect(result.current.selected.has(2)).toBe(true);
     const [callUrl, callOpts] = apiFetch.mock.calls[1];
     expect(callUrl).toBe(ENDPOINTS.selectionCheck);
-    // Backend INSERT needs itemName + category + store to build the row
+    // Backend INSERT derives category_id server-side from the categories table,
+    // so payload only carries itemName + store + quantity.
     const body = JSON.parse(callOpts.body);
     expect(body).toMatchObject({
       itemId: 2,
       itemName: 'Bread',
-      category: 'Bakery & bread',
       quantity: 1,
     });
+    expect(body).not.toHaveProperty('category');
     expect(body.weekDateRange).toMatch(/week/i);
   });
 

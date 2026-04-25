@@ -1,8 +1,8 @@
 // The 14 canonical grocery categories now live in the database (table: categories).
 // Components should fetch them via the useCategories hook (src/hooks/useCategories.js).
 // The constants below are retained as a compat shim for legacy consumers
-// (GroceryChecklist, StaplesScreen, ReviewScreen). TODO: migrate those consumers
-// to useCategories, then remove these exports.
+// (StaplesScreen, ReviewScreen). TODO: migrate those consumers to useCategories,
+// then remove these exports.
 
 export const GROCERY_CATEGORIES = [
   'Bakery & bread',

@@ -64,7 +64,6 @@ const useWeekStaples = () => {
       : {
           itemId,
           itemName: item.ItemName,
-          category: item.Category,
           store: item.Store,
           quantity: 1,
           weekDateRange: weekData.displayRange,
