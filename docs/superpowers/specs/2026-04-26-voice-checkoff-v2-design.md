@@ -69,17 +69,29 @@ n8n is the right home because:
 
 ### Mic button states
 
-| State | Visual |
+The button itself renders four distinct visual states. Result/error feedback comes through toasts, with the exception of *persistent* failures (mic blocked or no mic on device), which the button surfaces as a permanent alert color so the user isn't surprised on every press.
+
+| Button visual | When |
 |---|---|
-| Idle | Mic icon in In-Store header, normal styling |
-| Pressing (immediate) | Button scales down slightly, icon turns red |
-| Recording | Pulse animation around the button + small "Listening…" badge |
-| Released | Spinner for ~1-2s ("Transcribing…") |
-| Match found | The matched item briefly highlights in its section, gets checked off, "Heard 'milk' ✓" toast (3s) |
-| No match | "Heard 'foo' — not on your list" toast (4s); mic returns to idle |
-| Permission denied | "Microphone access blocked. Allow mic for this site." toast (6s) |
-| Mic not available | "No microphone detected on this device." toast (4s) |
-| Network / Whisper failure | "Couldn't transcribe — try again or check your connection." toast (4s) |
+| Idle | Default. Mic icon, hover-tinted background. |
+| Recording | Red background, white mic, slight scale-up. Covers both the brief "press registered" moment and the active recording — no separate "pressing" frame. |
+| Transcribing | Spinner replaces mic icon, tinted background. While the upload + Whisper call is in flight (1–2 s typical). |
+| Blocked | Red-tinted background, alert icon (`MicOff`). Persistent — set when `navigator.permissions.query({name:'microphone'})` returns `denied` OR the device has no microphone. Tapping shows the actionable toast again. Cleared when permission flips back to `prompt`/`granted`. |
+
+Toast feedback (transient, no separate button state):
+
+| Outcome | Toast |
+|---|---|
+| Match found | `Heard "milk" — checked ✓` (success, 3 s) |
+| No match | `Heard "foo" — not on your list` (info, 4 s) |
+| Empty transcript | `Didn't hear anything — try again` (info, 3 s) |
+| Permission denied (first time, or on every press while denied) | `Microphone access blocked. Allow mic for this site in your browser/OS settings.` (error, 6 s) |
+| No mic on device | `No microphone detected on this device.` (error, 4 s) |
+| Network failure | `Couldn't reach the transcription server. Check your connection.` (error, 4 s) |
+| Whisper / server error | `Transcription failed — try again or tap the item to check it.` (error, 4 s) |
+| MediaRecorder unsupported | `Voice check-off isn't supported on this browser.` (error, 4 s) |
+
+The matched item does NOT briefly highlight before checking — it just gets toggled by the existing `handleToggleItem` which has its own toast. Adding a separate highlight animation is a v3 polish item.
 
 ### Press handling
 
@@ -93,7 +105,11 @@ Hard cap: 8 seconds. If user holds longer, stop automatically and submit. Short 
 
 ### First-tap permission flow
 
-Same as before: on first press, browser shows a microphone permission prompt. If granted, recording starts. If denied, the "Microphone access blocked" toast fires. We accept that we cannot bypass a Chrome state where mic is denied — but unlike v1, the user's failure mode is "explicit toast" instead of "silent fail".
+On first press the browser shows a microphone permission prompt. If granted, recording starts. If denied, the "Microphone access blocked" toast fires.
+
+Unlike v1, the component proactively queries `navigator.permissions.query({name:'microphone'})` on mount (best-effort — Firefox doesn't support the `microphone` name and Safari historically returned `prompt` regardless of true state, so failures here are silently ignored). When the query returns `denied`, the button enters the **Blocked** visual state immediately, before the user ever presses it. This is a direct response to the v1 incident where the failure mode was "tap mic, see error toast 100ms later, repeat" — surfacing the dead state up front saves the user that confusion.
+
+We still cannot bypass a Chrome state where mic is permanently denied. The improvement is that the user's failure mode is "obvious dead button + actionable toast" rather than "silent fail".
 
 ## Architecture
 
@@ -102,11 +118,13 @@ Same as before: on first press, browser shows a microphone permission prompt. If
 **Modify:** `src/components/InStoreMode.js`
 
 Re-introduce voice support with the new pattern:
-- New `useHoldToTalk()` hook encapsulating MediaRecorder lifecycle + getUserMedia + audio blob assembly
-- Re-introduce `findBestMatch()` (re-implement per the spec example below; the previous version was deleted in commit `310cf39`, no need to recover from git — just copy the function from this doc's "Item matching" section)
-- New `handleMicPointerDown` / `handleMicPointerUp` / `handleMicPointerLeave` event handlers
-- Replace the previous tap-once button with a press-and-hold button using pointer events
-- Restore lightweight visual states (pulse during recording, spinner during transcription, toast on result)
+- New `useHoldToTalk()` hook (named export, for testability) encapsulating MediaRecorder lifecycle + getUserMedia + audio blob assembly + AbortController-bounded upload + `navigator.permissions` precheck
+- New `findBestMatch()` (named export — the previous v1 version was deleted in commit `310cf39`; re-implement from the "Item matching" section below)
+- Press-and-hold mic button in the In-Store header using pointer events (down/up/leave/cancel)
+- Four button visual states: idle, recording, transcribing, blocked. The Blocked state is persistent (red-tinted background + `MicOff` icon) and surfaces v1's stuck-permission-denied case immediately
+
+**Create:** `src/components/InStoreMode.findBestMatch.test.js` (9 unit tests for the matcher)
+**Create:** `src/components/InStoreMode.useHoldToTalk.test.js` (12 unit tests covering the state machine, async-start race, MAX_RECORD_MS auto-stop, AbortController timeout, permission precheck, and all error classifications — fully mocked, no real network or device access)
 
 **Modify:** `src/config/api.js`
 Add `transcribeGroceryItem` to `ENDPOINTS`.
@@ -115,19 +133,19 @@ Add `transcribeGroceryItem` to `ENDPOINTS`.
 
 **Create:** workflow `Transcribe Grocery Item` (path `/transcribe_grocery_item`, POST, binary body)
 
-Three nodes:
-1. **Webhook** (`responseMode: responseNode`, `binaryData: true`, accepts `multipart/form-data`)
-2. **OpenAI** (`resource: audio`, `operation: transcription`, model `whisper-1`, language hint `en`, input from upstream binary)
-3. **Code** (extract `{ success: true, transcript: $json.text }`)
-4. **Respond to Webhook** (CORS headers, JSON body)
+Four nodes:
+1. **Webhook** v2 (`responseMode: responseNode`, `options.binaryPropertyName: "audio"`). v2 auto-detects multipart and stores files at `$binary[<formFieldName>]` — no `binaryData: true` flag needed (that option is v1-only per the n8n schema).
+2. **OpenAI** v1.8 (`resource: audio`, `operation: transcribe`, `binaryPropertyName: "audio"`, language hint `en`). Hardcodes `whisper-1` for the audio→transcribe operation. **`onError: "continueRegularOutput"`** so a Whisper failure flows to the Code node instead of crashing the workflow before the Respond node fires.
+3. **Code** v2 — normalizes the OpenAI output. Detects the `json.error` shape (Whisper failure path, populated by `onError: continueRegularOutput`) and emits the spec's `{success:false, error:"..."}`. Empty transcript on the success path is intentional and propagates as `{success:true, transcript:""}`.
+4. **Respond to Webhook** v1.5 — JSON body, CORS headers (`*` for origin/methods/headers).
 
 **Credential reuse**: existing `0fRleFfC6atnLkWr` ("OpenAi account") — no new credential to provision.
 
 ### What stays unchanged
 
-- Existing `shopping_progress_check` webhook handles the actual checkbox state. Voice match just calls it the same way the manual checkbox click does.
-- Existing `findBestMatch` logic — substring match was fine in v1; the issue was never matching, it was permission state.
+- Existing `shopping_progress_check` webhook handles the actual checkbox state. Voice match just calls it the same way the manual checkbox click does (via `handleToggleItem`).
 - Existing weekly items fetch — voice doesn't add new data dependencies.
+- The substring/word-overlap matching strategy from v1 is preserved (re-implemented from the spec); v1's matching logic was never the problem, the permission state was.
 
 ## Backend contract
 
@@ -142,28 +160,32 @@ audio: <binary blob, webm/opus from MediaRecorder>
 
 ### Response
 
-**Success (200):**
+**Success (HTTP 200):**
 ```json
 { "success": true, "transcript": "milk" }
 ```
 
-**Failure (4xx/5xx):**
+`transcript` may be an empty string if Whisper returned nothing usable for the clip (silence, unrecognizable noise). The client treats empty-transcript as a "didn't hear anything" signal, not an error — same behavior as a missed voice prompt on a smart speaker.
+
+**Failure (HTTP 200 with `success: false`, OR HTTP 5xx):**
 ```json
-{ "success": false, "error": "<reason>" }
+{ "success": false, "error": "no_audio" }
 ```
 
-Where `<reason>` is one of:
-- `no_audio` — multipart upload missing or empty
-- `whisper_error` — OpenAI returned an error (rate limit, auth, etc.)
-- `network_error` — n8n could not reach OpenAI
+Where `error` is one of:
+- `no_audio` — multipart upload missing the `audio` field, or the file was zero-length
+- `whisper_error` — OpenAI returned an error (rate limit, auth, invalid file format)
+- `internal_error` — anything else (n8n node failure, unexpected response shape)
 
-The frontend doesn't act on the specific error code; it just shows a generic "Couldn't transcribe" toast. The error code is for diagnostic logging only.
+The Code node in the workflow is responsible for normalizing `whisper_error`/`no_audio` into this shape. Anything that crashes the workflow before the Respond node fires will surface as HTTP 5xx (with the Webhook node's `onError: "continueRegularOutput"` guaranteeing a response is always sent).
+
+**Client-side handling:** The frontend doesn't branch on the specific error code — it shows a generic "Couldn't transcribe" toast for all `success: false` responses and a separate "network" toast for HTTP-level failures (timeout, 5xx, fetch reject). The `error` field is for diagnostic logging in n8n's execution history only.
 
 ### Constraints
 
-- Audio max size: 1 MB at the Webhook node level (~30 seconds of opus at typical bitrate). Reject larger to prevent abuse.
-- n8n execution timeout: 10 seconds total (Whisper p95 latency for short clips is 1-2s, so 10s leaves headroom).
-- No client-side rate limiting in v1.
+- **Audio max size: NOT enforced at the Webhook node in v2.** n8n's Webhook node v2 has no built-in size cap option; enforcing one requires setting `N8N_PAYLOAD_SIZE_MAX` instance-wide (which would affect every workflow). Client-side, the 8-second `MAX_RECORD_MS` cap and opus's ~32 kbit/s bitrate keep typical uploads well under 100 KB. Abuse vector (someone replaying the URL with large files) is acknowledged and accepted for v1 — see "Risks & mitigations" below.
+- **n8n workflow execution timeout: 30 seconds** (instance default). Whisper p95 latency for short clips is 1–2 s, so this leaves ample headroom. The client-side fetch wraps the call in a 15-second `AbortController` so a stalled n8n doesn't leave the user staring at a spinner.
+- **No client-side rate limiting in v1.** Each press triggers a fresh request; no debounce on rapid press cycles other than the natural press-and-release human pacing.
 
 ## Item matching (client-side, unchanged from v1)
 
@@ -198,40 +220,60 @@ Edge cases:
 
 ## Tests
 
-### Frontend
+### Frontend (Jest, fully automated, checked-in)
 
-**Unit (Jest):** `src/components/InStoreMode.findBestMatch.test.js`
-- Empty transcript → null
-- Exact match → returns item
-- Substring match → returns longer-name item if multiple match
-- Word-overlap fallback fires only when no direct substring match
-- Already-checked items filtered out by caller (test the integration in handler)
+**`src/components/InStoreMode.findBestMatch.test.js`** — 9 tests:
+- Empty / null / undefined / whitespace-only transcript → null
+- Empty / null / undefined item list → null (defensive)
+- No match → null
+- Exact match (case-insensitive)
+- Longer name wins when both substring-match
+- Reverse-substring (transcript contains item name)
+- Word-overlap fallback (only fires when direct substring path misses)
+- Two-character word ignored by word-overlap (no false positives)
+- Multi-item phrase ("milk and eggs") matches the first contained item
 
-**Behavioral (Playwright):** add to existing InStoreMode test setup
-- Mock `MediaRecorder` and `fetch` for `/transcribe_grocery_item`
-- Simulate hold-press: pointerdown → 1s wait → pointerup
-- Assert recorder started + stopped, fetch hit with multipart body
-- Mock 200 response with `{transcript: "Cinnamon Toast Crunch"}` → assert item gets checked off
-- Mock 200 response with `{transcript: "asparagus"}` (not in list) → assert "Heard 'asparagus'" toast
-- Simulate slide-off (pointerleave during hold) → assert no fetch fires
+**`src/components/InStoreMode.useHoldToTalk.test.js`** — 12 tests using `renderHook` from `@testing-library/react`. Mocks: `MediaRecorder`, `getUserMedia`, `navigator.permissions.query`, `fetch`. No real network or device access.
+- Happy path: press → hold → release → fetch fires with multipart body, onResult called with transcript
+- Empty transcript: `success:true, transcript:""` → onResult called with `""` (caller decides UX)
+- MIN_PRESS_MS guard: release in <250ms → no fetch, no error
+- Slide-off cancel: pointer leaves while held → no fetch, recorder stopped, stream released
+- Async-start race: pointerup BEFORE getUserMedia resolves → recorder never constructed, stream released, no fetch
+- MAX_RECORD_MS auto-stop: hold past 8s → recorder auto-stops AND submission fires (regression test for the v1 review's "stuck spinner" bug)
+- Permission precheck: `navigator.permissions.query` returns `denied` → `blockedReason === "permission"` set on mount
+- Press while blocked: onError fired with the same reason, no recorder built, no permission re-prompt
+- `getUserMedia` rejects `NotAllowedError` → `blockedReason === "permission"`
+- `getUserMedia` rejects `NotFoundError` → `blockedReason === "no-mic"`
+- Missing `MediaRecorder` global → `blockedReason === "no-recorder"`
+- Network failure (`fetch` throws) → `onError("network")`, state idle, NOT blocked
+- Server `success: false` → `onError("server")`, state idle
+- Server HTTP 5xx → `onError("server")`
 
 ### Backend (n8n)
 
-**Smoke test via curl** (test plan only, not automated):
+**Smoke test via curl** (manual, after workflow activation):
+
+Negative path:
 ```bash
-curl -X POST -F "audio=@sample.webm" \
-  https://n8n-grocery.needexcelexpert.com/webhook/transcribe_grocery_item
-# Expected: {"success": true, "transcript": "<spoken phrase>"}
+curl -s -X POST "https://n8n-grocery.needexcelexpert.com/webhook/transcribe_grocery_item"
+# Expected: {"success":false,"error":"no_audio"}
+```
+
+Positive path (requires a recorded clip):
+```bash
+curl -s -X POST -F "audio=@sample.webm" \
+  "https://n8n-grocery.needexcelexpert.com/webhook/transcribe_grocery_item"
+# Expected: {"success":true,"transcript":"<spoken phrase>"}
 ```
 
 No fixture audio file in v2 — verify via real device once. If the workflow misbehaves later, record a clip then.
 
 ## Rollout sequence
 
-1. **Backend first**: create + activate the n8n workflow. Smoke-test it with curl using a recorded clip.
-2. **Frontend second**: implement the hold-to-talk UI + integrate with the new endpoint. Build, test, push.
-3. **Behavioral verify**: Playwright test passes locally, then live-test on dev server.
-4. **Deploy** via git push to main → Netlify.
+1. **Backend first**: create + activate the n8n workflow. Smoke-test the negative path (no body → `{success:false, error:"no_audio"}`).
+2. **Frontend code**: add the endpoint constant, `findBestMatch`, the `useHoldToTalk` hook, and the mic button. Each is a separate commit; each leaves the build green.
+3. **Automated tests**: `findBestMatch` (9 tests) and `useHoldToTalk` (12 tests) pass under `CI=true npm test`. Don't push if either suite fails.
+4. **Deploy** via git push to main → Netlify auto-deploys.
 5. **Real-world test**: real shopping trip; if the feature works as expected, optionally submit a new `app_feedback` entry noting the v2 success so future Claude knows the implementation is stable.
 
 Order matters: deploying the frontend before the backend means the mic button hits a 404. Deploying the backend before the frontend just leaves the endpoint idle (fine).
@@ -240,11 +282,13 @@ Order matters: deploying the frontend before the backend means the mic button hi
 
 | Risk | Mitigation |
 |---|---|
-| Wife's Chrome still has mic stuck at "denied" | Test in incognito first to confirm it's a per-Chrome-profile issue, not a phone-level lock. If it's the profile, she'll need to clear Chrome's app data (not just site data) once. After that, the prompt fires fresh and v2 should work. |
+| Wife's Chrome still has mic stuck at "denied" | The mount-time `navigator.permissions.query` makes the dead state visible (button shows MicOff in alert color) instead of letting her tap-and-fail repeatedly. If she still hits the stuck state: test in incognito to confirm it's per-profile not phone-level, then clear Chrome's app data (not just site data) once. After that the prompt fires fresh and v2 should work. |
 | OpenAI rate limit / outage | "Couldn't transcribe" toast; user falls back to manual checkbox. Acceptable for v1. |
 | Whisper mishears the item | Same fail-soft as bad match: shows "Heard 'X' — not on list" toast. User taps the actual checkbox. |
-| n8n webhook payload size limit unknown | Test with a 30-second recording first to find the actual limit. Set Webhook node's `maxBodySize` to 5 MB explicitly. |
-| MediaRecorder support varies by browser | The vast majority of modern browsers (Chrome 49+, Safari 14.1+, Firefox 25+, all major mobile) support it. If unsupported, getUserMedia errors will surface via the "no microphone" toast. |
+| Endpoint URL leaks via JS bundle (it will — it's in the React app) → free Whisper transcription for whoever finds it | Acknowledged for v1. Worst-case spend at $0.006/min is small relative to OpenAI quota. v3: add an HMAC or short-lived signed token, or move the endpoint behind an authenticated path. |
+| Audio uploads larger than typical (e.g., someone replaying the URL with a long file) | No Webhook-level cap in v2. Mitigated by the client-side 8-second `MAX_RECORD_MS` cap on the legitimate path; abuse path is accepted. Track for v3 with the URL-leak risk above. |
+| MediaRecorder support varies by browser | The vast majority of modern browsers (Chrome 49+, Safari 14.1+, Firefox 25+, all major mobile) support it. If unsupported, hook returns `error: "no-recorder"` and the button enters Blocked state with the "Voice check-off isn't supported on this browser" toast. |
+| n8n stalls (Whisper queue, network blip) | 15-second `AbortController` timeout on the client. After abort, "Couldn't reach the transcription server" toast fires; button returns to idle. No stuck-spinner state. |
 
 ## Cost
 
