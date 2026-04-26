@@ -32,6 +32,41 @@ const WALK_ORDER_STORAGE_KEY = "inStoreWalkOrder";
 const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
 const HOST_SESSION_STORAGE_KEY = "hostShoppingSession";
 
+// Match a transcript against a list of unchecked items. Used by voice
+// check-off v2. Strategy:
+//   1. Exact name match (case-insensitive). Otherwise "milk" would match
+//      "Almond milk" via reverse-substring before ever reaching "Milk".
+//   2. Direct substring (case-insensitive, in either direction); longest
+//      item name wins so "almond milk" beats "milk".
+//   3. Word-overlap fallback for cases where the transcript is a phrase
+//      that doesn't directly contain any item name (e.g. "I need
+//      cinnamon toast" → "Cinnamon Toast Crunch"). Only words of length
+//      >= 3 count, to avoid false positives.
+// Returns the matched item, or null if no match.
+export const findBestMatch = (transcript, uncheckedItems) => {
+  if (!transcript) return null;
+  if (!Array.isArray(uncheckedItems) || uncheckedItems.length === 0) return null;
+  const t = transcript.toLowerCase().trim();
+  if (!t) return null;
+  for (const item of uncheckedItems) {
+    if (item.ItemName.toLowerCase() === t) return item;
+  }
+  const byLength = [...uncheckedItems].sort(
+    (a, b) => b.ItemName.length - a.ItemName.length
+  );
+  for (const item of byLength) {
+    const name = item.ItemName.toLowerCase();
+    if (t.includes(name) || name.includes(t)) return item;
+  }
+  const words = t.split(/\s+/).filter((w) => w.length >= 3);
+  if (words.length === 0) return null;
+  for (const item of uncheckedItems) {
+    const name = item.ItemName.toLowerCase();
+    if (words.some((w) => name.includes(w))) return item;
+  }
+  return null;
+};
+
 // The join_session webhook returns MySQL's naive datetime format
 // ("YYYY-MM-DD HH:MM:SS"); the create_session webhook returns ISO. Normalize
 // both to ms-since-epoch, treating naive strings as UTC (the server stores UTC).
