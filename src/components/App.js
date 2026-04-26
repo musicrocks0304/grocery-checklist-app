@@ -418,6 +418,7 @@ const App = () => {
           inStoreData={inStoreData}
           onExit={() => navigateToScreen("plan")}
         />
+        <FeedbackFAB currentScreen={currentScreen} />
       </ThemeProvider>
     );
   }

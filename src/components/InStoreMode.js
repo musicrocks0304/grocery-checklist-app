@@ -21,6 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import hotToast from "react-hot-toast";
 import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/animations";
 import { EmptyState } from "./ui";
 import confetti from "canvas-confetti";
@@ -90,9 +91,9 @@ const sortByWalkOrder = (sectionNames, walkOrder) => {
 };
 
 // Build { name, items[], checkedCount, totalCount }[] grouped by Category,
-// sorted by the user's walk order. Items keep their insertion order within a
-// section so a just-checked row doesn't jump — you stay anchored on the row
-// your thumb was just on.
+// sorted by the user's walk order. Within each section, unchecked items come
+// first (in insertion order) and checked items sink to the bottom so the
+// shopper can visually track what's left.
 const groupByWalkOrder = (items, checked, walkOrder) => {
   const buckets = {};
   items.forEach((item) => {
@@ -103,14 +104,12 @@ const groupByWalkOrder = (items, checked, walkOrder) => {
   const orderedNames = sortByWalkOrder(Object.keys(buckets), walkOrder);
   return orderedNames.map((name) => {
     const bucket = buckets[name];
-    const checkedCount = bucket.reduce(
-      (n, i) => (checked.has(i.ItemID.toString()) ? n + 1 : n),
-      0
-    );
+    const unchecked = bucket.filter((i) => !checked.has(i.ItemID.toString()));
+    const checkedItems = bucket.filter((i) => checked.has(i.ItemID.toString()));
     return {
       name,
-      items: bucket,
-      checkedCount,
+      items: [...unchecked, ...checkedItems],
+      checkedCount: checkedItems.length,
       totalCount: bucket.length,
     };
   });
@@ -149,13 +148,14 @@ const useVoiceRecognition = () => {
   }, []);
 
   const start = useCallback(
-    ({ onResult, onEnd }) => {
+    ({ onResult, onEnd, onError }) => {
       if (!isSupported) return null;
       const rec = new SpeechRecognition();
       rec.lang = "en-US";
       rec.interimResults = false;
       rec.continuous = false;
       rec.maxAlternatives = 3;
+      let errorCode = null;
       rec.onresult = (event) => {
         const transcript = Array.from(event.results)
           .flatMap((r) => Array.from(r).map((alt) => alt.transcript))
@@ -163,13 +163,17 @@ const useVoiceRecognition = () => {
           .trim();
         onResult?.(transcript);
       };
-      rec.onerror = () => onEnd?.();
-      rec.onend = () => onEnd?.();
+      rec.onerror = (event) => {
+        errorCode = event?.error || "unknown";
+        onError?.(errorCode);
+      };
+      rec.onend = () => onEnd?.(errorCode);
       recognitionRef.current = rec;
       try {
         rec.start();
-      } catch {
-        onEnd?.();
+      } catch (err) {
+        onError?.("start-failed");
+        onEnd?.("start-failed");
       }
       return rec;
     },
@@ -1212,6 +1216,14 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       stopVoiceEverything();
       return;
     }
+
+    // If speech recognition isn't available on this browser, surface that
+    // immediately rather than letting the user think they're being heard.
+    if (!voice.isSupported) {
+      hotToast.error("Voice check-off isn't supported on this browser. Try Chrome on Android or Safari on iOS.");
+      return;
+    }
+
     setVoiceHeard(null);
     setVoiceState("listening");
 
@@ -1233,31 +1245,44 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       }, 1400);
     };
 
-    if (voice.isSupported) {
-      voice.start({
-        onResult: (transcript) => {
-          const matched = findBestMatch(transcript, allUnchecked);
-          finishWith(matched);
-        },
-        onEnd: () => {
-          // If onEnd fires without a result, finalize as "no match".
-          if (voiceTimerRef.current) return; // already finalized
-          setVoiceState((prev) => (prev === "listening" ? "recognized" : prev));
-          setVoiceHeard(null);
-          voiceTimerRef.current = setTimeout(() => {
-            setVoiceState("idle");
-            setVoiceHeard(null);
-          }, 1400);
-        },
-      });
-    } else {
-      // DEMO fallback: simulate recognition after 2s by picking the first
-      // unchecked item on the whole list. Remove once real speech is wired.
-      voiceTimerRef.current = setTimeout(() => {
-        const matched = allUnchecked[0] || null;
+    voice.start({
+      onResult: (transcript) => {
+        const matched = findBestMatch(transcript, allUnchecked);
         finishWith(matched);
-      }, 2000);
-    }
+      },
+      onError: (errorCode) => {
+        // Surface specific failure modes so the user knows what went wrong.
+        // SpeechRecognition errors: not-allowed (permission denied), no-speech,
+        // audio-capture (no mic), network, aborted, language-not-supported.
+        const messages = {
+          "not-allowed": "Microphone access blocked. Enable mic permission for this site in browser settings.",
+          "service-not-allowed": "Microphone access blocked. Enable mic permission for this site in browser settings.",
+          "no-speech": "Didn't hear anything — try tapping again and saying the item name.",
+          "audio-capture": "No microphone detected. Check your device.",
+          "network": "Voice service couldn't reach the network. Check your connection.",
+          "language-not-supported": "Voice not supported in this language.",
+          "start-failed": "Couldn't start voice recognition.",
+        };
+        if (messages[errorCode]) hotToast.error(messages[errorCode]);
+      },
+      onEnd: (errorCode) => {
+        // If onEnd fires without a result, finalize as "no match".
+        if (voiceTimerRef.current) return; // already finalized
+        // Don't show the "recognized → no match" UI flash if onError already
+        // surfaced a specific reason. Just reset to idle.
+        if (errorCode && errorCode !== "no-speech") {
+          setVoiceState("idle");
+          setVoiceHeard(null);
+          return;
+        }
+        setVoiceState((prev) => (prev === "listening" ? "recognized" : prev));
+        setVoiceHeard(null);
+        voiceTimerRef.current = setTimeout(() => {
+          setVoiceState("idle");
+          setVoiceHeard(null);
+        }, 1400);
+      },
+    });
   }, [voiceState, voice, checkedItems, shoppingList, handleToggleItem, stopVoiceEverything]);
 
   // Totals + trip summary trigger. `totalChecked` intersects the raw checked
@@ -1456,9 +1481,14 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           <button
             type="button"
             onClick={handleVoicePress}
-            aria-label="Voice check-off"
+            aria-label={voice.isSupported ? "Voice check-off" : "Voice check-off (not supported on this browser)"}
+            title={voice.isSupported ? "" : "Voice check-off isn't supported on this browser"}
             className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-              voiceState !== "idle" ? "bg-primary-light" : "hover:bg-background"
+              voiceState !== "idle"
+                ? "bg-primary-light"
+                : voice.isSupported
+                  ? "hover:bg-background"
+                  : "opacity-40 hover:bg-background"
             }`}
           >
             <Mic
