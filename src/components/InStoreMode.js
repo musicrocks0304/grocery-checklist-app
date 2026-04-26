@@ -11,6 +11,8 @@ import {
   Tag,
   AlertCircle,
   Clock,
+  Mic,
+  MicOff,
   MoreHorizontal,
   Filter,
   User,
@@ -19,6 +21,7 @@ import {
   Copy,
   Users,
 } from "lucide-react";
+import { toast as hotToast } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/animations";
 import { EmptyState } from "./ui";
@@ -1433,6 +1436,51 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     else setToast(null);
   }, [toast, shoppingList, handleToggleItem]);
 
+  // Voice check-off v2: hold-to-talk on the header mic button.
+  // The hook handles audio capture + transcription. We wire the result to
+  // findBestMatch + the existing handleToggleItem so a successful match
+  // checks the item the same way a tap would.
+  const handleVoiceResult = useCallback(
+    (transcript) => {
+      if (!transcript) {
+        // Whisper returned "" (silence, unintelligible noise) or the spec's
+        // empty-transcript success path. Distinct from "no match" — user
+        // didn't say anything we could parse.
+        hotToast("Didn't hear anything — try again", { icon: "🤔", duration: 3000 });
+        return;
+      }
+      const allUnchecked = shoppingList
+        ? shoppingList.items.filter((i) => !checkedItems.has(i.ItemID.toString()))
+        : [];
+      const matched = findBestMatch(transcript, allUnchecked);
+      if (matched) {
+        handleToggleItem(matched);
+        hotToast.success(`Heard "${transcript}" — checked ✓`, { duration: 3000 });
+      } else {
+        hotToast(`Heard "${transcript}" — not on your list`, { icon: "🔍", duration: 4000 });
+      }
+    },
+    [shoppingList, checkedItems, handleToggleItem]
+  );
+
+  const handleVoiceError = useCallback((reason) => {
+    const messages = {
+      permission: "Microphone access blocked. Allow mic for this site in your browser/OS settings.",
+      "no-mic": "No microphone detected on this device.",
+      "no-recorder": "Voice check-off isn't supported on this browser.",
+      network: "Couldn't reach the transcription server. Check your connection.",
+      server: "Transcription failed — try again or tap the item to check it.",
+    };
+    const durations = { permission: 6000, "no-mic": 4000, "no-recorder": 4000, network: 4000, server: 4000 };
+    hotToast.error(messages[reason] || "Couldn't transcribe.", { duration: durations[reason] || 4000 });
+  }, []);
+
+  const voice = useHoldToTalk({
+    endpoint: ENDPOINTS.transcribeGroceryItem,
+    onResult: handleVoiceResult,
+    onError: handleVoiceError,
+  });
+
   // Totals + trip summary trigger. `totalChecked` intersects the raw checked
   // set against the items actually on the list — this makes the counter
   // resilient to stale shopping_progress rows (items that were once checked
@@ -1626,6 +1674,43 @@ const InStoreMode = ({ inStoreData, onExit }) => {
               aria-label="Screen stays awake"
             />
           )}
+          <button
+            type="button"
+            onPointerDown={voice.start}
+            onPointerUp={voice.stop}
+            onPointerLeave={voice.cancel}
+            onPointerCancel={voice.cancel}
+            // Prevent the browser's long-press context menu / text selection
+            // on touch devices.
+            onContextMenu={(e) => e.preventDefault()}
+            aria-label={
+              voice.blockedReason === "permission"
+                ? "Microphone blocked — tap for help"
+                : voice.blockedReason === "no-mic"
+                  ? "No microphone detected"
+                  : voice.blockedReason === "no-recorder"
+                    ? "Voice not supported on this browser"
+                    : "Hold to voice-check item"
+            }
+            title="Hold to voice-check item"
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all touch-none select-none ${
+              voice.blockedReason
+                ? "bg-danger/10 text-danger"
+                : voice.state === "recording"
+                  ? "bg-danger text-white scale-110"
+                  : voice.state === "transcribing"
+                    ? "bg-primary-light text-primary"
+                    : "hover:bg-background text-body"
+            }`}
+          >
+            {voice.blockedReason ? (
+              <MicOff size={18} />
+            ) : voice.state === "transcribing" ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Mic size={18} />
+            )}
+          </button>
           <button
             type="button"
             onClick={() => setShowMenu((v) => !v)}
