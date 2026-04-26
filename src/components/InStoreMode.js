@@ -1234,15 +1234,29 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((track) => track.stop());
       } catch (err) {
-        if (err.name === "NotAllowedError" || err.name === "SecurityError") {
-          hotToast.error("Microphone blocked. Tap the lock icon in your address bar (or browser site settings) and allow microphone for this site.");
-        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        const errName = err?.name || "unknown";
+        // NotAllowedError can come from per-site denial OR from an OS/browser
+        // level toggle that's off. Telling the user "tap the lock icon" only
+        // helps in the per-site case — for OS-level we also need to point
+        // them at their OS settings. Show both, plus the actual error code
+        // so we can debug if they keep failing.
+        if (errName === "NotAllowedError" || errName === "SecurityError") {
+          hotToast.error(
+            `Mic blocked (${errName}). Check three places: (1) the lock icon in the address bar — allow mic for this site; (2) your browser settings — global mic toggle on; (3) your phone settings — iOS: Settings → Privacy & Security → Microphone → enable Safari/Chrome; Android: Settings → Apps → [browser] → Permissions → Microphone.`,
+            { duration: 12000 }
+          );
+        } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
           hotToast.error("No microphone detected on this device.");
+        } else if (errName === "AbortError") {
+          hotToast.error("Mic prompt was dismissed without a choice. Tap the mic again to retry.");
         } else {
-          hotToast.error(`Couldn't access microphone: ${err.name || "unknown error"}`);
+          hotToast.error(`Couldn't access microphone: ${errName}. ${err?.message || ""}`.trim(), { duration: 12000 });
         }
         return;
       }
+    } else {
+      hotToast.error("This browser doesn't expose a way to request microphone access (navigator.mediaDevices is unavailable). HTTPS is required.", { duration: 10000 });
+      return;
     }
 
     setVoiceHeard(null);
