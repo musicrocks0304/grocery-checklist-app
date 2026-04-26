@@ -11,7 +11,6 @@ import {
   Tag,
   AlertCircle,
   Clock,
-  Mic,
   MoreHorizontal,
   Filter,
   User,
@@ -21,7 +20,6 @@ import {
   Users,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import hotToast from "react-hot-toast";
 import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/animations";
 import { EmptyState } from "./ui";
 import confetti from "canvas-confetti";
@@ -115,105 +113,6 @@ const groupByWalkOrder = (items, checked, walkOrder) => {
   });
 };
 
-// Web Speech API wrapper with a safe 2s simulation fallback for browsers that
-// don't support it (desktop Firefox, most Android WebViews). When real recog
-// isn't available we simulate a match against the first unchecked item in the
-// current aisle — purely for demo purposes; remove once speech is wired.
-//
-// Dev flag: append `?voiceSim=1` to the URL to force the simulation path even
-// on browsers that do support SpeechRecognition. Useful for demos and for
-// screenshotting the `recognized` state in headless tools like Playwright.
-const useVoiceRecognition = () => {
-  const recognitionRef = useRef(null);
-  const forceSim =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("voiceSim") === "1";
-  const SpeechRecognition =
-    !forceSim &&
-    typeof window !== "undefined" &&
-    (window.SpeechRecognition || window.webkitSpeechRecognition);
-  const isSupported = !!SpeechRecognition;
-
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          /* no-op */
-        }
-        recognitionRef.current = null;
-      }
-    };
-  }, []);
-
-  const start = useCallback(
-    ({ onResult, onEnd, onError }) => {
-      if (!isSupported) return null;
-      const rec = new SpeechRecognition();
-      rec.lang = "en-US";
-      rec.interimResults = false;
-      rec.continuous = false;
-      rec.maxAlternatives = 3;
-      let errorCode = null;
-      rec.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .flatMap((r) => Array.from(r).map((alt) => alt.transcript))
-          .join(" ")
-          .trim();
-        onResult?.(transcript);
-      };
-      rec.onerror = (event) => {
-        errorCode = event?.error || "unknown";
-        onError?.(errorCode);
-      };
-      rec.onend = () => onEnd?.(errorCode);
-      recognitionRef.current = rec;
-      try {
-        rec.start();
-      } catch (err) {
-        onError?.("start-failed");
-        onEnd?.("start-failed");
-      }
-      return rec;
-    },
-    [isSupported, SpeechRecognition]
-  );
-
-  const stop = useCallback(() => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        /* no-op */
-      }
-      recognitionRef.current = null;
-    }
-  }, []);
-
-  return { isSupported, start, stop };
-};
-
-// Case-insensitive "does transcript mention this item?" heuristic. Simple
-// substring + reverse-substring is enough for v1; swap in a fuzzy matcher
-// (Fuse.js, Levenshtein) if false negatives become a problem.
-const findBestMatch = (transcript, uncheckedItems) => {
-  if (!transcript) return null;
-  const t = transcript.toLowerCase().trim();
-  const byLength = [...uncheckedItems].sort(
-    (a, b) => b.ItemName.length - a.ItemName.length
-  );
-  for (const item of byLength) {
-    const name = item.ItemName.toLowerCase();
-    if (t.includes(name) || name.includes(t)) return item;
-  }
-  const words = t.split(/\s+/).filter((w) => w.length >= 3);
-  for (const item of uncheckedItems) {
-    const name = item.ItemName.toLowerCase();
-    if (words.some((w) => name.includes(w))) return item;
-  }
-  return null;
-};
 
 // 38px ring with centered `checked/total` in 11px bold.
 const ProgressRing = React.memo(({ checked, total }) => {
@@ -422,60 +321,6 @@ const AisleSection = React.memo(
   }
 );
 AisleSection.displayName = "AisleSection";
-
-// Inline voice bar that slides down from below the header. Runs the listening
-// waveform, then a recognized state, then collapses. Real recognition uses
-// the Web Speech API where available; simulation falls back to a 2s demo.
-const VoiceBar = ({ state, heard, isSupported }) => (
-  <motion.div
-    initial={{ y: -10, opacity: 0 }}
-    animate={{ y: 0, opacity: 1 }}
-    exit={{ y: -10, opacity: 0 }}
-    transition={{ duration: 0.22, ease: "easeOut" }}
-    className={`border-b border-default px-4 py-[14px] flex items-center gap-3 ${
-      state === "recognized" ? "bg-primary-light" : "bg-surface"
-    }`}
-    aria-live="polite"
-  >
-    {state === "listening" ? (
-      <>
-        <div className="voice-pulse w-9 h-9 rounded-full bg-danger flex items-center justify-center flex-shrink-0">
-          <Mic size={18} className="text-white" />
-        </div>
-        <div className="flex-1 flex items-center gap-[3px] h-[30px]">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <span
-              key={i}
-              className="voice-wave block w-[3px] h-[30px] bg-primary rounded-sm"
-              style={{
-                animationDelay: `${i * 0.06}s`,
-                transformOrigin: "center",
-              }}
-            />
-          ))}
-        </div>
-        <span className="text-[13px] font-semibold text-danger">Listening…</span>
-      </>
-    ) : (
-      <>
-        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-          <Check size={18} className="text-white" strokeWidth={3} />
-        </div>
-        <span className="flex-1 text-[14px] font-semibold text-heading">
-          {heard ? (
-            <>
-              Heard <span className="italic">"{heard}"</span> — checked ✓
-            </>
-          ) : isSupported ? (
-            "No match found"
-          ) : (
-            "Voice not supported on this device"
-          )}
-        </span>
-      </>
-    )}
-  </motion.div>
-);
 
 const ReorderDrawer = ({ sections, onMoveUp, onClose }) => (
   <div className="bg-primary-light border-b border-primary-border px-[14px] py-2.5">
@@ -836,8 +681,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [editOrder, setEditOrder] = useState(false);
-  const [voiceState, setVoiceState] = useState("idle");
-  const [voiceHeard, setVoiceHeard] = useState(null);
   // Active partner session (either joined via invite or hosted). Refreshed
   // when the invite modal closes so the badge appears after "Copy link".
   const [partnerSession, setPartnerSession] = useState(
@@ -848,12 +691,10 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const celebratedRef = useRef(false);
   const startTimeRef = useRef(Date.now());
   const toastTimerRef = useRef(null);
-  const voiceTimerRef = useRef(null);
   // Tracks the timestamp of the last local check/uncheck. The polling sync
   // ignores remote updates that land within ~2s of a local mutation so the
   // in-flight POST has time to land server-side (avoids brief flip-back).
   const lastLocalMutationRef = useRef(0);
-  const voice = useVoiceRecognition();
 
   // --- Shopping list resolution: fetch-fresh-first with cache as offline fallback ---
   // Always re-fetch on mount so a mid-week addition/removal on the Plan screen
@@ -1085,7 +926,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      if (voiceTimerRef.current) clearTimeout(voiceTimerRef.current);
     };
   }, []);
 
@@ -1199,159 +1039,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     if (item) handleToggleItem(item);
     else setToast(null);
   }, [toast, shoppingList, handleToggleItem]);
-
-  // Voice — start / stop / recognize
-  const stopVoiceEverything = useCallback(() => {
-    voice.stop();
-    if (voiceTimerRef.current) {
-      clearTimeout(voiceTimerRef.current);
-      voiceTimerRef.current = null;
-    }
-    setVoiceState("idle");
-    setVoiceHeard(null);
-  }, [voice]);
-
-  const handleVoicePress = useCallback(async () => {
-    if (voiceState !== "idle") {
-      stopVoiceEverything();
-      return;
-    }
-
-    // If speech recognition isn't available on this browser, surface that
-    // immediately rather than letting the user think they're being heard.
-    if (!voice.isSupported) {
-      hotToast.error("Voice check-off isn't supported on this browser. Try Chrome on Android or Safari on iOS.");
-      return;
-    }
-
-    // Pre-flight: request mic permission explicitly via getUserMedia. This
-    // surfaces a clear browser permission prompt up-front instead of relying
-    // on SpeechRecognition.start() to do it implicitly (which on iOS/Safari
-    // sometimes fails silently). Once granted, we close the stream immediately
-    // and let SpeechRecognition handle the actual capture.
-    // DIAGNOSTIC INSTRUMENTATION (build v2026-04-25-d):
-    // We've had multiple users hit "Microphone blocked" with no way to tell
-    // which component actually failed (per-site? browser-wide? OS? secure
-    // context?). On error, dump everything we can probe so a single screenshot
-    // tells us the root cause. Remove this verbose toast once the issue is
-    // identified across reporting devices.
-    const probe = async () => {
-      // 1. Permissions API (some browsers don't support 'microphone' name)
-      let permState = "unsupported";
-      try {
-        if (navigator.permissions?.query) {
-          const result = await navigator.permissions.query({ name: "microphone" });
-          permState = result.state;
-        }
-      } catch (e) {
-        permState = `query-err:${e.name}`;
-      }
-      // 2. Secure context (HTTPS / localhost)
-      const secure = typeof window.isSecureContext === "boolean" ? String(window.isSecureContext) : "unknown";
-      // 3. Browser hint (one of the major engines)
-      const ua = navigator.userAgent || "";
-      const browser =
-        /SamsungBrowser/.test(ua) ? "Samsung" :
-        /Edg\//.test(ua) ? "Edge" :
-        /Brave/.test(ua) ? "Brave" :
-        /Firefox/.test(ua) ? "Firefox" :
-        /Chrome/.test(ua) ? "Chrome" :
-        /Safari/.test(ua) ? "Safari" :
-        "other";
-      // 4. mediaDevices availability
-      const mdAvail = navigator.mediaDevices ? "yes" : "no";
-      const gumAvail = navigator.mediaDevices?.getUserMedia ? "yes" : "no";
-      return { permState, secure, browser, mdAvail, gumAvail };
-    };
-
-    if (navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (err) {
-        const errName = err?.name || "unknown";
-        const errMsg = (err?.message || "").slice(0, 80);
-        const diag = await probe();
-        const lines = [
-          `🎤 v2026-04-25d — mic getUserMedia FAILED`,
-          `error: ${errName}${errMsg ? ` "${errMsg}"` : ""}`,
-          `permission API: ${diag.permState}`,
-          `secure ctx: ${diag.secure}`,
-          `browser: ${diag.browser}`,
-          `mediaDevices: ${diag.mdAvail} / getUserMedia: ${diag.gumAvail}`,
-        ];
-        hotToast.error(lines.join("\n"), { duration: 30000 });
-        return;
-      }
-    } else {
-      const diag = await probe();
-      hotToast.error(
-        `🎤 v2026-04-25d — getUserMedia API unavailable\nsecure ctx: ${diag.secure}\nbrowser: ${diag.browser}\nmediaDevices: ${diag.mdAvail}`,
-        { duration: 30000 }
-      );
-      return;
-    }
-
-    setVoiceHeard(null);
-    setVoiceState("listening");
-
-    const allUnchecked = shoppingList
-      ? shoppingList.items.filter((i) => !checkedItems.has(i.ItemID.toString()))
-      : [];
-
-    const finishWith = (matched) => {
-      if (matched) {
-        setVoiceHeard(matched.ItemName);
-        handleToggleItem(matched);
-      } else {
-        setVoiceHeard(null);
-      }
-      setVoiceState("recognized");
-      voiceTimerRef.current = setTimeout(() => {
-        setVoiceState("idle");
-        setVoiceHeard(null);
-      }, 1400);
-    };
-
-    voice.start({
-      onResult: (transcript) => {
-        const matched = findBestMatch(transcript, allUnchecked);
-        finishWith(matched);
-      },
-      onError: (errorCode) => {
-        // Surface specific failure modes so the user knows what went wrong.
-        // SpeechRecognition errors: not-allowed (permission denied), no-speech,
-        // audio-capture (no mic), network, aborted, language-not-supported.
-        const messages = {
-          "not-allowed": "Microphone access blocked. Enable mic permission for this site in browser settings.",
-          "service-not-allowed": "Microphone access blocked. Enable mic permission for this site in browser settings.",
-          "no-speech": "Didn't hear anything — try tapping again and saying the item name.",
-          "audio-capture": "No microphone detected. Check your device.",
-          "network": "Voice service couldn't reach the network. Check your connection.",
-          "language-not-supported": "Voice not supported in this language.",
-          "start-failed": "Couldn't start voice recognition.",
-        };
-        if (messages[errorCode]) hotToast.error(messages[errorCode]);
-      },
-      onEnd: (errorCode) => {
-        // If onEnd fires without a result, finalize as "no match".
-        if (voiceTimerRef.current) return; // already finalized
-        // Don't show the "recognized → no match" UI flash if onError already
-        // surfaced a specific reason. Just reset to idle.
-        if (errorCode && errorCode !== "no-speech") {
-          setVoiceState("idle");
-          setVoiceHeard(null);
-          return;
-        }
-        setVoiceState((prev) => (prev === "listening" ? "recognized" : prev));
-        setVoiceHeard(null);
-        voiceTimerRef.current = setTimeout(() => {
-          setVoiceState("idle");
-          setVoiceHeard(null);
-        }, 1400);
-      },
-    });
-  }, [voiceState, voice, checkedItems, shoppingList, handleToggleItem, stopVoiceEverything]);
 
   // Totals + trip summary trigger. `totalChecked` intersects the raw checked
   // set against the items actually on the list — this makes the counter
@@ -1518,7 +1205,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative">
-      {/* Header + voice bar + (reorder drawer when editing walk order) */}
+      {/* Header + (reorder drawer when editing walk order) */}
       <div className="sticky top-0 z-20 bg-surface">
         {/* Top row */}
         <div className="flex items-center gap-1.5 px-3.5 py-2.5 border-b border-default relative">
@@ -1548,24 +1235,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
           )}
           <button
             type="button"
-            onClick={handleVoicePress}
-            aria-label={voice.isSupported ? "Voice check-off" : "Voice check-off (not supported on this browser)"}
-            title={voice.isSupported ? "" : "Voice check-off isn't supported on this browser"}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-              voiceState !== "idle"
-                ? "bg-primary-light"
-                : voice.isSupported
-                  ? "hover:bg-background"
-                  : "opacity-40 hover:bg-background"
-            }`}
-          >
-            <Mic
-              size={18}
-              className={voiceState !== "idle" ? "text-primary" : "text-body"}
-            />
-          </button>
-          <button
-            type="button"
             onClick={() => setShowMenu((v) => !v)}
             aria-label="More"
             aria-expanded={showMenu}
@@ -1590,13 +1259,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
             )}
           </AnimatePresence>
         </div>
-
-        {/* Voice bar (below header, above chip bar / drawer) */}
-        <AnimatePresence>
-          {voiceState !== "idle" && (
-            <VoiceBar state={voiceState} heard={voiceHeard} isSupported={voice.isSupported} />
-          )}
-        </AnimatePresence>
 
         {/* Reorder drawer shown when editing walk order */}
         {editOrder && (
@@ -1667,20 +1329,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         )}
       </AnimatePresence>
 
-      {/* Keyframes for voice bar — pulse on the mic disc, staggered waveform. */}
-      <style>{`
-        @keyframes voicePulse {
-          0%   { box-shadow: 0 0 0 0 rgba(201, 64, 64, 0.4); }
-          70%  { box-shadow: 0 0 0 14px rgba(201, 64, 64, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(201, 64, 64, 0); }
-        }
-        @keyframes voiceWave {
-          0%, 100% { transform: scaleY(0.2); }
-          50%      { transform: scaleY(1); }
-        }
-        .voice-pulse { animation: voicePulse 1.4s ease-out infinite; }
-        .voice-wave  { animation: voiceWave 0.9s ease-in-out infinite; }
-      `}</style>
     </div>
   );
 };
