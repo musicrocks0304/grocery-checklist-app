@@ -1211,7 +1211,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     setVoiceHeard(null);
   }, [voice]);
 
-  const handleVoicePress = useCallback(() => {
+  const handleVoicePress = useCallback(async () => {
     if (voiceState !== "idle") {
       stopVoiceEverything();
       return;
@@ -1222,6 +1222,27 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     if (!voice.isSupported) {
       hotToast.error("Voice check-off isn't supported on this browser. Try Chrome on Android or Safari on iOS.");
       return;
+    }
+
+    // Pre-flight: request mic permission explicitly via getUserMedia. This
+    // surfaces a clear browser permission prompt up-front instead of relying
+    // on SpeechRecognition.start() to do it implicitly (which on iOS/Safari
+    // sometimes fails silently). Once granted, we close the stream immediately
+    // and let SpeechRecognition handle the actual capture.
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (err) {
+        if (err.name === "NotAllowedError" || err.name === "SecurityError") {
+          hotToast.error("Microphone blocked. Tap the lock icon in your address bar (or browser site settings) and allow microphone for this site.");
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          hotToast.error("No microphone detected on this device.");
+        } else {
+          hotToast.error(`Couldn't access microphone: ${err.name || "unknown error"}`);
+        }
+        return;
+      }
     }
 
     setVoiceHeard(null);
