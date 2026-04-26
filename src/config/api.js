@@ -47,6 +47,9 @@ export const ENDPOINTS = {
   shoppingProgressCheck: `${API_BASE_URL}/shopping_progress_check`,
   shoppingProgressUncheck: `${API_BASE_URL}/shopping_progress_uncheck`,
 
+  // Voice check-off v2 (server-side Whisper transcription)
+  transcribeGroceryItem: `${API_BASE_URL}/transcribe_grocery_item`,
+
   // Per-tap selection persistence (DB-backed)
   selectionCheck: `${API_BASE_URL}/selection_check`,
   selectionUncheck: `${API_BASE_URL}/selection_uncheck`,
