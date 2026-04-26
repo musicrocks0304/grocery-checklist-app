@@ -88,10 +88,29 @@ const sortByWalkOrder = (sectionNames, walkOrder) => {
   return [...known, ...extras];
 };
 
+// Maps a HEB store_location string to a sortable integer for intra-section ordering.
+// "Aisle 14" → 14 (numeric aisles sort first), department names ("Produce") → 8000,
+// null/empty → 9999 so unknowns sink to the end.
+const aisleSortKey = (loc) => {
+  if (typeof loc !== "string" || loc.trim() === "") return 9999;
+  const m = loc.match(/(\d+)/);
+  if (m) return parseInt(m[1], 10);
+  return 8000;
+};
+
+// Compact display badge for an aisle. "Aisle 14" → "A14", "Produce" → "Prod",
+// null/empty → "—". Decoration only — no interaction.
+const formatAisleBadge = (loc) => {
+  if (!loc) return "—";
+  const m = loc.match(/aisle\s*(\d+)/i);
+  if (m) return `A${m[1]}`;
+  return loc.slice(0, 4);
+};
+
 // Build { name, items[], checkedCount, totalCount }[] grouped by Category,
 // sorted by the user's walk order. Within each section, unchecked items come
-// first (in insertion order) and checked items sink to the bottom so the
-// shopper can visually track what's left.
+// first (sorted by physical aisle ascending so the shopper traverses in walk
+// order), and checked items sink to the bottom.
 const groupByWalkOrder = (items, checked, walkOrder) => {
   const buckets = {};
   items.forEach((item) => {
@@ -102,7 +121,9 @@ const groupByWalkOrder = (items, checked, walkOrder) => {
   const orderedNames = sortByWalkOrder(Object.keys(buckets), walkOrder);
   return orderedNames.map((name) => {
     const bucket = buckets[name];
-    const unchecked = bucket.filter((i) => !checked.has(i.ItemID.toString()));
+    const unchecked = bucket
+      .filter((i) => !checked.has(i.ItemID.toString()))
+      .sort((a, b) => aisleSortKey(a.store_location) - aisleSortKey(b.store_location));
     const checkedItems = bucket.filter((i) => checked.has(i.ItemID.toString()));
     return {
       name,
@@ -232,6 +253,14 @@ const ItemRow = React.memo(({ item, isChecked, couponMatch, onToggle, isFirst })
           }`}
         >
           {item.ItemName}
+          <span
+            className={`ml-2 text-[11px] font-mono align-middle ${
+              isChecked ? "text-muted" : "text-muted/80"
+            }`}
+            aria-label={item.store_location ? `Location: ${item.store_location}` : "Location unknown"}
+          >
+            {formatAisleBadge(item.store_location)}
+          </span>
         </div>
         {hasCoupon && !isChecked && (
           <div className="mt-[5px] flex items-center gap-1.5 flex-wrap">
