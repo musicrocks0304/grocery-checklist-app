@@ -1229,33 +1229,66 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     // on SpeechRecognition.start() to do it implicitly (which on iOS/Safari
     // sometimes fails silently). Once granted, we close the stream immediately
     // and let SpeechRecognition handle the actual capture.
+    // DIAGNOSTIC INSTRUMENTATION (build v2026-04-25-d):
+    // We've had multiple users hit "Microphone blocked" with no way to tell
+    // which component actually failed (per-site? browser-wide? OS? secure
+    // context?). On error, dump everything we can probe so a single screenshot
+    // tells us the root cause. Remove this verbose toast once the issue is
+    // identified across reporting devices.
+    const probe = async () => {
+      // 1. Permissions API (some browsers don't support 'microphone' name)
+      let permState = "unsupported";
+      try {
+        if (navigator.permissions?.query) {
+          const result = await navigator.permissions.query({ name: "microphone" });
+          permState = result.state;
+        }
+      } catch (e) {
+        permState = `query-err:${e.name}`;
+      }
+      // 2. Secure context (HTTPS / localhost)
+      const secure = typeof window.isSecureContext === "boolean" ? String(window.isSecureContext) : "unknown";
+      // 3. Browser hint (one of the major engines)
+      const ua = navigator.userAgent || "";
+      const browser =
+        /SamsungBrowser/.test(ua) ? "Samsung" :
+        /Edg\//.test(ua) ? "Edge" :
+        /Brave/.test(ua) ? "Brave" :
+        /Firefox/.test(ua) ? "Firefox" :
+        /Chrome/.test(ua) ? "Chrome" :
+        /Safari/.test(ua) ? "Safari" :
+        "other";
+      // 4. mediaDevices availability
+      const mdAvail = navigator.mediaDevices ? "yes" : "no";
+      const gumAvail = navigator.mediaDevices?.getUserMedia ? "yes" : "no";
+      return { permState, secure, browser, mdAvail, gumAvail };
+    };
+
     if (navigator.mediaDevices?.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((track) => track.stop());
       } catch (err) {
         const errName = err?.name || "unknown";
-        // NotAllowedError can come from per-site denial OR from an OS/browser
-        // level toggle that's off. Telling the user "tap the lock icon" only
-        // helps in the per-site case — for OS-level we also need to point
-        // them at their OS settings. Show both, plus the actual error code
-        // so we can debug if they keep failing.
-        if (errName === "NotAllowedError" || errName === "SecurityError") {
-          hotToast.error(
-            `Mic blocked (${errName}). Check three places: (1) the lock icon in the address bar — allow mic for this site; (2) your browser settings — global mic toggle on; (3) your phone settings — iOS: Settings → Privacy & Security → Microphone → enable Safari/Chrome; Android: Settings → Apps → [browser] → Permissions → Microphone.`,
-            { duration: 12000 }
-          );
-        } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
-          hotToast.error("No microphone detected on this device.");
-        } else if (errName === "AbortError") {
-          hotToast.error("Mic prompt was dismissed without a choice. Tap the mic again to retry.");
-        } else {
-          hotToast.error(`Couldn't access microphone: ${errName}. ${err?.message || ""}`.trim(), { duration: 12000 });
-        }
+        const errMsg = (err?.message || "").slice(0, 80);
+        const diag = await probe();
+        const lines = [
+          `🎤 v2026-04-25d — mic getUserMedia FAILED`,
+          `error: ${errName}${errMsg ? ` "${errMsg}"` : ""}`,
+          `permission API: ${diag.permState}`,
+          `secure ctx: ${diag.secure}`,
+          `browser: ${diag.browser}`,
+          `mediaDevices: ${diag.mdAvail} / getUserMedia: ${diag.gumAvail}`,
+        ];
+        hotToast.error(lines.join("\n"), { duration: 30000 });
         return;
       }
     } else {
-      hotToast.error("This browser doesn't expose a way to request microphone access (navigator.mediaDevices is unavailable). HTTPS is required.", { duration: 10000 });
+      const diag = await probe();
+      hotToast.error(
+        `🎤 v2026-04-25d — getUserMedia API unavailable\nsecure ctx: ${diag.secure}\nbrowser: ${diag.browser}\nmediaDevices: ${diag.mdAvail}`,
+        { duration: 30000 }
+      );
       return;
     }
 
