@@ -465,13 +465,27 @@ const aisleSortKey = (loc) => {
   return 8000;
 };
 
-// Compact display badge for an aisle. "Aisle 14" → "A14", "Produce" → "Prod",
-// null/empty → "—". Decoration only — no interaction.
+// Display badge for an aisle. Normalizes HEB's verbose location strings into
+// short, readable labels suitable for a small inline badge. Examples:
+//   "Aisle 14"                        -> "Aisle 14"
+//   "In Produce"                      -> "Produce"
+//   "In Produce on the Front Wall"    -> "Produce, Front"
+//   "In Meat Market on the Back Wall" -> "Meat Market, Back"
+//   "Back Edge of Deli"               -> "Deli, Back"
+//   "On the Right Edge of Deli"       -> "Deli, Right"
+//   "In Dairy on the Right Wall"      -> "Dairy, Right"
+//   null/empty                         -> "—"
 const formatAisleBadge = (loc) => {
-  if (!loc) return "—";
-  const m = loc.match(/aisle\s*(\d+)/i);
-  if (m) return `A${m[1]}`;
-  return loc.slice(0, 4);
+  if (typeof loc !== "string" || loc.trim() === "") return "—";
+  const aisleMatch = loc.match(/aisle\s*(\d+\w?)/i);
+  if (aisleMatch) return `Aisle ${aisleMatch[1]}`;
+  return loc
+    .replace(/^In\s+/i, "")
+    .replace(/^On the\s+(Back|Front|Right|Left)\s+Edge of\s+(.+)$/i, "$2, $1")
+    .replace(/^(Back|Front|Right|Left)\s+Edge of\s+(.+)$/i, "$2, $1")
+    .replace(/\s+on the\s+/i, ", ")
+    .replace(/\s+Wall$/i, "")
+    .trim();
 };
 
 // Build { name, items[], checkedCount, totalCount }[] grouped by Category,
@@ -621,7 +635,7 @@ const ItemRow = React.memo(({ item, isChecked, couponMatch, onToggle, isFirst })
         >
           {item.ItemName}
           <span
-            className={`ml-2 text-[11px] font-mono align-middle ${
+            className={`ml-2 text-[11px] align-middle ${
               isChecked ? "text-muted" : "text-muted/80"
             }`}
             aria-label={item.store_location ? `Location: ${item.store_location}` : "Location unknown"}
