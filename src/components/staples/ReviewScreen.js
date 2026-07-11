@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
-import { ArrowLeft, ShoppingBag, X, Utensils, Package, Tag } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ArrowLeft, ShoppingBag, X, Utensils, Package, Tag, Sparkles, Loader } from 'lucide-react';
 import { GROCERY_CATEGORIES } from '../../constants/categories';
 import { getWeekDates } from '../../utils/weekDates';
+import { ENDPOINTS, apiFetch } from '../../config/api';
+import CouponMatchPanel from '../CouponMatchPanel';
 
 const formatMonthDay = (iso) => {
   const d = new Date(`${iso}T00:00:00`);
@@ -107,6 +109,57 @@ const ReviewScreen = ({
     else onToggle(item.ItemID);
   };
 
+  // ── Opt-in AI coupon matching (feedback #27) ────────────────────────────
+  // 'idle' | 'matching' | 'done' | 'error'
+  const [matchState, setMatchState] = useState('idle');
+  const [couponMatches, setCouponMatches] = useState(null);
+
+  const findCoupons = async () => {
+    setMatchState('matching');
+    setCouponMatches(null);
+    try {
+      const selectedItems = items
+        .filter((i) => selected.has(i.ItemID))
+        .map((i) => ({ name: i.ItemName, quantity: i.QuantitySelected || 1 }));
+
+      // AI agent run: long timeout, never retry (each run costs 30-60s of LLM
+      // tool-calling — the old auto-retry burned 3 runs per timeout, bug #28)
+      const res = await apiFetch(ENDPOINTS.matchCoupons, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ items: selectedItems }),
+        timeout: 120000,
+        retries: 0,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const payload = Array.isArray(data) ? data[0] : data;
+      const matches = payload?.matches || [];
+      setCouponMatches(matches);
+      setMatchState('done');
+
+      // Persist matches so In-Store Mode coupon chips and the cart builder
+      // can use them (fire-and-forget; the panel works without it).
+      if (matches.length > 0) {
+        apiFetch(ENDPOINTS.saveCouponMatches, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            weekDateRange: weekData.displayRange,
+            matches: matches.map((m) => ({
+              groceryItemName: m.grocery_item,
+              couponHashId: m.coupon_hash_id,
+              confidence: m.confidence,
+              matchReason: m.reason,
+            })),
+          }),
+        }).catch(() => {});
+      }
+    } catch (err) {
+      setMatchState('error');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-40 bg-background flex flex-col">
       <div className="sticky top-0 z-10 bg-surface border-b border-default">
@@ -197,6 +250,48 @@ const ReviewScreen = ({
                 </div>
               ))}
             </>
+          )}
+
+          {/* Opt-in coupon matching (feedback #27) */}
+          {totalCount > 0 && (
+            <div className="mt-6">
+              {matchState === 'idle' && (
+                <button
+                  type="button"
+                  onClick={findCoupons}
+                  className="w-full py-3 rounded-xl border border-primary-border bg-primary-light text-primary font-semibold flex items-center justify-center gap-2 hover:bg-primary hover:text-white transition-colors"
+                >
+                  <Sparkles size={16} />
+                  Find coupons for this list
+                  <span className="text-xs font-normal opacity-75">(AI · ~30–60s)</span>
+                </button>
+              )}
+              {matchState === 'matching' && (
+                <div className="w-full py-3 rounded-xl border border-default bg-surface text-body font-medium flex items-center justify-center gap-2">
+                  <Loader size={16} className="animate-spin" />
+                  Matching coupons on HEB… this takes about 30–60 seconds
+                </div>
+              )}
+              {matchState === 'error' && (
+                <div className="w-full py-3 px-4 rounded-xl border border-danger bg-surface text-sm text-danger flex items-center justify-between gap-2">
+                  <span>Coupon matching failed — you can still shop as normal.</span>
+                  <button type="button" onClick={findCoupons} className="font-semibold underline">
+                    Retry
+                  </button>
+                </div>
+              )}
+              {matchState === 'done' && couponMatches && couponMatches.length === 0 && (
+                <div className="w-full py-3 rounded-xl border border-default bg-surface text-sm text-muted text-center">
+                  No matching coupons found for this week's list.
+                </div>
+              )}
+              {matchState === 'done' && couponMatches && couponMatches.length > 0 && (
+                <CouponMatchPanel
+                  matches={couponMatches}
+                  onDismiss={() => { setCouponMatches(null); setMatchState('idle'); }}
+                />
+              )}
+            </div>
           )}
         </div>
       </div>

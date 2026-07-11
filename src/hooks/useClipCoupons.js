@@ -9,6 +9,9 @@ import { CLIP_SERVER_URL } from '../config/api';
 export function useClipCoupons() {
   const [isClipping, setIsClipping] = useState(false);
   const [clipProgress, setClipProgress] = useState(new Map());
+  // couponId -> server detail message (failure reasons stay visible in the UI
+  // instead of an opaque "0 clipped, 1 failed")
+  const [clipMessages, setClipMessages] = useState(new Map());
   const [clipResults, setClipResults] = useState(null);
   const [clipError, setClipError] = useState(null);
   const eventSourceRef = useRef(null);
@@ -27,6 +30,7 @@ export function useClipCoupons() {
     setClipResults(null);
     setClipError(null);
     setClipProgress(new Map());
+    setClipMessages(new Map());
   }, []);
 
   const clipSelected = useCallback(async (couponIds) => {
@@ -41,6 +45,7 @@ export function useClipCoupons() {
     setIsClipping(true);
     setClipError(null);
     setClipResults(null);
+    setClipMessages(new Map());
 
     const initialProgress = new Map();
     couponIds.forEach(id => initialProgress.set(id, 'pending'));
@@ -62,7 +67,14 @@ export function useClipCoupons() {
       const eventSource = new EventSource(`${CLIP_SERVER_URL}/api/clip-progress/${jobId}`);
       eventSourceRef.current = eventSource;
 
+      let consecutiveErrors = 0;
+
+      eventSource.onopen = () => {
+        consecutiveErrors = 0;
+      };
+
       eventSource.onmessage = (event) => {
+        consecutiveErrors = 0;
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'progress') {
@@ -71,6 +83,13 @@ export function useClipCoupons() {
               next.set(data.couponId, data.status);
               return next;
             });
+            if (data.message) {
+              setClipMessages(prev => {
+                const next = new Map(prev);
+                next.set(data.couponId, data.message);
+                return next;
+              });
+            }
             // Detect session expiration and surface it immediately
             if (data.message && data.message.includes('SESSION_EXPIRED')) {
               setClipError('HEB session expired during clipping. Log in at heb-login.needexcelexpert.com and import the session, then retry.');
@@ -91,11 +110,18 @@ export function useClipCoupons() {
         }
       };
 
+      // Transient drops are common through the Cloudflare tunnel. EventSource
+      // auto-reconnects and the server replays the job's full progress, so let
+      // it retry — only give up after several consecutive failures.
       eventSource.onerror = () => {
-        eventSource.close();
-        eventSourceRef.current = null;
-        setIsClipping(false);
-        setClipError('Connection to clip server lost.');
+        if (eventSourceRef.current !== eventSource) return; // job already finished
+        consecutiveErrors += 1;
+        if (consecutiveErrors >= 5) {
+          eventSource.close();
+          eventSourceRef.current = null;
+          setIsClipping(false);
+          setClipError('Lost connection to the clip server. The job may still be running — refresh to see final results.');
+        }
       };
     } catch (err) {
       setClipError(err.message);
@@ -106,6 +132,7 @@ export function useClipCoupons() {
   return {
     clipSelected,
     clipProgress,
+    clipMessages,
     clipResults,
     clipError,
     isClipping,

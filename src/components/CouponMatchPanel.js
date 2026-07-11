@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Check, AlertCircle, Sparkles, ChevronDown, ChevronUp, Scissors, CheckCircle, XCircle, Loader, DollarSign } from 'lucide-react';
 import { useClipCoupons } from '../hooks/useClipCoupons';
 
@@ -20,7 +20,22 @@ const CLIP_STATUS_STYLES = {
 const CouponMatchPanel = ({ matches, onDismiss }) => {
   const [expandedItems, setExpandedItems] = useState(new Set());
   const [selectedCoupons, setSelectedCoupons] = useState(new Set());
-  const { clipSelected, clipProgress, clipResults, clipError, isClipping } = useClipCoupons();
+  const { clipSelected, clipProgress, clipMessages, clipResults, clipError, isClipping } = useClipCoupons();
+
+  // Coupons that finished clipping — no longer selectable/countable
+  const clippedSet = useMemo(() => {
+    const s = new Set();
+    clipProgress.forEach((status, id) => {
+      if (status === 'clipped' || status === 'already_clipped') s.add(id);
+    });
+    return s;
+  }, [clipProgress]);
+
+  // After a job completes, clear the selection so the panel doesn't keep
+  // advertising "Clip 12 Coupons" under the Clipping Complete banner (FB#36).
+  useEffect(() => {
+    if (clipResults) setSelectedCoupons(new Set());
+  }, [clipResults]);
 
   if (!matches || matches.length === 0) {
     return null;
@@ -62,7 +77,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
   const selectAllHighConfidence = () => {
     if (isClipping) return;
     const highConfIds = matches
-      .filter(m => m.confidence === 'high' && m.coupon_hash_id)
+      .filter(m => m.confidence === 'high' && m.coupon_hash_id && !clippedSet.has(m.coupon_hash_id))
       .map(m => m.coupon_hash_id);
     setSelectedCoupons(new Set(highConfIds));
   };
@@ -70,7 +85,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
   const selectAll = () => {
     if (isClipping) return;
     const allIds = matches
-      .filter(m => m.coupon_hash_id)
+      .filter(m => m.coupon_hash_id && !clippedSet.has(m.coupon_hash_id))
       .map(m => m.coupon_hash_id);
     setSelectedCoupons(new Set(allIds));
   };
@@ -233,7 +248,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleCouponSelection(hashId)}
-                              disabled={isClipping}
+                              disabled={isClipping || clippedSet.has(hashId)}
                               className="w-5 h-5 text-primary rounded focus:ring-focus cursor-pointer disabled:cursor-not-allowed"
                             />
                           </label>
@@ -331,13 +346,13 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
         </div>
       </div>
 
-      {/* Clipping progress overlay */}
-      {isClipping && clipProgress.size > 0 && (
+      {/* Clipping progress overlay (stays visible after completion if anything failed) */}
+      {clipProgress.size > 0 && (isClipping || Array.from(clipProgress.values()).some(s => s === 'failed')) && (
         <div className="border-t px-4 py-3 bg-blue-50">
           <div className="flex items-center gap-2 mb-2">
-            <Loader size={14} className="animate-spin text-blue-600" />
+            {isClipping && <Loader size={14} className="animate-spin text-blue-600" />}
             <span className="text-sm font-medium text-blue-800">
-              Clipping coupons on HEB...
+              {isClipping ? 'Clipping coupons on HEB...' : 'Clipping results'}
             </span>
           </div>
           <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -345,24 +360,30 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
               const match = matches.find(m => m.coupon_hash_id === couponId);
               const statusStyle = CLIP_STATUS_STYLES[status] || CLIP_STATUS_STYLES.pending;
               const StatusIcon = statusStyle.icon;
+              const detail = status === 'failed' ? clipMessages.get(couponId) : null;
               return (
-                <div key={couponId} className="flex items-center gap-2 text-xs">
-                  <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-                    {StatusIcon ? (
-                      <StatusIcon
-                        size={14}
-                        className={`${statusStyle.text} ${status === 'clipping' ? 'animate-spin' : ''}`}
-                      />
-                    ) : (
-                      <span className="w-2 h-2 rounded-full bg-muted"></span>
-                    )}
-                  </span>
-                  <span className="text-body truncate flex-1">
-                    {match ? match.coupon_name : couponId}
-                  </span>
-                  <span className={`font-medium ${statusStyle.text}`}>
-                    {statusStyle.label}
-                  </span>
+                <div key={couponId} className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      {StatusIcon ? (
+                        <StatusIcon
+                          size={14}
+                          className={`${statusStyle.text} ${status === 'clipping' ? 'animate-spin' : ''}`}
+                        />
+                      ) : (
+                        <span className="w-2 h-2 rounded-full bg-muted"></span>
+                      )}
+                    </span>
+                    <span className="text-body truncate flex-1">
+                      {match ? match.coupon_name : couponId}
+                    </span>
+                    <span className={`font-medium ${statusStyle.text}`}>
+                      {statusStyle.label}
+                    </span>
+                  </div>
+                  {detail && (
+                    <p className="ml-6 text-[11px] text-red-700 truncate" title={detail}>{detail}</p>
+                  )}
                 </div>
               );
             })}

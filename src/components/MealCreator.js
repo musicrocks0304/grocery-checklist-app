@@ -20,7 +20,6 @@ const getCreatorSessionId = () => {
 const PROPOSE_WEBHOOK_URL = ENDPOINTS.mealCreatorPropose;
 const BUILD_WEBHOOK_URL = ENDPOINTS.mealCreatorBuild;
 const SAVE_WEBHOOK_URL = ENDPOINTS.mealCreatorSave;
-const ADD_TO_WEEK_WEBHOOK_URL = ENDPOINTS.callGroceryAgent;
 
 const CHAT_HISTORY_URL = ENDPOINTS.chatHistory;
 
@@ -250,17 +249,15 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
 
       lastProposeRef.current = payload;
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000);
-
+      // AI agent run: long timeout, no retries (a retry re-runs the agent)
       const response = await apiFetch(PROPOSE_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(payload),
         mode: 'cors',
-        signal: controller.signal
+        timeout: 120000,
+        retries: 0,
       });
-      clearTimeout(timeoutId);
 
       if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
@@ -336,17 +333,15 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
         timestamp: new Date().toISOString()
       };
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 min for full build
-
+      // 3 min for full build; no retries (a retry re-runs the whole LLM chain)
       const response = await apiFetch(BUILD_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(payload),
         mode: 'cors',
-        signal: controller.signal
+        timeout: 180000,
+        retries: 0,
       });
-      clearTimeout(timeoutId);
 
       if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
@@ -430,29 +425,23 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     setIsAddingToWeek(true);
     const weekData = getWeekDates();
 
-    // Call the webhook first, then refresh from DB on success
+    // Insert the selection deterministically (same endpoint ChatBot uses).
+    // The old path sent natural language to the chat agent, whose insert
+    // subgraph is disconnected — a DB no-op that only polluted chat memory
+    // and refreshed the meal count before anything was written (bug FB#39).
     try {
-      const payload = {
-        message: `Add recipe to this week: ${saveResult.recipeName}`,
-        context: 'add_meal',
-        recipeId: String(saveResult.recipeId),
-        recipeName: saveResult.recipeName,
-        sessionId: sessionId,
-        weekStartDate: weekData.startDate,
-        weekEndDate: weekData.endDate,
-        weekDateRange: weekData.displayRange,
-        timestamp: new Date().toISOString()
-      };
-
-      const response = await apiFetch(ADD_TO_WEEK_WEBHOOK_URL, {
+      const response = await apiFetch(ENDPOINTS.addWeeklySelection, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          weekDateRange: weekData.displayRange,
+          recipeId: Number(saveResult.recipeId),
+          notes: '',
+        }),
         mode: 'cors'
       });
 
       if (response.ok) {
-        if (refreshMeals) await refreshMeals();
         toast.success(`Added to this week's meals!`);
         addDebugLog('Added to weekly_selections:', saveResult.recipeId);
 
@@ -539,6 +528,10 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
           addDebugLog('Error extracting/inserting ingredients:', ingredientError.message);
           console.error('Ingredient extraction error:', ingredientError);
         }
+
+        // Refresh AFTER the full chain so the meals count/strip reflects
+        // the final DB state.
+        if (refreshMeals) await refreshMeals();
       } else {
         toast.error('Failed to add meal to this week. Please try again.');
         addDebugLog('Webhook returned non-OK:', response.status);

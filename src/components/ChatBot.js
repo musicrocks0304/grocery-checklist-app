@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, Sparkles, Plus, X, ShoppingCart } from 'lucide-react';
+import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, Sparkles, Plus, X, ShoppingCart, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
@@ -244,12 +244,18 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
     });
   };
 
+  // Recipe IDs with an add request in flight (disables the '+' button)
+  const [addingRecipeIds, setAddingRecipeIds] = useState(new Set());
+
   // Add a meal to the selected meals list
   const addMealToList = async (mealName, mealDescription, recipeId = null, totalTime = null) => {
     if (!recipeId) {
+      toast.error(`Can't add "${mealName}" — ask me to suggest it again first.`);
       addDebugLog('⚠️ Cannot add meal without recipeId');
       return;
     }
+    if (addingRecipeIds.has(String(recipeId))) return;
+    setAddingRecipeIds(prev => new Set(prev).add(String(recipeId)));
     try {
       const weekData = getWeekDates();
       const response = await apiFetch(ENDPOINTS.addWeeklySelection, {
@@ -262,8 +268,8 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
         }),
       });
       if (response.ok) {
-        if (refreshMeals) await refreshMeals();
         toast.success(`Added "${mealName}" to this week!`);
+        if (refreshMeals) await refreshMeals();
         addDebugLog('Added meal to DB and refreshed:', mealName);
       } else {
         toast.error(`Failed to add "${mealName}".`);
@@ -271,6 +277,12 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
     } catch (error) {
       toast.error(`Failed to add "${mealName}". Check connection.`);
       addDebugLog('Error adding meal:', error.message);
+    } finally {
+      setAddingRecipeIds(prev => {
+        const next = new Set(prev);
+        next.delete(String(recipeId));
+        return next;
+      });
     }
   };
 
@@ -342,6 +354,8 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
       lastPayloadRef.current = payload;
 
       addDebugLog('Making API call to chatbot webhook with POST method...');
+      // AI-agent webhook: runs 30-90s on complex asks. Long timeout, no
+      // retries — a retry re-runs the whole agent (and re-writes chat memory).
       const response = await apiFetch(CHATBOT_WEBHOOK_URL, {
         method: 'POST',
         headers: {
@@ -349,7 +363,9 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
           'Accept': 'application/json',
         },
         body: JSON.stringify(payload),
-        mode: 'cors'
+        mode: 'cors',
+        timeout: 120000,
+        retries: 0,
       });
 
       addDebugLog('Response received:', {
@@ -374,13 +390,15 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
           url: CHATBOT_WEBHOOK_URL
         });
 
-        // For 500 errors, provide a helpful fallback message
+        // For 500 errors, provide a helpful fallback message. Note: the
+        // exchange may still have been saved server-side (chat memory writes
+        // during the workflow run), so a refresh often shows the real reply.
         if (response.status === 500) {
           removeTypingIndicator(typingId);
           const fallbackMessage = {
             id: Date.now() + Math.random(), // Ensure unique ID
             type: 'bot',
-            content: "I'm experiencing a temporary server issue, but your n8n webhook is working correctly. This might be a CORS or header issue. Please try again in a moment!",
+            content: "Sorry — I hit a snag answering that. Try rephrasing, or refresh the page: your message may have gone through anyway.",
             timestamp: new Date().toLocaleTimeString()
           };
           setMessages(prev => [...prev, fallbackMessage]);
@@ -952,10 +970,20 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                               onClick={() => {
                                 addMealToList(meal.name, meal.description, meal.recipeId, meal.totalTime);
                               }}
-                              className="shrink-0 w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full hover:bg-primary-hover transition-colors"
-                              aria-label={`Add ${meal.name} to plan`}
+                              disabled={
+                                addingRecipeIds.has(String(meal.recipeId)) ||
+                                selectedMeals.some(m => String(m.recipeId) === String(meal.recipeId))
+                              }
+                              className="shrink-0 w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              aria-label={
+                                selectedMeals.some(m => String(m.recipeId) === String(meal.recipeId))
+                                  ? `${meal.name} already added`
+                                  : `Add ${meal.name} to plan`
+                              }
                             >
-                              <Plus size={16} />
+                              {selectedMeals.some(m => String(m.recipeId) === String(meal.recipeId))
+                                ? <Check size={16} />
+                                : <Plus size={16} />}
                             </button>
                           </div>
                           {/* Expanded details */}
@@ -1194,9 +1222,28 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                   </p>
                   {selectedMeals.length > 1 && (
                     <button
-                      onClick={() => {
-                        if (window.confirm(`Remove all ${selectedMeals.length} meals from your plan?`)) {
-                          setSelectedMeals([]);
+                      onClick={async () => {
+                        if (!window.confirm(`Remove all ${selectedMeals.length} meals from your plan?`)) return;
+                        // Delete from the DB too — local-only clear resurrects
+                        // every meal on the next refresh (audit finding [43]).
+                        const toRemove = [...selectedMeals];
+                        setSelectedMeals([]);
+                        const weekData = getWeekDates();
+                        try {
+                          await Promise.all(toRemove.map(m =>
+                            apiFetch(ENDPOINTS.removeWeeklySelection, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                weekDateRange: weekData.displayRange,
+                                recipeId: Number(m.recipeId),
+                              }),
+                            })
+                          ));
+                        } catch (err) {
+                          toast.error('Some meals could not be removed.');
+                        } finally {
+                          if (refreshMeals) await refreshMeals();
                         }
                       }}
                       className="text-xs opacity-80 hover:opacity-100 hover:bg-white/20 px-2 py-1 rounded transition-colors"

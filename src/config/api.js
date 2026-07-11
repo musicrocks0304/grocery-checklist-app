@@ -125,12 +125,17 @@ export const ENDPOINTS = {
  * Options (in addition to standard fetch options):
  *   retries:  number of retries on 5xx/network errors (default: 2)
  *   timeout:  request timeout in ms (default: 30000)
+ *   signal:   caller AbortSignal — honored alongside the timeout; a
+ *             caller abort is never retried
  *
  * Retries use exponential backoff: 1s, 2s, 4s, ...
  * 4xx responses are NOT retried (client errors).
+ * Timeouts and aborts are NOT retried — retrying a timed-out call to a
+ * slow AI-agent webhook triples its cost and never helps (bug FB#28).
+ * AI-agent callers should pass an explicit long timeout and retries: 0.
  */
 export async function apiFetch(url, options = {}) {
-  const { retries = 2, timeout = 30000, ...fetchOptions } = options;
+  const { retries = 2, timeout = 30000, signal: callerSignal, ...fetchOptions } = options;
   const apiKey = process.env.REACT_APP_API_KEY;
   const headers = {
     ...(fetchOptions.headers || {}),
@@ -146,17 +151,28 @@ export async function apiFetch(url, options = {}) {
       await new Promise((r) => setTimeout(r, delay));
     }
 
+    if (callerSignal?.aborted) {
+      const err = new DOMException('Aborted by caller', 'AbortError');
+      throw err;
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
+      const onCallerAbort = () => controller.abort();
+      callerSignal?.addEventListener('abort', onCallerAbort, { once: true });
 
-      const response = await fetch(url, {
-        ...fetchOptions,
-        headers,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
+      let response;
+      try {
+        response = await fetch(url, {
+          ...fetchOptions,
+          headers,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+        callerSignal?.removeEventListener('abort', onCallerAbort);
+      }
 
       // Don't retry client errors (4xx)
       if (response.status >= 400 && response.status < 500) {
@@ -171,6 +187,11 @@ export async function apiFetch(url, options = {}) {
 
       return response;
     } catch (err) {
+      // Never retry aborts: a timeout abort just repeats the timeout against
+      // a slow endpoint, and a caller abort means the caller moved on.
+      if (err.name === 'AbortError') {
+        throw err;
+      }
       lastError = err;
       if (attempt >= retries) {
         throw err;

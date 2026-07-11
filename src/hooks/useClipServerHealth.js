@@ -33,7 +33,12 @@ export function useClipServerHealth() {
       const data = await res.json();
       setHealth(data);
 
-      if (!data.sessionValid) {
+      // sessionAuthenticated (newer servers) checks the cookies actually look
+      // logged-in; sessionValid alone is only file-mtime freshness.
+      const sessionOk = data.sessionAuthenticated !== undefined
+        ? data.sessionAuthenticated
+        : data.sessionValid;
+      if (!sessionOk) {
         setStatus('expired');
         return 'expired';
       }

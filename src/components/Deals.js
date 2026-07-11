@@ -312,7 +312,7 @@ const Deals = ({ onNavigate }) => {
 
   // Selection + clip state (shared hook)
   const [selectedCoupons, setSelectedCoupons] = useState(new Set());
-  const { clipSelected, clipProgress, clipResults, clipError, isClipping, resetClipState } = useClipCoupons();
+  const { clipSelected, clipProgress, clipMessages, clipResults, clipError, isClipping, resetClipState } = useClipCoupons();
   const { status: clipServerStatus, health: clipServerHealth } = useClipServerHealth();
   const clipServerUnavailable = clipServerStatus === 'unreachable' || clipServerStatus === 'expired';
 
@@ -862,11 +862,13 @@ const Deals = ({ onNavigate }) => {
         </div>
       )}
 
-      {isClipping && clipProgress.size > 0 && (
+      {clipProgress.size > 0 && (isClipping || Array.from(clipProgress.values()).some(s => s === 'failed')) && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
           <div className="flex items-center gap-2 mb-2">
-            <Loader size={14} className="animate-spin text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">Clipping coupons on HEB...</span>
+            {isClipping && <Loader size={14} className="animate-spin text-blue-600" />}
+            <span className="text-sm font-medium text-blue-800">
+              {isClipping ? 'Clipping coupons on HEB...' : 'Clipping results'}
+            </span>
           </div>
           <div className="space-y-1 max-h-32 overflow-y-auto">
             {Array.from(clipProgress.entries()).map(([couponId, status]) => {
@@ -876,17 +878,23 @@ const Deals = ({ onNavigate }) => {
               const deal = deals.find(d => d.coupon.hashId === couponId);
               const coupon = couponsData.find(c => c.hash_id === couponId);
               const label = deal?.frequentProduct?.name || coupon?.product_name || couponId;
+              const detail = status === 'failed' ? clipMessages.get(couponId) : null;
               return (
-                <div key={couponId} className="flex items-center gap-2 text-xs">
-                  <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-                    {StatusIcon ? (
-                      <StatusIcon size={14} className={`${statusStyle.text} ${status === 'clipping' ? 'animate-spin' : ''}`} />
-                    ) : (
-                      <span className="w-2 h-2 rounded-full bg-default"></span>
-                    )}
-                  </span>
-                  <span className="text-body truncate flex-1">{label}</span>
-                  <span className={`font-medium ${statusStyle.text}`}>{statusStyle.label}</span>
+                <div key={couponId} className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      {StatusIcon ? (
+                        <StatusIcon size={14} className={`${statusStyle.text} ${status === 'clipping' ? 'animate-spin' : ''}`} />
+                      ) : (
+                        <span className="w-2 h-2 rounded-full bg-default"></span>
+                      )}
+                    </span>
+                    <span className="text-body truncate flex-1">{label}</span>
+                    <span className={`font-medium ${statusStyle.text}`}>{statusStyle.label}</span>
+                  </div>
+                  {detail && (
+                    <p className="ml-6 text-[11px] text-red-700 truncate" title={detail}>{detail}</p>
+                  )}
                 </div>
               );
             })}
