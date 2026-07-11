@@ -104,6 +104,23 @@ const App = () => {
     ensureStorageVersion();
   }, []);
 
+  // Week boundary detection — the week flips at Thursday 00:00 local
+  // (getWeekDates). This PWA routinely stays resident across that boundary;
+  // without a reload every screen keeps showing last week's data while new
+  // mutations write to the new week. Lives here (not just Home) so ALL
+  // screens benefit. Defers while an edit is unsaved; the next tick catches it.
+  const weekStartRef = useRef(getWeekDates().startDate);
+  useEffect(() => {
+    const checkWeekBoundary = setInterval(() => {
+      const currentStart = getWeekDates().startDate;
+      if (currentStart !== weekStartRef.current && !hasUnsavedChangesRef.current) {
+        weekStartRef.current = currentStart;
+        window.location.reload();
+      }
+    }, 60000);
+    return () => clearInterval(checkWeekBoundary);
+  }, []);
+
   // Shared helper: fetch meals from DB, normalize, and cache to localStorage
   const loadMealsFromDb = useCallback(async ({ showLoading = false } = {}) => {
     if (showLoading) setMealsLoading(true);

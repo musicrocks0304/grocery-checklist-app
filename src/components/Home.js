@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ClipboardList, Tag, Store, ShoppingBag, ChefHat,
   ArrowRight, TrendingUp, Sparkles, AlertCircle,
@@ -215,19 +215,8 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
     return () => clearInterval(interval);
   }, [prepJob?.jobId, prepJob?.status]);
 
-  // Week boundary detection — auto-refresh if the week rolls over while page is open
-  const weekStartRef = useRef(getWeekDates().startDate);
-  useEffect(() => {
-    const checkWeekBoundary = setInterval(() => {
-      const currentStart = getWeekDates().startDate;
-      if (currentStart !== weekStartRef.current) {
-        weekStartRef.current = currentStart;
-        window.location.reload();
-      }
-    }, 60000);
-
-    return () => clearInterval(checkWeekBoundary);
-  }, []);
+  // Week boundary detection lives in App.js now (covers every screen, not
+  // just Home).
 
   // Prefer backend meal count; fall back to selectedMeals prop (localStorage)
   const resolvedMeals = mealsCount !== null ? mealsCount : selectedMeals.length;

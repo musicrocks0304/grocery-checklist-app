@@ -152,7 +152,10 @@ export const useHoldToTalk = ({ endpoint, onResult, onError }) => {
         status.onchange = () => {
           if (cancelled) return;
           if (status.state === 'denied') setBlockedReason('permission');
-          else if (blockedReason === 'permission') setBlockedReason(null);
+          // Functional update — this closure captured blockedReason from
+          // mount, so comparing against it directly never saw 'permission'
+          // and a granted-in-OS-settings mic stayed blocked forever.
+          else setBlockedReason((cur) => (cur === 'permission' ? null : cur));
         };
       })
       .catch(() => { /* unsupported; ignore */ });
@@ -1105,6 +1108,55 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   // ignores remote updates that land within ~2s of a local mutation so the
   // in-flight POST has time to land server-side (avoids brief flip-back).
   const lastLocalMutationRef = useRef(0);
+  // Check/uncheck mutations not yet acknowledged by the server:
+  // itemId -> { desired, weekStart, token, failed }. The live-sync poll never
+  // overrides these (store Wi-Fi makes slow/failed POSTs routine — the old
+  // fire-and-forget approach let the next poll silently revert the tap), and
+  // failed ones are re-sent when connectivity returns.
+  const pendingOpsRef = useRef(new Map());
+  const opTokenRef = useRef(0);
+
+  const sendProgressOp = useCallback((itemId, desired, weekStart, token) => {
+    const endpoint = desired ? ENDPOINTS.shoppingProgressCheck : ENDPOINTS.shoppingProgressUncheck;
+    apiFetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ week_start_date: weekStart, item_id: itemId }),
+    })
+      .then((res) => {
+        const entry = pendingOpsRef.current.get(itemId);
+        if (!entry || entry.token !== token) return; // superseded by a newer toggle
+        if (res.ok) pendingOpsRef.current.delete(itemId);
+        else entry.failed = true;
+      })
+      .catch(() => {
+        const entry = pendingOpsRef.current.get(itemId);
+        if (entry && entry.token === token) entry.failed = true;
+      });
+  }, []);
+
+  // Re-send failed ops when the network returns (or on a slow background
+  // tick — grocery-store dead spots end when you walk three aisles over).
+  const drainPendingOps = useCallback(() => {
+    pendingOpsRef.current.forEach((entry, itemId) => {
+      if (!entry.failed) return;
+      entry.failed = false;
+      entry.token = ++opTokenRef.current;
+      sendProgressOp(itemId, entry.desired, entry.weekStart, entry.token);
+    });
+  }, [sendProgressOp]);
+
+  useEffect(() => {
+    const onOnline = () => drainPendingOps();
+    window.addEventListener("online", onOnline);
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") drainPendingOps();
+    }, 10000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      clearInterval(timer);
+    };
+  }, [drainPendingOps]);
 
   // --- Shopping list resolution: fetch-fresh-first with cache as offline fallback ---
   // Always re-fetch on mount so a mid-week addition/removal on the Plan screen
@@ -1340,8 +1392,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   }, []);
 
   // --- Toggle check (+ toast on newly-checked) ---
-  // TODO (offline): currently fires the DB POST fire-and-forget. Should queue
-  // on failure and drain when back online. Tracked separately.
   const handleToggleItem = useCallback(
     (item) => {
       const itemId = item.ItemID.toString();
@@ -1353,14 +1403,9 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         else next.delete(itemId);
 
         const weekStart = shoppingList?.weekStartDate || getWeekDates().startDate;
-        const endpoint = isChecking
-          ? ENDPOINTS.shoppingProgressCheck
-          : ENDPOINTS.shoppingProgressUncheck;
-        apiFetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ week_start_date: weekStart, item_id: itemId }),
-        }).catch(() => {});
+        const token = ++opTokenRef.current;
+        pendingOpsRef.current.set(itemId, { desired: isChecking, weekStart, token, failed: false });
+        sendProgressOp(itemId, isChecking, weekStart, token);
 
         if (shoppingList) {
           localStorage.setItem(
@@ -1385,7 +1430,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         return next;
       });
     },
-    [shoppingList]
+    [shoppingList, sendProgressOp]
   );
 
   // Grouped items in walk order
@@ -1469,7 +1514,9 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       const matched = findBestMatch(transcript, allUnchecked);
       if (matched) {
         handleToggleItem(matched);
-        hotToast.success(`Heard "${transcript}" — checked ✓`, { duration: 3000 });
+        // Name the item that was actually checked — if the matcher grabbed
+        // the wrong one, the shopper sees it immediately and can undo.
+        hotToast.success(`Heard "${transcript}" — checked off ${matched.ItemName} ✓`, { duration: 3500 });
       } else {
         hotToast(`Heard "${transcript}" — not on your list`, { icon: "🔍", duration: 4000 });
       }
@@ -1524,11 +1571,13 @@ const InStoreMode = ({ inStoreData, onExit }) => {
 
   // --- Live sync polling ---
   // Polls shopping_progress every 4s so two devices (host + invited partner)
-  // see each other's check-offs within ~5s. Ignores poll results within 2s
-  // of a local mutation so in-flight POSTs don't get overwritten by a stale
-  // remote snapshot. Stops when tab is hidden to save battery.
+  // see each other's check-offs within ~5s. Only runs during an active
+  // partner session — solo shoppers get no benefit from the poll, only the
+  // risk of a stale snapshot reverting a slow check-off. The snapshot is
+  // merged over pending (unacknowledged) local mutations, never replacing
+  // them. Stops when tab is hidden to save battery.
   useEffect(() => {
-    if (!shoppingList) return undefined;
+    if (!shoppingList || !partnerSession) return undefined;
     const weekStart = shoppingList.weekStartDate;
     if (!weekStart) return undefined;
 
@@ -1557,6 +1606,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         if (Date.now() - lastLocalMutationRef.current < 2000) return;
         setCheckedItems((prev) => {
           const next = new Set(remoteIds);
+          // Local taps the server hasn't acknowledged yet always win —
+          // otherwise a failed/slow POST gets silently reverted by the poll.
+          pendingOpsRef.current.forEach((entry, itemId) => {
+            if (entry.desired) next.add(itemId);
+            else next.delete(itemId);
+          });
           if (prev.size === next.size && Array.from(prev).every((id) => next.has(id))) {
             return prev;
           }
@@ -1572,7 +1627,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [shoppingList]);
+  }, [shoppingList, partnerSession]);
 
   const couponSavingsTotal = useMemo(() => {
     if (!shoppingList?.items || !couponLookup) return 0;
