@@ -50,16 +50,17 @@ describe('useWeekStaples', () => {
     expect(result.current.selected.has(2)).toBe(true);
     const [callUrl, callOpts] = apiFetch.mock.calls[1];
     expect(callUrl).toBe(ENDPOINTS.selectionCheck);
-    // Backend INSERT derives category_id server-side from the categories table,
-    // so payload only carries itemName + store + quantity.
     const body = JSON.parse(callOpts.body);
     expect(body).toMatchObject({
       itemId: 2,
       itemName: 'Bread',
       quantity: 1,
+      category: 'Bakery & bread',
     });
-    expect(body).not.toHaveProperty('category');
     expect(body.weekDateRange).toMatch(/week/i);
+    // weekStartDate is required by the backend's Clear Skipped Flag step —
+    // without it, re-checking a previously unchecked item is silently lost.
+    expect(body.weekStartDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   test('toggle removes id from selected and POSTs selection_uncheck with itemName payload', async () => {

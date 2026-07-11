@@ -172,6 +172,7 @@ const SmartDeals = ({ onNavigate }) => {
           brand: deal.frequentProduct.brand || null,
           category: deal.frequentProduct.category || null,
           weekDateRange: weekData.displayRange,
+          weekStartDate: weekData.startDate,
         }),
       });
 

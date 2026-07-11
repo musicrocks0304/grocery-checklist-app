@@ -17,15 +17,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&display=swap" rel="stylesheet">
 
-    <!-- Prevent flash of wrong theme on load -->
-    <script>
-      (function() {
-        var theme = localStorage.getItem('theme');
-        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.classList.add('dark');
-        }
-      })();
-    </script>
+    <!-- Prevent flash of wrong theme on load (external file so CSP script-src 'self' allows it) -->
+    <script src="%PUBLIC_URL%/theme-init.js"></script>
 
     <title>Grocery Planner</title>
     <meta name="apple-mobile-web-app-capable" content="yes">

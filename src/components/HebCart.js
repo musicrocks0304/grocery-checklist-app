@@ -775,7 +775,7 @@ const HebCart = ({ onNavigate }) => {
       // ────────────────────────────────────────────────────────────────
       const unmatchedItems = needsMatch.filter(item => !newMatches[item.ItemID]);
 
-      if (unmatchedItems.length > 0 && sessionStatus === 'connected') {
+      if (unmatchedItems.length > 0 && sessionStatus?.active) {
         setMatchProgress(
           `${phase1Matched} matched from history. Searching HEB for ${unmatchedItems.length} remaining items...`
         );

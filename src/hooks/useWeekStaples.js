@@ -52,9 +52,10 @@ const useWeekStaples = () => {
     setSelected(next);
     const endpoint = wasSelected ? ENDPOINTS.selectionUncheck : ENDPOINTS.selectionCheck;
     // Backend has no IsSelected flag — presence of the row IS the selection.
-    // Check INSERTs a new row; uncheck DELETEs by itemName+week+DataSource='Staples'
-    // and also cascade-deletes matching shopping_progress rows (prevents the
-    // zombie re-check bug where un-then-re-added items return pre-checked).
+    // Uncheck soft-deletes (is_skipped=1). Check runs a 2-step flow: Clear
+    // Skipped Flag (matches on weekStartDate — omitting it silently breaks
+    // re-checking a previously unchecked item) then INSERT-WHERE-NOT-EXISTS
+    // (persists category so WGL rows don't all default to Pantry staples).
     const payload = wasSelected
       ? {
           itemName: item.ItemName,
@@ -67,6 +68,8 @@ const useWeekStaples = () => {
           store: item.Store,
           quantity: 1,
           weekDateRange: weekData.displayRange,
+          weekStartDate: weekData.startDate,
+          category: item.Category,
         };
     try {
       const res = await apiFetch(endpoint, {

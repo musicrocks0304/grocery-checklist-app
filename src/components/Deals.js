@@ -339,6 +339,7 @@ const Deals = ({ onNavigate }) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const activeDeals = (result.deals || []).filter(d => {
+        if (d.coupon.clippedStatus === 1) return false; // already clipped — not "available savings"
         if (!d.coupon.expirationDate) return true;
         return new Date(d.coupon.expirationDate) >= today;
       });
@@ -545,6 +546,7 @@ const Deals = ({ onNavigate }) => {
           brand: deal.frequentProduct.brand || null,
           category: deal.frequentProduct.category || null,
           weekDateRange: weekData.displayRange,
+          weekStartDate: weekData.startDate,
         }),
       });
       if (!response.ok) throw new Error(`Server returned ${response.status}`);

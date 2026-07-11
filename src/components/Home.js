@@ -111,6 +111,7 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const allDeals = (result.deals || []).filter(d => {
+            if (d.coupon?.clippedStatus === 1) return false; // already clipped
             if (!d.coupon?.expirationDate) return true;
             return new Date(d.coupon.expirationDate) >= today;
           });
