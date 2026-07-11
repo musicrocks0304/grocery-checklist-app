@@ -1073,8 +1073,18 @@ const HebCart = ({ onNavigate }) => {
         }
       };
 
+      // Transient SSE drops are survivable — EventSource auto-reconnects and
+      // the server replays all progress. Only bail after repeated failures;
+      // the old silent close froze the build screen forever.
+      let sseErrors = 0;
+      evtSource.onopen = () => { sseErrors = 0; };
       evtSource.onerror = () => {
-        evtSource.close();
+        sseErrors += 1;
+        if (sseErrors >= 5) {
+          evtSource.close();
+          toast.error('Lost connection to the build stream — the job may still be running on the server. Re-open Build Cart to check.');
+          setStep('review');
+        }
       };
     } catch (err) {
       toast.error(`Failed to start build: ${err.message}`);

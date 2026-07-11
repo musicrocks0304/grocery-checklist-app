@@ -191,7 +191,20 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
   useEffect(() => {
     if (!prepJob?.jobId || prepJob.status !== 'running') return;
 
+    // Hard cap: if the job never reaches a terminal status (server crash,
+    // stranded row), stop spinning forever and tell the user.
+    const startedAt = Date.now();
+    const MAX_POLL_MS = 15 * 60 * 1000;
+
     const interval = setInterval(async () => {
+      if (Date.now() - startedAt > MAX_POLL_MS) {
+        setPrepJob(prev => ({
+          ...prev,
+          status: 'error',
+          error: 'Prep is taking longer than 15 minutes — the job may be stuck. Check the servers and retry.',
+        }));
+        return;
+      }
       try {
         const url = new URL(ENDPOINTS.groceryPrepStatus);
         url.searchParams.append('jobId', prepJob.jobId);
