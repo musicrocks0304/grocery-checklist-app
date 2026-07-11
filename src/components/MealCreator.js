@@ -217,17 +217,20 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   };
 
   // ===== PHASE 1: Send message to get proposals =====
-  const sendMessage = async () => {
-    if (!inputMessage.trim()) return;
+  // `overrideText` lets Retry resend directly — set-state-then-call read the
+  // stale pre-update input and silently no-opped.
+  const sendMessage = async (overrideText) => {
+    const rawText = typeof overrideText === 'string' ? overrideText : inputMessage;
+    if (!rawText.trim()) return;
 
+    const messageToSend = rawText.trim();
     const userMessage = {
       id: Date.now(),
       type: 'user',
-      content: inputMessage.trim(),
+      content: messageToSend,
       timestamp: new Date().toLocaleTimeString()
     };
     setMessages(prev => [...prev, userMessage]);
-    const messageToSend = inputMessage.trim();
     setInputMessage('');
     setIsLoading(true);
 
@@ -566,8 +569,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
 
   const retryLastPropose = () => {
     if (!lastProposeRef.current) return;
-    setInputMessage(lastProposeRef.current.message || lastProposeRef.current.description || '');
-    setTimeout(() => sendMessage(), 50);
+    sendMessage(lastProposeRef.current.message || lastProposeRef.current.description || '');
   };
 
   const handleKeyPress = (e) => {

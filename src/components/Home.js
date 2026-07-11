@@ -5,7 +5,7 @@ import {
   Server, Key, RefreshCw, Scissors, PlayCircle, CheckCircle, Circle, Loader, History,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { getWeekDates } from "../utils/weekDates";
+import { getWeekDates, parseLocalDay } from "../utils/weekDates";
 import { TOKENS, THEMES } from "../styles/tokens";
 import { staggerContainer, staggerItem } from "../utils/animations";
 import { ENDPOINTS, apiFetch } from "../config/api";
@@ -113,7 +113,7 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
           const allDeals = (result.deals || []).filter(d => {
             if (d.coupon?.clippedStatus === 1) return false; // already clipped
             if (!d.coupon?.expirationDate) return true;
-            return new Date(d.coupon.expirationDate) >= today;
+            return parseLocalDay(d.coupon.expirationDate) >= today;
           });
           const deals = allDeals.slice(0, 3);
           const totalSavings = allDeals.reduce((s, d) => s + (d.coupon?.savingsAmount || 0), 0);

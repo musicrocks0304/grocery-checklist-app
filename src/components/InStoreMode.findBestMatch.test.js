@@ -72,4 +72,32 @@ describe('findBestMatch', () => {
     const onlyShort = [{ ItemID: 99, ItemName: 'Watermelon' }];
     expect(findBestMatch('we are out', onlyShort)).toBeNull();
   });
+
+  test('mid-word substrings do not match (word boundaries required)', () => {
+    // "rice" must NOT check off Licorice; "ice" must not match Rice.
+    const tricky = [
+      { ItemID: 10, ItemName: 'Licorice' },
+      { ItemID: 11, ItemName: 'Rice' },
+    ];
+    expect(findBestMatch('rice', tricky).ItemID).toBe(11);
+    expect(findBestMatch('ice cream', tricky)).toBeNull();
+  });
+
+  test('word-overlap fallback picks the item with the MOST matching words', () => {
+    // First-wins used to let list order decide between "Chicken broth" and
+    // "Chicken breast" for "get the chicken breast".
+    const chicken = [
+      { ItemID: 20, ItemName: 'Chicken broth' },
+      { ItemID: 21, ItemName: 'Chicken breast' },
+    ];
+    expect(findBestMatch('get the chicken breast', chicken).ItemID).toBe(21);
+    expect(findBestMatch('need some chicken broth please', chicken).ItemID).toBe(20);
+  });
+
+  test('singular/plural transcript still matches (light stemming)', () => {
+    const produce = [{ ItemID: 30, ItemName: 'Carrots' }];
+    expect(findBestMatch('grab a carrot', produce).ItemID).toBe(30);
+    const single = [{ ItemID: 31, ItemName: 'Banana' }];
+    expect(findBestMatch('bananas', single).ItemID).toBe(31);
+  });
 });

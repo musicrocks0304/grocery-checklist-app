@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/animations";
 import { EmptyState } from "./ui";
 import confetti from "canvas-confetti";
-import { getWeekDates } from "../utils/weekDates";
+import { getWeekDates, getWeekDatesFor } from "../utils/weekDates";
 import { ENDPOINTS, apiFetch } from "../config/api";
 import { DEFAULT_CATEGORY } from "../constants/categories";
 import { useCategories } from "../hooks/useCategories";
@@ -39,13 +39,19 @@ const HOST_SESSION_STORAGE_KEY = "hostShoppingSession";
 // check-off v2. Strategy:
 //   1. Exact name match (case-insensitive). Otherwise "milk" would match
 //      "Almond milk" via reverse-substring before ever reaching "Milk".
-//   2. Direct substring (case-insensitive, in either direction); longest
-//      item name wins so "almond milk" beats "milk".
-//   3. Word-overlap fallback for cases where the transcript is a phrase
-//      that doesn't directly contain any item name (e.g. "I need
-//      cinnamon toast" → "Cinnamon Toast Crunch"). Only words of length
-//      >= 3 count, to avoid false positives.
+//   2. Whole-word containment (either direction); longest item name wins so
+//      "almond milk" beats "milk". Word boundaries are required — a plain
+//      substring pass checked off Licorice when the shopper said "rice".
+//   3. Word-overlap fallback, SCORED: the item sharing the most >= 3-char
+//      words with the transcript wins (first-wins let list order decide
+//      between "Chicken broth" and "Chicken breast"). Light stemming
+//      (trailing s) so "carrot" still hits "Carrots".
 // Returns the matched item, or null if no match.
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const containsAsWord = (haystack, needle) =>
+  new RegExp(`(^|[^a-z0-9])${escapeRegExp(needle)}([^a-z0-9]|$)`, "i").test(haystack);
+const stem = (w) => (w.length > 3 ? w.replace(/s$/, "") : w);
+
 export const findBestMatch = (transcript, uncheckedItems) => {
   if (!transcript) return null;
   if (!Array.isArray(uncheckedItems) || uncheckedItems.length === 0) return null;
@@ -59,15 +65,24 @@ export const findBestMatch = (transcript, uncheckedItems) => {
   );
   for (const item of byLength) {
     const name = item.ItemName.toLowerCase();
-    if (t.includes(name) || name.includes(t)) return item;
+    if (containsAsWord(t, name) || containsAsWord(name, t)) return item;
   }
-  const words = t.split(/\s+/).filter((w) => w.length >= 3);
+  const words = t.split(/\s+/).filter((w) => w.length >= 3).map(stem);
   if (words.length === 0) return null;
+  let best = null;
+  let bestScore = 0;
   for (const item of uncheckedItems) {
-    const name = item.ItemName.toLowerCase();
-    if (words.some((w) => name.includes(w))) return item;
+    const nameWords = item.ItemName.toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length >= 3)
+      .map(stem);
+    const score = words.filter((w) => nameWords.includes(w)).length;
+    if (score > bestScore) {
+      best = item;
+      bestScore = score;
+    }
   }
-  return null;
+  return best;
 };
 
 // Hook encapsulating MediaRecorder lifecycle for hold-to-talk voice input.
@@ -1167,8 +1182,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   useEffect(() => {
     const joined = readJoinedSession();
     const isJoined = !!joined;
-    const weekData = getWeekDates();
-    const targetWeekStart = joined?.week_start_date || weekData.startDate;
+    // A joiner must adopt the HOST's week wholesale. Mixing the host's
+    // week_start_date with this device's locally-computed display string
+    // broke the list fetch and progress JOIN whenever the two devices sat on
+    // opposite sides of the Thursday week flip.
+    const weekData = (isJoined && getWeekDatesFor(joined.week_start_date)) || getWeekDates();
+    const targetWeekStart = weekData.startDate;
 
     // 1) Seed from prop (explicit pass-through, e.g. "Start Shopping" button)
     //    or from localStorage (if the cache matches this week). This gives an
@@ -1208,7 +1227,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       try {
         const url = new URL(ENDPOINTS.fetchGroceryItems);
         url.searchParams.append("weekStartDate", targetWeekStart);
-        url.searchParams.append("weekEndDate", joined?.week_start_date ? "" : weekData.endDate);
+        url.searchParams.append("weekEndDate", weekData.endDate);
         url.searchParams.append("weekDateRange", weekData.displayRange);
         url.searchParams.append("timestamp", new Date().toISOString());
         const response = await apiFetch(url.toString(), {

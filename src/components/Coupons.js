@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Ticket, Search, AlertCircle, ChevronDown, ChevronUp, Calendar, DollarSign, Percent, Gift, Tag } from 'lucide-react';
 import { ENDPOINTS, apiFetch } from '../config/api';
+import { parseLocalDay } from '../utils/weekDates';
 
 const WEBHOOK_URL = ENDPOINTS.fetchHebCoupons;
 
 const TYPE_CONFIG = {
-  'all': { label: 'All', icon: Ticket, badgeClass: 'bg-blue-100 text-blue-700' },
+  'all': { label: 'All', icon: Ticket, badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
   'dollar-off': { label: 'Dollar Off', icon: DollarSign, badgeClass: 'bg-primary-light text-primary' },
-  'percentage': { label: '% Off', icon: Percent, badgeClass: 'bg-purple-100 text-purple-700' },
+  'percentage': { label: '% Off', icon: Percent, badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
   'bogo': { label: 'BOGO', icon: Gift, badgeClass: 'bg-accent-light text-accent' },
   'other': { label: 'Other', icon: Tag, badgeClass: 'bg-background text-heading' },
 };
@@ -17,7 +18,7 @@ const CouponCard = ({ coupon }) => {
     if (!coupon.expiration_date) return null;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const exp = new Date(coupon.expiration_date);
+    const exp = parseLocalDay(coupon.expiration_date);
     return Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
   }, [coupon.expiration_date]);
 

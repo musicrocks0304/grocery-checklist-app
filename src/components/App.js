@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
 import { pageTransition } from "../utils/animations";
 import { ENDPOINTS, apiFetch, normalizeDbMeals } from "../config/api";
-import { ensureStorageVersion } from "../utils/storageVersion";
+import { ensureStorageVersion, gcWeekScopedKeys } from "../utils/storageVersion";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import { HeaderProvider } from "../contexts/HeaderContext";
 import AppShell from "./AppShell";
@@ -102,6 +102,7 @@ const App = () => {
 
   useEffect(() => {
     ensureStorageVersion();
+    gcWeekScopedKeys();
   }, []);
 
   // Week boundary detection — the week flips at Thursday 00:00 local

@@ -148,7 +148,7 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-semibold text-heading truncate">{item.ItemName}</span>
             {(item.Quantity > 1 || item.Unit) && (
-              <span className="text-xs font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <span className="text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
                 {item.Unit ? `${item.Quantity || 1} ${item.Unit}` : `x${item.Quantity}`}
               </span>
             )}
@@ -177,7 +177,7 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
                     {confidence}
                   </span>
                   {match.matchSource === 'frequently_purchased' && (
-                    <span className="text-xs text-blue-600 flex items-center gap-0.5">
+                    <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-0.5">
                       <Star size={10} /> Repeat buy
                     </span>
                   )}
@@ -373,7 +373,7 @@ const BuildProgressPanel = ({ progress, summary, totalItems }) => {
   return (
     <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
       <div className="flex items-center gap-3 mb-4">
-        <div className={`p-2 rounded-xl ${isComplete ? 'bg-primary-light text-primary' : 'bg-blue-100 text-blue-700'}`}>
+        <div className={`p-2 rounded-xl ${isComplete ? 'bg-primary-light text-primary' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'}`}>
           {isComplete ? <CheckCircle2 size={24} /> : <Loader2 size={24} className="animate-spin" />}
         </div>
         <div>
@@ -1225,7 +1225,7 @@ const HebCart = ({ onNavigate }) => {
             <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
               <AlertCircle size={16} className="flex-shrink-0" />
               <span>{searchWarning}</span>
-              <button onClick={() => setSearchWarning(null)} className="ml-auto text-amber-600 hover:text-amber-800">
+              <button onClick={() => setSearchWarning(null)} className="ml-auto text-amber-600 dark:text-amber-400 hover:text-amber-800">
                 <X size={16} />
               </button>
             </div>

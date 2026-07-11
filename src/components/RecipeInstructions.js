@@ -16,6 +16,10 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
   const [error, setError] = useState(null);
+  // Bumped by the Retry button so the fetch effect actually re-runs — its
+  // other deps don't change on retry, so the old button was a no-op that
+  // silently dropped the user into the sample recipe.
+  const [fetchNonce, setFetchNonce] = useState(0);
   const [debugInfo, setDebugInfo] = useState([]);
   const [showDebug, setShowDebug] = useState(false);
   const [showRecipeSelection, setShowRecipeSelection] = useState(true);
@@ -276,10 +280,13 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
         const responseObj = Array.isArray(data) ? data[0] : data;
         const outputSteps = responseObj?.output;
 
-        if (outputSteps && Array.isArray(outputSteps)) {
-          const recipeInstructions = outputSteps.filter(step =>
-            step.recipe_id === selectedRecipeId || step.recipe_id === parseInt(selectedRecipeId)
-          );
+        const recipeInstructions = (Array.isArray(outputSteps) ? outputSteps : []).filter(step =>
+          step.recipe_id === selectedRecipeId || step.recipe_id === parseInt(selectedRecipeId)
+        );
+
+        // An empty step list would crash the step renderer (instructions[0]
+        // undefined) — treat it like an unexpected payload instead.
+        if (recipeInstructions.length > 0) {
           const allIngredients = responseObj.all_ingredients || [];
 
           addDebugLog('Recipe data received:', {
@@ -338,14 +345,24 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
     fetchRecipeInstructions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRecipeId, showRecipeSelection]);
+  }, [selectedRecipeId, showRecipeSelection, fetchNonce]);
 
   // Derived values
   const activeRecipeData = recipeData || sampleRecipeData;
-  const currentInstruction = activeRecipeData.instructions[currentStep];
   const totalSteps = activeRecipeData.instructions.length;
+  // Clamped read: the normalizing effect below runs one render later, and a
+  // resumed out-of-range index must not crash that first render.
+  const currentInstruction = activeRecipeData.instructions[Math.min(currentStep, Math.max(0, totalSteps - 1))];
   const isFirstStep = currentStep === 0;
-  const isLastStep = currentStep === totalSteps - 1;
+  const isLastStep = currentStep >= totalSteps - 1;
+
+  // A resumed step index can exceed the step count when the recipe data
+  // changed since the session was saved — clamp instead of crashing.
+  useEffect(() => {
+    if (totalSteps > 0 && currentStep >= totalSteps) {
+      setCurrentStep(totalSteps - 1);
+    }
+  }, [totalSteps, currentStep]);
 
   // --- Feature Effects ---
 
@@ -739,7 +756,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
               Back to Recipes
             </button>
             <button
-              onClick={() => { hasInitialized.current = false; setError(null); }}
+              onClick={() => { hasInitialized.current = false; setError(null); setFetchNonce(n => n + 1); }}
               className="px-5 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors font-medium"
             >
               Retry

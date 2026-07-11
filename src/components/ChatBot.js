@@ -314,19 +314,22 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
     }
   };
 
-  // Send message to n8n webhook
-  const sendMessage = async () => {
-    if (!inputMessage.trim()) return;
+  // Send message to n8n webhook. `overrideText` lets Retry resend the failed
+  // message directly — setting input state then calling sendMessage() read
+  // the stale pre-update value and silently no-opped.
+  const sendMessage = async (overrideText) => {
+    const rawText = typeof overrideText === 'string' ? overrideText : inputMessage;
+    if (!rawText.trim()) return;
 
+    const messageToSend = rawText.trim();
     const userMessage = {
       id: Date.now(),
       type: 'user',
-      content: inputMessage.trim(),
+      content: messageToSend,
       timestamp: new Date().toLocaleTimeString()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const messageToSend = inputMessage.trim();
     setInputMessage('');
     setIsLoading(true);
 
@@ -672,8 +675,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
 
   const retryLastMessage = () => {
     if (!lastPayloadRef.current) return;
-    setInputMessage(lastPayloadRef.current.message);
-    setTimeout(() => sendMessage(), 50);
+    sendMessage(lastPayloadRef.current.message);
   };
 
   const handleKeyPress = (e) => {

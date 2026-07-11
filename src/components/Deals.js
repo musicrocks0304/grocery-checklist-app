@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, Plus, Filter, Ticket, Percent, Gift, WifiOff, AlertTriangle,
 } from 'lucide-react';
 import { ENDPOINTS, apiFetch } from '../config/api';
-import { getWeekDates } from '../utils/weekDates';
+import { getWeekDates, parseLocalDay } from '../utils/weekDates';
 import { useClipCoupons } from '../hooks/useClipCoupons';
 import { useClipServerHealth } from '../hooks/useClipServerHealth';
 
@@ -15,7 +15,7 @@ import { useClipServerHealth } from '../hooks/useClipServerHealth';
 
 const CLIP_STATUS_STYLES = {
   pending: { icon: null, text: 'text-muted', label: 'Waiting...' },
-  clipping: { icon: Loader, text: 'text-blue-600', label: 'Clipping...' },
+  clipping: { icon: Loader, text: 'text-blue-600 dark:text-blue-400', label: 'Clipping...' },
   clipped: { icon: CheckCircle, text: 'text-primary', label: 'Clipped!' },
   already_clipped: { icon: CheckCircle, text: 'text-primary', label: 'Already clipped' },
   failed: { icon: XCircle, text: 'text-danger', label: 'Failed' },
@@ -24,13 +24,13 @@ const CLIP_STATUS_STYLES = {
 
 const CONFIDENCE_STYLES = {
   high: { bg: 'bg-primary-light', text: 'text-primary', label: 'High Match' },
-  medium: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Possible' },
+  medium: { bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-700 dark:text-yellow-300', label: 'Possible' },
 };
 
 const TYPE_CONFIG = {
-  all: { label: 'All', icon: Ticket, badgeClass: 'bg-blue-100 text-blue-700' },
+  all: { label: 'All', icon: Ticket, badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
   'dollar-off': { label: 'Dollar Off', icon: DollarSign, badgeClass: 'bg-primary-light text-primary' },
-  percentage: { label: '% Off', icon: Percent, badgeClass: 'bg-purple-100 text-purple-700' },
+  percentage: { label: '% Off', icon: Percent, badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
   bogo: { label: 'BOGO', icon: Gift, badgeClass: 'bg-accent-light text-accent' },
   other: { label: 'Other', icon: Tag, badgeClass: 'bg-background text-heading' },
 };
@@ -43,7 +43,7 @@ const getDaysLeft = (expirationDate) => {
   if (!expirationDate) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const exp = new Date(expirationDate);
+  const exp = parseLocalDay(expirationDate);
   return Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
 };
 
@@ -308,6 +308,7 @@ const Deals = ({ onNavigate }) => {
 
   // All Coupons filters
   const [filterType, setFilterType] = useState('all');
+  const [hideClipped, setHideClipped] = useState(false);
   const [visibleCouponCount, setVisibleCouponCount] = useState(50);
 
   // Selection + clip state (shared hook)
@@ -323,8 +324,8 @@ const Deals = ({ onNavigate }) => {
   // Data fetching
   // -----------------------------------------------------------------------
 
-  const fetchSmartDeals = useCallback(async () => {
-    setSmartLoading(true);
+  const fetchSmartDeals = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setSmartLoading(true);
     setSmartError(null);
     try {
       const response = await apiFetch(ENDPOINTS.smartDeals, {
@@ -341,7 +342,7 @@ const Deals = ({ onNavigate }) => {
       const activeDeals = (result.deals || []).filter(d => {
         if (d.coupon.clippedStatus === 1) return false; // already clipped — not "available savings"
         if (!d.coupon.expirationDate) return true;
-        return new Date(d.coupon.expirationDate) >= today;
+        return parseLocalDay(d.coupon.expirationDate) >= today;
       });
       setDeals(activeDeals);
       setTotalSavings(Math.round(activeDeals.reduce((s, d) => s + (d.coupon.savingsAmount || 0), 0) * 100) / 100);
@@ -353,8 +354,8 @@ const Deals = ({ onNavigate }) => {
     }
   }, []);
 
-  const fetchAllCoupons = useCallback(async () => {
-    setCouponsLoading(true);
+  const fetchAllCoupons = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setCouponsLoading(true);
     setCouponsError(null);
     try {
       const response = await apiFetch(ENDPOINTS.fetchHebCoupons, {
@@ -415,6 +416,9 @@ const Deals = ({ onNavigate }) => {
 
   const filteredCoupons = useMemo(() => {
     let result = couponsData;
+    if (hideClipped) {
+      result = result.filter(c => c.clipped_status !== 1);
+    }
     if (filterType !== 'all') {
       result = result.filter(c => c.coupon_type === filterType);
     }
@@ -433,7 +437,7 @@ const Deals = ({ onNavigate }) => {
       return dateA - dateB;
     });
     return result;
-  }, [couponsData, filterType, searchText, sortBy]);
+  }, [couponsData, filterType, searchText, sortBy, hideClipped]);
 
   const confidenceCounts = useMemo(() => {
     const counts = { all: deals.length, high: 0, medium: 0 };
@@ -446,6 +450,11 @@ const Deals = ({ onNavigate }) => {
     couponsData.forEach(c => { counts[c.coupon_type] = (counts[c.coupon_type] || 0) + 1; });
     return counts;
   }, [couponsData]);
+
+  const clippedCount = useMemo(
+    () => couponsData.filter(c => c.clipped_status === 1).length,
+    [couponsData]
+  );
 
   // -----------------------------------------------------------------------
   // Selection helpers
@@ -504,13 +513,15 @@ const Deals = ({ onNavigate }) => {
   // Reset visible count when coupon filters change
   useEffect(() => {
     setVisibleCouponCount(50);
-  }, [filterType, searchText, sortBy]);
+  }, [filterType, searchText, sortBy, hideClipped]);
 
-  // Re-fetch data after clipping completes so backend clipped_status is current
+  // Re-fetch data after clipping completes so backend clipped_status is
+  // current. Silent: a full-page spinner here wiped the "Clipping Complete"
+  // summary the user was reading.
   useEffect(() => {
     if (clipResults && !isClipping) {
-      fetchAllCoupons();
-      fetchSmartDeals();
+      fetchAllCoupons({ silent: true });
+      fetchSmartDeals({ silent: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clipResults, isClipping]);
@@ -735,6 +746,16 @@ const Deals = ({ onNavigate }) => {
                   </button>
                 );
               })}
+              <button
+                onClick={() => setHideClipped(v => !v)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  hideClipped ? 'bg-primary text-white' : 'bg-background text-body hover:bg-background'
+                }`}
+              >
+                <Scissors size={14} />
+                Hide clipped
+                <span className={`text-xs ${hideClipped ? 'text-white/70' : 'text-muted'}`}>({clippedCount})</span>
+              </button>
             </div>
           )}
 
@@ -816,20 +837,20 @@ const Deals = ({ onNavigate }) => {
         </div>
       )}
       {clipServerStatus === 'expired' && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2">
-          <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={16} />
+        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-xl flex items-start gap-2">
+          <AlertTriangle className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" size={16} />
           <div>
-            <p className="text-sm font-medium text-amber-700">HEB session expired</p>
-            <p className="text-xs text-amber-600">Coupon clipping won't work until a new session is started in Session Manager.</p>
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">HEB session expired</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">Coupon clipping won't work until a new session is started in Session Manager.</p>
           </div>
         </div>
       )}
       {clipServerStatus === 'expiring' && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
-          <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={16} />
+        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-2">
+          <AlertTriangle className="text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" size={16} />
           <div>
-            <p className="text-sm font-medium text-amber-600">HEB session expiring soon</p>
-            <p className="text-xs text-amber-500">
+            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">HEB session expiring soon</p>
+            <p className="text-xs text-amber-500 dark:text-amber-400">
               Session expires in {clipServerHealth?.sessionExpiresIn || 'a few hours'}. Clip coupons soon or refresh the session.
             </p>
           </div>
@@ -863,10 +884,10 @@ const Deals = ({ onNavigate }) => {
       )}
 
       {clipProgress.size > 0 && (isClipping || Array.from(clipProgress.values()).some(s => s === 'failed')) && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl">
           <div className="flex items-center gap-2 mb-2">
-            {isClipping && <Loader size={14} className="animate-spin text-blue-600" />}
-            <span className="text-sm font-medium text-blue-800">
+            {isClipping && <Loader size={14} className="animate-spin text-blue-600 dark:text-blue-400" />}
+            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
               {isClipping ? 'Clipping coupons on HEB...' : 'Clipping results'}
             </span>
           </div>
@@ -893,7 +914,7 @@ const Deals = ({ onNavigate }) => {
                     <span className={`font-medium ${statusStyle.text}`}>{statusStyle.label}</span>
                   </div>
                   {detail && (
-                    <p className="ml-6 text-[11px] text-red-700 truncate" title={detail}>{detail}</p>
+                    <p className="ml-6 text-[11px] text-red-700 dark:text-red-400 truncate" title={detail}>{detail}</p>
                   )}
                 </div>
               );

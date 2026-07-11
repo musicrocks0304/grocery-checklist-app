@@ -10,7 +10,7 @@ const CONFIDENCE_STYLES = {
 
 const CLIP_STATUS_STYLES = {
   pending: { icon: null, text: 'text-muted', label: 'Waiting...' },
-  clipping: { icon: Loader, text: 'text-blue-600', label: 'Clipping...' },
+  clipping: { icon: Loader, text: 'text-blue-600 dark:text-blue-400', label: 'Clipping...' },
   clipped: { icon: CheckCircle, text: 'text-primary', label: 'Clipped!' },
   already_clipped: { icon: CheckCircle, text: 'text-primary', label: 'Already clipped' },
   failed: { icon: XCircle, text: 'text-danger', label: 'Failed' },
@@ -149,7 +149,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
         <button
           onClick={selectAllHighConfidence}
           disabled={isClipping}
-          className="text-sm font-medium px-4 py-2 rounded-full bg-primary text-white hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="text-sm font-medium px-4 py-2 rounded-full bg-primary text-white hover:bg-primary-hover disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
         >
           Select All High Confidence ({highConfidence})
         </button>
@@ -329,7 +329,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
           <button
             onClick={handleClipSelected}
             disabled={selectedCount === 0 || isClipping}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
           >
             {isClipping ? (
               <>
@@ -350,8 +350,8 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
       {clipProgress.size > 0 && (isClipping || Array.from(clipProgress.values()).some(s => s === 'failed')) && (
         <div className="border-t px-4 py-3 bg-blue-50">
           <div className="flex items-center gap-2 mb-2">
-            {isClipping && <Loader size={14} className="animate-spin text-blue-600" />}
-            <span className="text-sm font-medium text-blue-800">
+            {isClipping && <Loader size={14} className="animate-spin text-blue-600 dark:text-blue-400" />}
+            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
               {isClipping ? 'Clipping coupons on HEB...' : 'Clipping results'}
             </span>
           </div>
@@ -382,7 +382,7 @@ const CouponMatchPanel = ({ matches, onDismiss }) => {
                     </span>
                   </div>
                   {detail && (
-                    <p className="ml-6 text-[11px] text-red-700 truncate" title={detail}>{detail}</p>
+                    <p className="ml-6 text-[11px] text-red-700 dark:text-red-400 truncate" title={detail}>{detail}</p>
                   )}
                 </div>
               );

@@ -99,3 +99,48 @@ export const getWeekDates = () => {
     displayRange: getWeekDateRange(),
   };
 };
+
+/**
+ * Parse a date-only value (DATE column, "YYYY-MM-DD" or ISO string) as LOCAL
+ * midnight. `new Date("2026-07-11")` parses as UTC midnight, which is the
+ * previous evening in Texas — coupons showed "Expired" and deals were hidden
+ * for the whole of their final valid day.
+ */
+export const parseLocalDay = (value) => {
+  if (!value) return null;
+  const s = String(value).slice(0, 10);
+  return new Date(`${s}T00:00:00`);
+};
+
+/**
+ * Build the same {startDate, endDate, displayRange} shape as getWeekDates()
+ * but for an EXPLICIT week start date (YYYY-MM-DD Sunday). Used by partner
+ * shopping sessions: the joiner must adopt the HOST's week wholesale — mixing
+ * the host's week_start_date with the joiner's locally-computed display
+ * string breaks the list fetch and progress JOIN when the two devices sit on
+ * opposite sides of the Thursday week flip.
+ */
+export const getWeekDatesFor = (weekStartDate) => {
+  const targetSunday = parseLocalDay(weekStartDate);
+  if (!targetSunday || Number.isNaN(targetSunday.getTime())) return null;
+  const targetSaturday = new Date(targetSunday);
+  targetSaturday.setDate(targetSunday.getDate() + 6);
+
+  const formatDateForSQL = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+  const formatDisplay = (date) => {
+    const day = date.getDate();
+    const month = date.toLocaleDateString("en-US", { month: "long" });
+    return `${month} ${day}${getOrdinalSuffix(day)}`;
+  };
+
+  return {
+    startDate: formatDateForSQL(targetSunday),
+    endDate: formatDateForSQL(targetSaturday),
+    displayRange: `For the week of ${formatDisplay(targetSunday)} to ${formatDisplay(targetSaturday)}, ${targetSunday.getFullYear()}`,
+  };
+};
