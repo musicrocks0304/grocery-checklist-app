@@ -606,7 +606,7 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
   };
 
   const handleBackToApp = () => {
-    onNavigate('grocery');
+    onNavigate('plan');
   };
 
   const handleJumpToStep = (stepIndex) => {
@@ -774,35 +774,35 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
       <div className="min-h-screen bg-background transition-colors duration-200">
         {/* Header */}
         <div className="bg-surface shadow-sm border-b border-default">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
+          <div className="max-w-4xl mx-auto px-4 py-2">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleBackToApp}
-                className="flex items-center gap-2 text-body hover:text-heading transition-colors"
+                aria-label="Back to grocery list"
+                className="flex items-center justify-center min-h-[44px] min-w-[44px] w-10 h-10 text-body hover:text-heading transition-colors"
               >
                 <ArrowLeft size={20} />
-                <span className="font-medium">Back to Grocery List</span>
               </button>
-              <div className="text-center">
-                <h1 className="text-lg font-display font-bold text-heading">
-                  Select Recipe for Instructions
-                </h1>
-                <p className="text-sm text-muted">
-                  Choose which recipe you'd like to cook
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg font-display font-bold text-heading truncate">Cook</h1>
+                <p className="text-xs text-muted truncate">
+                  {availableRecipes.length > 0
+                    ? `${availableRecipes.length} meal${availableRecipes.length !== 1 ? 's' : ''} planned this week`
+                    : 'Choose a recipe to cook'}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                {debugMode && (
-                  <button
-                    onClick={() => setShowDebug(!showDebug)}
-                    className="flex items-center gap-1 text-sm text-body hover:text-heading transition-colors"
-                  >
-                    <Wifi size={16} />
-                    <span className="hidden sm:inline">Debug</span>
-                    {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
-                )}
-              </div>
+              {debugMode ? (
+                <button
+                  onClick={() => setShowDebug(!showDebug)}
+                  className="flex items-center gap-1 text-sm text-body hover:text-heading transition-colors"
+                >
+                  <Wifi size={16} />
+                  <span className="hidden sm:inline">Debug</span>
+                  {showDebug ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              ) : (
+                <div className="w-10" />
+              )}
             </div>
           </div>
         </div>
@@ -870,15 +870,15 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           {availableRecipes.length === 0 ? (
             <div className="text-center py-12">
               <ChefHat size={64} className="mx-auto text-muted mb-4" />
-              <h2 className="text-xl font-semibold text-body mb-2">No Recipes Available</h2>
+              <h2 className="text-xl font-semibold text-body mb-2">No meals planned yet</h2>
               <p className="text-muted mb-6">
-                You need to select some meals first from the AI Meal Planner.
+                Pick meals in the Meal Planner and they'll show up here with step-by-step instructions.
               </p>
               <button
-                onClick={() => onNavigate('chatbot')}
+                onClick={() => onNavigate('meals')}
                 className="px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors font-medium"
               >
-                Go to Meal Planner
+                Plan meals
               </button>
             </div>
           ) : (
