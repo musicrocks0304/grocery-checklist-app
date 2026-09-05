@@ -3,6 +3,7 @@ import {
   ShoppingCart, Wifi, WifiOff, Search, Check, X,
   AlertCircle, ChevronRight, Zap, Loader2,
   CheckCircle2, XCircle, SkipForward, ArrowRight, Star,
+  RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { ENDPOINTS, apiFetch } from '../config/api';
 import { getWeekDateRange } from '../utils/weekDates';
@@ -28,7 +29,7 @@ const StepIndicator = ({ currentStep }) => {
             {i > 0 && (
               <div className={`flex-1 h-0.5 ${isDone ? 'bg-primary' : 'bg-default'}`} />
             )}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="flex flex-col items-center gap-1 w-[72px] text-center flex-shrink-0">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                 isDone ? 'bg-primary text-white' :
                 isActive ? 'bg-primary text-white ring-2 ring-primary ring-offset-2' :
@@ -36,7 +37,7 @@ const StepIndicator = ({ currentStep }) => {
               }`}>
                 {isDone ? <Check size={14} /> : i + 1}
               </div>
-              <span className={`text-xs sm:text-sm font-medium hidden sm:inline ${
+              <span className={`text-[11px] sm:text-sm font-medium leading-tight ${
                 isActive ? 'text-heading' : isDone ? 'text-primary' : 'text-muted'
               }`}>
                 {step.label}
@@ -50,9 +51,31 @@ const StepIndicator = ({ currentStep }) => {
 };
 
 // ─── Connection Panel (Step 1) ──────────────────────────────────
-const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, connecting }) => {
+const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, connecting }) => {
   const isActive = sessionStatus?.active;
   const loginValid = sessionStatus?.loginSessionValid;
+  const isExpired = !loginValid && !isActive;
+  const [rechecking, setRechecking] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+
+  const lastLoginLabel = sessionStatus?.lastLoginAt
+    ? `Last connected ${new Date(sessionStatus.lastLoginAt).toLocaleString()}`
+    : null;
+
+  const subtitle = isActive
+    ? `Browser session active (idle ${sessionStatus.idleSeconds}s)`
+    : loginValid
+      ? 'Ready to connect'
+      : lastLoginLabel;
+
+  const handleRecheck = async () => {
+    setRechecking(true);
+    try {
+      await onRecheck?.();
+    } finally {
+      setRechecking(false);
+    }
+  };
 
   return (
     <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
@@ -61,65 +84,100 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, connecting })
           {isActive ? <Wifi size={24} /> : <WifiOff size={24} />}
         </div>
         <div>
-          <h2 className="text-lg font-semibold font-display text-heading">HEB Connection</h2>
-          <p className="text-sm text-muted">
-            {isActive
-              ? `Browser session active (idle ${sessionStatus.idleSeconds}s)`
-              : loginValid
-                ? 'Ready to connect'
-                : 'HEB login session expired'}
-          </p>
+          <h2 className="text-lg font-semibold font-display text-heading">
+            {isExpired ? 'HEB sign-in needed' : 'HEB Connection'}
+          </h2>
+          {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
         </div>
       </div>
 
-      {!loginValid && !isActive && (
-        <div className="mb-4 p-3 bg-accent-light border border-accent rounded-xl flex items-start gap-2">
-          <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={18} />
+      {isExpired && (
+        <div className="mb-4 space-y-3">
+          <p className="text-sm text-body">
+            The saved HEB login has expired, so the cart builder can't search products yet. Sign in again from the computer, then tap <strong>Check again</strong>.
+          </p>
+          <button
+            onClick={handleRecheck}
+            disabled={rechecking}
+            className={`inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-colors ${
+              rechecking
+                ? 'bg-primary/70 text-white cursor-wait'
+                : 'bg-primary text-white hover:bg-primary-hover'
+            }`}
+          >
+            {rechecking ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Checking...
+              </>
+            ) : (
+              <>
+                <RefreshCw size={16} />
+                Check again
+              </>
+            )}
+          </button>
           <div>
-            <p className="text-sm font-medium text-accent">HEB login expired</p>
-            <p className="text-xs text-accent mt-1">
-              Run <code className="bg-accent-light px-1 rounded">npm run scrape:login</code> on the server to re-authenticate with HEB.
-            </p>
+            <button
+              type="button"
+              onClick={() => setShowDetails(v => !v)}
+              aria-expanded={showDetails}
+              className="inline-flex items-center gap-1 text-xs text-muted hover:text-body transition-colors"
+            >
+              {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              Show technical details
+            </button>
+            {showDetails && (
+              <div className="mt-2 text-xs text-muted space-y-1">
+                <code className="block bg-background border border-default px-2 py-1 rounded text-body">npm run scrape:login</code>
+                <p>Run this on the server, then re-check.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      <div className="flex gap-3">
-        {!isActive ? (
-          <button
-            onClick={onConnect}
-            disabled={connecting || !loginValid}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors ${
-              connecting || !loginValid
-                ? 'bg-default text-muted cursor-not-allowed'
-                : 'bg-primary text-white hover:bg-primary-hover'
-            }`}
-          >
-            {connecting ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Launching browser...
-              </>
-            ) : (
-              <>
-                <Wifi size={16} />
-                Connect to HEB
-              </>
-            )}
-          </button>
-        ) : (
-          <button
-            onClick={onDisconnect}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm bg-background text-body hover:bg-default transition-colors"
-          >
-            <WifiOff size={16} />
-            Disconnect
-          </button>
-        )}
-      </div>
+      {!isExpired && (
+        <div className="flex gap-3">
+          {!isActive ? (
+            <button
+              onClick={onConnect}
+              disabled={connecting || !loginValid}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+                connecting || !loginValid
+                  ? 'bg-default text-muted cursor-not-allowed'
+                  : 'bg-primary text-white hover:bg-primary-hover'
+              }`}
+            >
+              {connecting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Launching browser...
+                </>
+              ) : (
+                <>
+                  <Wifi size={16} />
+                  Connect to HEB
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={onDisconnect}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm bg-background text-body hover:bg-default transition-colors"
+            >
+              <WifiOff size={16} />
+              Disconnect
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+
+// Named export for focused component tests (default export below is the full screen).
+export { ConnectionPanel };
 
 // ─── Match Card (single grocery item in review) ─────────────────
 const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSwap }) => {
@@ -1174,6 +1232,7 @@ const HebCart = ({ onNavigate }) => {
           sessionStatus={sessionStatus}
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}
+          onRecheck={checkSession}
           connecting={connecting}
         />
       )}
