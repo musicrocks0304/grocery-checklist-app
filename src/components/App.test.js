@@ -1,9 +1,18 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import App from './App';
+
+// Stub the heavier screens so the hash-routing tests assert on routing only
+jest.mock('./Deals', () => () => <div>Deals screen</div>);
+jest.mock('./Plan', () => () => <div>Plan screen</div>);
 
 // Mock matchMedia for ThemeContext (not available in JSDOM)
 beforeAll(() => {
+  // JSDOM does not implement Element.scrollTo; the route handler calls it
+  Object.defineProperty(Element.prototype, 'scrollTo', {
+    writable: true,
+    value: jest.fn(),
+  });
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: jest.fn().mockImplementation(query => ({
@@ -42,4 +51,31 @@ test('renders without crashing', () => {
 test('defaults to home screen', () => {
   render(<App />);
   expect(window.location.hash === '' || window.location.hash === '#home').toBe(true);
+});
+
+// FB#54 — a hash typed/pasted into an already-open tab used to leave the app on
+// Home because the popstate handler defaulted to home when history state was absent.
+test('renders the screen for a hash changed while the app is open', async () => {
+  render(<App />);
+  window.location.hash = '#deals';
+  expect(await screen.findByText('Deals screen')).toBeInTheDocument();
+});
+
+test('normalizes a legacy hash changed while the app is open', async () => {
+  render(<App />);
+  window.location.hash = '#grocery';
+  expect(await screen.findByText('Plan screen')).toBeInTheDocument();
+  expect(window.location.hash).toBe('#plan');
+  expect(window.history.state).toEqual({ screen: 'plan' });
+});
+
+test('back/forward still restore the pushed history state', async () => {
+  render(<App />);
+  window.location.hash = '#deals';
+  expect(await screen.findByText('Deals screen')).toBeInTheDocument();
+
+  act(() => {
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { screen: 'plan' } }));
+  });
+  expect(await screen.findByText('Plan screen')).toBeInTheDocument();
 });

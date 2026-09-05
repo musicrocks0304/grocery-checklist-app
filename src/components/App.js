@@ -6,6 +6,7 @@ import { getWeekDates } from "../utils/weekDates";
 import { pageTransition } from "../utils/animations";
 import { ENDPOINTS, apiFetch, normalizeDbMeals } from "../config/api";
 import { ensureStorageVersion, gcWeekScopedKeys } from "../utils/storageVersion";
+import { resolveScreenFromHash, LEGACY_REDIRECT, VALID_SCREENS } from "../utils/screenRoute";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import { HeaderProvider } from "../contexts/HeaderContext";
 import AppShell from "./AppShell";
@@ -26,24 +27,6 @@ import FeedbackFAB from "./FeedbackFAB";
 // — chat interfaces pin input at bottom, so they need a defined container height
 const FULL_HEIGHT_SCREENS = new Set(["meals", "chatbot", "meal-creator"]);
 
-// New primary screen IDs + legacy IDs still routable during transition
-const VALID_SCREENS = [
-  // New flow screens
-  "home", "plan", "meals", "deals", "cart", "shop", "cook",
-  // Legacy IDs — still routable for internal navigation during phased migration
-  "grocery", "chatbot", "meal-creator", "recipe-ingredients", "recipe-instructions",
-  "in-store", "coupons", "heb-cart", "smart-deals",
-];
-
-// Map legacy hash IDs to new screen IDs for URL normalization
-const LEGACY_REDIRECT = {
-  grocery: "plan",
-  "smart-deals": "deals",
-  "heb-cart": "cart",
-  "in-store": "shop",
-  "recipe-instructions": "cook",
-};
-
 // Only show debug panels when ?debug=true is in the URL
 const isDebugMode = () => {
   const params = new URLSearchParams(window.location.search);
@@ -62,11 +45,7 @@ const navigation = [
 
 // Partner invite: when a URL is opened with hash `#join/CODE`, extract the
 // code so App can call the join webhook before any regular screen renders.
-const extractJoinCode = () => {
-  const hash = window.location.hash.replace("#", "");
-  if (hash.startsWith("join/")) return hash.slice(5).trim().toUpperCase() || null;
-  return null;
-};
+const extractJoinCode = () => resolveScreenFromHash(window.location.hash).join || null;
 
 const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
 
@@ -75,12 +54,9 @@ const App = () => {
   const [joinState, setJoinState] = useState(() => (extractJoinCode() ? "joining" : "idle"));
   const [joinError, setJoinError] = useState(null);
   const [currentScreen, setCurrentScreen] = useState(() => {
-    const hash = window.location.hash.replace("#", "");
-    if (hash.startsWith("join/")) return "home"; // placeholder; join effect redirects to #shop
-    // Redirect legacy hashes to new screen IDs
-    const redirected = LEGACY_REDIRECT[hash];
-    if (redirected) return redirected;
-    return VALID_SCREENS.includes(hash) ? hash : "home";
+    // `#join/CODE` has no screen — home is a placeholder while the join effect
+    // resolves the invite and redirects to #shop.
+    return resolveScreenFromHash(window.location.hash).screen || "home";
   });
   const [selectedMeals, setSelectedMeals] = useState(() => {
     try {
@@ -228,29 +204,51 @@ const App = () => {
     };
   }, []);
 
-  // Browser back/forward button support
+  // Browser back/forward button support + hashes typed/pasted into an open tab
   useEffect(() => {
-    const hash = window.location.hash.replace("#", "") || "home";
+    const initialRoute = resolveScreenFromHash(window.location.hash);
     // Skip the URL normalization when arriving via `#join/CODE` — the
     // partner-invite effect above reads the code then rewrites the URL to
-    // `#shop` itself. Still wire up popstate so back/forward work afterward.
-    if (!hash.startsWith("join/")) {
-      const initialScreen = LEGACY_REDIRECT[hash] || (VALID_SCREENS.includes(hash) ? hash : "home");
-      window.history.replaceState({ screen: initialScreen }, "", `#${initialScreen}`);
+    // `#shop` itself. Still wire up the listeners so back/forward work after.
+    if (!initialRoute.join) {
+      window.history.replaceState({ screen: initialRoute.screen }, "", `#${initialRoute.screen}`);
     }
 
-    const handlePopState = (event) => {
-      const screen = event.state?.screen || "home";
-      if (VALID_SCREENS.includes(screen)) {
-        setCurrentScreen(LEGACY_REDIRECT[screen] || screen);
-      } else {
-        setCurrentScreen("home");
+    // Fires for back/forward (popstate) and for manual hash edits, which some
+    // browsers report only as hashchange. `navigateToScreen`'s pushState fires
+    // neither, so there is no double-handling from in-app navigation.
+    const handleRouteChange = (event) => {
+      const stateScreen = event?.state?.screen;
+      if (stateScreen) {
+        // History entry we pushed ourselves — trust its state.
+        const next = VALID_SCREENS.includes(stateScreen)
+          ? LEGACY_REDIRECT[stateScreen] || stateScreen
+          : "home";
+        setCurrentScreen((prev) => (prev === next ? prev : next));
+        document.querySelector('main')?.scrollTo(0, 0);
+        return;
       }
+
+      // No history state — the hash was typed, pasted, or opened from a
+      // bookmark while the app was already running. Resolve from the URL
+      // instead of falling back to home (FB#54).
+      const route = resolveScreenFromHash(window.location.hash);
+      if (route.join) {
+        // The join flow only runs at mount, so reload to let it pick up the code.
+        window.location.reload();
+        return;
+      }
+      window.history.replaceState({ screen: route.screen }, "", `#${route.screen}`);
+      setCurrentScreen((prev) => (prev === route.screen ? prev : route.screen));
       document.querySelector('main')?.scrollTo(0, 0);
     };
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    window.addEventListener("popstate", handleRouteChange);
+    window.addEventListener("hashchange", handleRouteChange);
+    return () => {
+      window.removeEventListener("popstate", handleRouteChange);
+      window.removeEventListener("hashchange", handleRouteChange);
+    };
   }, []);
 
   const toaster = (
