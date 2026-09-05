@@ -48,6 +48,23 @@ const getDaysLeft = (expirationDate) => {
   return Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
 };
 
+/**
+ * True when `name` is already on THIS week's grocery list.
+ *
+ * `fetchGroceryItems` returns the whole staples catalog with an `IsSelected`
+ * flag (see src/hooks/useWeekStaples.js), so only rows with `IsSelected === 1`
+ * are actually on the current week's list. A non-array body (the n8n failure
+ * mode) is treated as an empty list rather than throwing.
+ */
+export const isAlreadyOnList = (items, name) => {
+  if (!Array.isArray(items)) return false;
+  const target = (name || '').trim().toLowerCase();
+  if (!target) return false;
+  return items.some(
+    (it) => it && it.IsSelected === 1 && (it.ItemName || '').trim().toLowerCase() === target
+  );
+};
+
 const ExpirationBadge = ({ expirationDate }) => {
   const daysLeft = getDaysLeft(expirationDate);
   if (daysLeft === null) return null;
@@ -67,7 +84,7 @@ const ExpirationBadge = ({ expirationDate }) => {
 
 const SmartDealCard = ({
   deal, isSelected, onToggle, isClipping, clipStatus,
-  addStatus, onAddToList,
+  addStatus, onAddToList, clipServerUnavailable,
 }) => {
   const conf = CONFIDENCE_STYLES[deal.confidence] || CONFIDENCE_STYLES.medium;
   const isClipped = deal.coupon.clippedStatus === 1;
@@ -76,67 +93,72 @@ const SmartDealCard = ({
     <div className={`bg-surface rounded-2xl shadow-warm border overflow-hidden transition-all ${
       isSelected ? 'border-primary-border ring-1 ring-primary-border' : 'border-default'
     }`}>
-      <div className="flex gap-3 p-3 sm:p-4">
-        {/* Checkbox */}
-        <label className="flex items-start pt-1 flex-shrink-0 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggle(deal.coupon.hashId)}
-            disabled={isClipping || isClipped}
-            className="w-5 h-5 text-primary rounded focus:ring-focus cursor-pointer disabled:cursor-not-allowed"
-          />
-        </label>
-
-        {/* Product image */}
-        <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-background">
-          {deal.frequentProduct.imageUrl ? (
-            <img
-              src={deal.frequentProduct.imageUrl}
-              alt=""
-              className="w-full h-full object-contain"
-              onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+      <div className="p-3 sm:p-4">
+        {/* Row 1: checkbox + image + title/brand */}
+        <div className="flex gap-3">
+          {/* Checkbox */}
+          <label className="flex items-start pt-1 flex-shrink-0 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggle(deal.coupon.hashId)}
+              disabled={isClipping || isClipped || clipServerUnavailable}
+              className="w-5 h-5 text-primary rounded focus:ring-focus cursor-pointer disabled:cursor-not-allowed"
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-default">
-              <ShoppingCart size={24} />
-            </div>
-          )}
-        </div>
+          </label>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="mb-1">
+          {/* Product image */}
+          <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-background">
+            {deal.frequentProduct.imageUrl ? (
+              <img
+                src={deal.frequentProduct.imageUrl}
+                alt=""
+                className="w-full h-full object-contain"
+                onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-default">
+                <ShoppingCart size={24} />
+              </div>
+            )}
+          </div>
+
+          {/* Title + brand */}
+          <div className="flex-1 min-w-0">
             <h3 className="text-sm sm:text-base font-semibold text-heading leading-snug line-clamp-2">
               {decodeHtmlEntities(deal.frequentProduct.name)}
             </h3>
             {deal.frequentProduct.brand && (
-              <p className="text-xs text-muted">{deal.frequentProduct.brand}</p>
+              <p className="text-xs text-muted truncate">{deal.frequentProduct.brand}</p>
             )}
           </div>
+        </div>
 
-          {/* Coupon details */}
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="text-base font-bold text-primary">
-              {deal.coupon.discount || 'Special Offer'}
+        {/* Row 2: price — full card width */}
+        <div className="mt-2 flex items-center gap-2 flex-wrap">
+          <span className="text-base font-bold text-primary">
+            {deal.coupon.discount || 'Special Offer'}
+          </span>
+          {deal.coupon.savingsAmount > 0 && (
+            <span className="text-xs text-muted">
+              (save ${deal.coupon.savingsAmount.toFixed(2)})
             </span>
-            {deal.coupon.savingsAmount > 0 && (
-              <span className="text-xs text-muted">
-                (save ${deal.coupon.savingsAmount.toFixed(2)})
-              </span>
-            )}
-            {deal.frequentProduct.price && (
-              <span className="text-xs text-muted">
-                reg. ${deal.frequentProduct.price.toFixed(2)}
-              </span>
-            )}
-          </div>
+          )}
+          {deal.frequentProduct.price && (
+            <span className="text-xs text-muted">
+              reg. ${deal.frequentProduct.price.toFixed(2)}
+            </span>
+          )}
+        </div>
 
-          <p className="text-xs text-muted mb-1 line-clamp-1">
-            {decodeHtmlEntities(deal.coupon.productName)}
-          </p>
+        {/* Row 3: coupon terms — full card width */}
+        <p className="mt-1 text-xs text-muted line-clamp-2">
+          {decodeHtmlEntities(deal.coupon.productName)}
+        </p>
 
-          <div className="flex items-center gap-3 flex-wrap">
+        {/* Row 4: badges left, Add button right */}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${conf.bg} ${conf.text}`}>
               {conf.label}
             </span>
@@ -160,44 +182,44 @@ const SmartDealCard = ({
             })()}
 
             {deal.reason && (
-              <span className="text-xs text-muted italic">{deal.reason}</span>
+              <span className="text-xs text-muted italic truncate">{deal.reason}</span>
             )}
           </div>
-        </div>
 
-        {/* Add to list */}
-        <div className="flex-shrink-0 flex items-center">
-          {addStatus === 'added' ? (
-            <span className="text-xs font-medium text-primary flex items-center gap-1 px-2">
-              <CheckCircle size={14} /> Added
-            </span>
-          ) : addStatus === 'exists' ? (
-            <span className="text-xs font-medium text-accent flex items-center gap-1 px-2">
-              <CheckCircle size={14} /> On List
-            </span>
-          ) : addStatus === 'error' ? (
-            <button
-              onClick={() => onAddToList(deal)}
-              className="text-xs font-medium text-danger flex items-center gap-1 px-2 hover:text-danger"
-              title="Retry"
-            >
-              <XCircle size={14} /> Retry
-            </button>
-          ) : (
-            <button
-              onClick={() => onAddToList(deal)}
-              disabled={addStatus === 'adding'}
-              className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-xl bg-primary-light text-primary hover:bg-primary-light/80 disabled:bg-background disabled:text-muted transition-colors min-h-[36px]"
-              title="Add to this week's grocery list"
-            >
-              {addStatus === 'adding' ? (
-                <Loader size={14} className="animate-spin" />
-              ) : (
-                <Plus size={14} />
-              )}
-              <span>Add to list</span>
-            </button>
-          )}
+          {/* Add to list */}
+          <div className="flex-shrink-0">
+            {addStatus === 'added' ? (
+              <span className="text-xs font-medium text-primary flex items-center gap-1 px-2">
+                <CheckCircle size={14} /> Added
+              </span>
+            ) : addStatus === 'exists' ? (
+              <span className="text-xs font-medium text-accent flex items-center gap-1 px-2">
+                <CheckCircle size={14} /> On List
+              </span>
+            ) : addStatus === 'error' ? (
+              <button
+                onClick={() => onAddToList(deal)}
+                className="flex items-center gap-1 px-3 min-h-[44px] text-xs font-medium text-danger hover:text-danger"
+                title="Retry"
+              >
+                <XCircle size={14} /> Retry
+              </button>
+            ) : (
+              <button
+                onClick={() => onAddToList(deal)}
+                disabled={addStatus === 'adding'}
+                className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-xl bg-primary-light text-primary hover:bg-primary-light/80 disabled:bg-background disabled:text-muted transition-colors min-h-[44px]"
+                title="Add to this week's grocery list"
+              >
+                {addStatus === 'adding' ? (
+                  <Loader size={14} className="animate-spin" />
+                ) : (
+                  <Plus size={14} />
+                )}
+                <span>Add to list</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -208,10 +230,12 @@ const SmartDealCard = ({
 // AllCoupons card (grid-style)
 // ---------------------------------------------------------------------------
 
-const CouponCard = ({ coupon, isSelected, onToggle, isClipping }) => {
+const CouponCard = ({ coupon, isSelected, onToggle, isClipping, clipServerUnavailable }) => {
   const typeConfig = TYPE_CONFIG[coupon.coupon_type] || TYPE_CONFIG.other;
   const TypeIcon = typeConfig.icon;
   const isClipped = coupon.clipped_status === 1;
+  const description = decodeHtmlEntities(coupon.description);
+  const productName = decodeHtmlEntities(coupon.product_name);
 
   return (
     <div className={`border rounded-2xl overflow-hidden hover:shadow-warm transition-shadow bg-surface transition-colors duration-200 ${
@@ -224,7 +248,7 @@ const CouponCard = ({ coupon, isSelected, onToggle, isClipping }) => {
             type="checkbox"
             checked={isSelected}
             onChange={() => onToggle(coupon.hash_id)}
-            disabled={isClipping || isClipped}
+            disabled={isClipping || isClipped || clipServerUnavailable}
             className="w-4 h-4 text-primary rounded focus:ring-focus cursor-pointer disabled:cursor-not-allowed"
           />
         </label>
@@ -240,7 +264,7 @@ const CouponCard = ({ coupon, isSelected, onToggle, isClipping }) => {
         <div className="w-full h-28 bg-background flex items-center justify-center overflow-hidden">
           <img
             src={coupon.image_url}
-            alt={decodeHtmlEntities(coupon.product_name)}
+            alt={productName}
             className="w-full h-full object-contain"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
@@ -264,13 +288,13 @@ const CouponCard = ({ coupon, isSelected, onToggle, isClipping }) => {
 
         {/* Product name */}
         <h3 className="text-sm font-semibold text-heading mb-1 line-clamp-2">
-          {decodeHtmlEntities(coupon.product_name)}
+          {productName}
         </h3>
 
         {/* Description */}
-        {coupon.description && coupon.description !== coupon.product_name && (
+        {description && description !== productName && (
           <p className="text-xs text-muted line-clamp-2">
-            {coupon.description}
+            {description}
           </p>
         )}
       </div>
@@ -556,10 +580,7 @@ const Deals = ({ onNavigate }) => {
       const existingRes = await apiFetch(fetchUrl.toString(), { method: 'GET', headers: { Accept: 'application/json' } });
       if (!existingRes.ok) throw new Error(`HTTP ${existingRes.status}`);
       const existingItems = await existingRes.json();
-      const alreadyExists = existingItems.some(
-        (it) => (it.ItemName || '').trim().toLowerCase() === itemName.trim().toLowerCase()
-      );
-      if (alreadyExists) {
+      if (isAlreadyOnList(existingItems, itemName)) {
         setAddingToList(prev => new Map(prev).set(dealId, 'exists'));
         return;
       }
@@ -570,6 +591,13 @@ const Deals = ({ onNavigate }) => {
         body: JSON.stringify({ itemName, weekDateRange: weekData.displayRange }),
       });
       if (!addRes.ok) throw new Error(`HTTP ${addRes.status}`);
+      // n8n answers 200 with an empty body when MySQL is unreachable — a bare
+      // 200 is not proof the item was saved, so require a real payload.
+      const addBody = await addRes.json().catch(() => null);
+      const addData = Array.isArray(addBody) ? addBody[0] : addBody;
+      if (!addData || (addData.itemId === undefined && addData.success !== true)) {
+        throw new Error('Empty response from add-item endpoint');
+      }
       setAddingToList(prev => new Map(prev).set(dealId, 'added'));
     } catch (err) {
       console.error('[deals] Add to list error:', err.message);
@@ -797,7 +825,7 @@ const Deals = ({ onNavigate }) => {
             <button
               onClick={deselectAll}
               disabled={isClipping}
-              className="text-sm font-medium px-4 py-2 rounded-full bg-surface text-body border border-default hover:bg-background disabled:bg-default disabled:cursor-not-allowed transition-colors"
+              className="text-sm font-medium px-4 py-2 rounded-full bg-surface text-body border border-default hover:bg-background disabled:bg-background disabled:text-muted disabled:border disabled:border-default disabled:cursor-not-allowed transition-colors"
             >
               Deselect All
             </button>
@@ -953,6 +981,7 @@ const Deals = ({ onNavigate }) => {
                 clipStatus={clipProgress.get(deal.coupon.hashId)}
                 addStatus={addingToList.get(deal.id)}
                 onAddToList={handleAddToList}
+                clipServerUnavailable={clipServerUnavailable}
               />
             ))}
           </div>
@@ -966,6 +995,7 @@ const Deals = ({ onNavigate }) => {
                   isSelected={selectedCoupons.has(coupon.hash_id)}
                   onToggle={toggleCouponSelection}
                   isClipping={isClipping}
+                  clipServerUnavailable={clipServerUnavailable}
                 />
               ))}
             </div>
