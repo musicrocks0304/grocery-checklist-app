@@ -40,12 +40,12 @@ const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
           </button>
 
           {headerContent ? (
-            <div className="flex-1 flex justify-center mx-2">{headerContent}</div>
+            <div className="flex-1 min-w-0 overflow-hidden flex justify-center mx-2">{headerContent}</div>
           ) : (
             <span className="text-base font-bold font-display text-heading">Grocery Planner</span>
           )}
 
-          <div className="shrink-0 flex items-center">
+          <div className="shrink-0 flex items-center gap-0.5">
             <button
               onClick={openFeedback}
               aria-label="Send feedback"

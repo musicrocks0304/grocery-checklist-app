@@ -6,19 +6,6 @@ import { ThemeProvider } from '../contexts/ThemeContext';
 import { HeaderProvider } from '../contexts/HeaderContext';
 import { FeedbackProvider, useFeedback } from '../contexts/FeedbackContext';
 
-// Mock html2canvas — returns a fake canvas
-jest.mock('html2canvas', () => ({
-  __esModule: true,
-  default: jest.fn(() =>
-    Promise.resolve({
-      width: 375,
-      height: 812,
-      toDataURL: () => 'data:image/jpeg;base64,fake',
-      getContext: () => ({ drawImage: jest.fn() }),
-    })
-  ),
-}));
-
 // Mock the screenshot helpers — jsdom canvases can't rasterize, and the panel
 // auto-captures the screen the moment it opens.
 jest.mock('../utils/screenshot', () => ({

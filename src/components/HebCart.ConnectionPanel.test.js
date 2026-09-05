@@ -1,7 +1,20 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import toast from 'react-hot-toast';
 import { ConnectionPanel } from './HebCart';
+
+jest.mock('react-hot-toast', () => {
+  const fn = jest.fn();
+  fn.success = jest.fn();
+  fn.error = jest.fn();
+  fn.loading = jest.fn();
+  return { __esModule: true, default: fn };
+});
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 describe('ConnectionPanel — expired login state', () => {
   const expiredStatus = { active: false, loginSessionValid: false };
@@ -68,5 +81,40 @@ describe('ConnectionPanel — other states unchanged', () => {
 
     expect(screen.getByText('Disconnect')).toBeInTheDocument();
     expect(screen.getByText(/idle 12s/)).toBeInTheDocument();
+  });
+});
+
+describe('ConnectionPanel — initial (unknown) state', () => {
+  test('shows a neutral "checking" subtitle and no buttons before the first status lands', () => {
+    render(<ConnectionPanel sessionStatus={null} onConnect={() => {}} onDisconnect={() => {}} onRecheck={() => {}} connecting={false} />);
+
+    expect(screen.getByText('Checking connection…')).toBeInTheDocument();
+    expect(screen.getByText('HEB Connection')).toBeInTheDocument();
+    expect(screen.queryByText('HEB sign-in needed')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+});
+
+describe('ConnectionPanel — "Check again" feedback', () => {
+  const expiredStatus = { active: false, loginSessionValid: false };
+
+  test('toasts success when the recheck reports a valid login', async () => {
+    const onRecheck = jest.fn(() => Promise.resolve({ active: false, loginSessionValid: true }));
+    render(<ConnectionPanel sessionStatus={expiredStatus} onConnect={() => {}} onDisconnect={() => {}} onRecheck={onRecheck} connecting={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /check again/i }));
+    expect(await screen.findByText('Check again')).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith('Connected!');
+    expect(toast).not.toHaveBeenCalled();
+  });
+
+  test('toasts a still-signed-out hint when the login is still invalid', async () => {
+    const onRecheck = jest.fn(() => Promise.resolve({ active: false, loginSessionValid: false }));
+    render(<ConnectionPanel sessionStatus={expiredStatus} onConnect={() => {}} onDisconnect={() => {}} onRecheck={onRecheck} connecting={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /check again/i }));
+    expect(await screen.findByText('Check again')).toBeInTheDocument();
+    expect(toast).toHaveBeenCalledWith('Still signed out — sign in on the computer, then try again.');
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

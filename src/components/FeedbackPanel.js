@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Loader2 } from 'lucide-react';
 
-export const CATEGORIES = [
+const CATEGORIES = [
   { id: 'bug', emoji: '🐛', label: 'Bug' },
   { id: 'idea', emoji: '💡', label: 'Idea' },
   { id: 'confusing', emoji: '😕', label: 'Confusing' },

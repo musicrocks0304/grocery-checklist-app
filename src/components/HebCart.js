@@ -29,7 +29,7 @@ const StepIndicator = ({ currentStep }) => {
             {i > 0 && (
               <div className={`flex-1 h-0.5 ${isDone ? 'bg-primary' : 'bg-default'}`} />
             )}
-            <div className="flex flex-col items-center gap-1 w-[72px] text-center flex-shrink-0">
+            <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5 w-[72px] sm:w-auto text-center sm:text-left flex-shrink-0">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                 isDone ? 'bg-primary text-white' :
                 isActive ? 'bg-primary text-white ring-2 ring-primary ring-offset-2' :
@@ -54,7 +54,10 @@ const StepIndicator = ({ currentStep }) => {
 const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, connecting }) => {
   const isActive = sessionStatus?.active;
   const loginValid = sessionStatus?.loginSessionValid;
-  const isExpired = !loginValid && !isActive;
+  // Until the first status lands, sessionStatus is null — don't flash the
+  // "sign-in needed" state at everyone on mount.
+  const isChecking = sessionStatus == null;
+  const isExpired = sessionStatus != null && !loginValid && !isActive;
   const [rechecking, setRechecking] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -62,16 +65,23 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, co
     ? `Last connected ${new Date(sessionStatus.lastLoginAt).toLocaleString()}`
     : null;
 
-  const subtitle = isActive
-    ? `Browser session active (idle ${sessionStatus.idleSeconds}s)`
-    : loginValid
-      ? 'Ready to connect'
-      : lastLoginLabel;
+  const subtitle = isChecking
+    ? 'Checking connection…'
+    : isActive
+      ? `Browser session active (idle ${sessionStatus.idleSeconds}s)`
+      : loginValid
+        ? 'Ready to connect'
+        : lastLoginLabel;
 
   const handleRecheck = async () => {
     setRechecking(true);
     try {
-      await onRecheck?.();
+      const status = await onRecheck?.();
+      if (status?.loginSessionValid) {
+        toast.success('Connected!');
+      } else {
+        toast('Still signed out — sign in on the computer, then try again.');
+      }
     } finally {
       setRechecking(false);
     }
@@ -137,7 +147,7 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, co
         </div>
       )}
 
-      {!isExpired && (
+      {!isExpired && !isChecking && (
         <div className="flex gap-3">
           {!isActive ? (
             <button
@@ -525,7 +535,9 @@ const HebCart = ({ onNavigate }) => {
         return data;
       }
     } catch {
-      setSessionStatus({ active: false, loginSessionValid: false });
+      const offline = { active: false, loginSessionValid: false };
+      setSessionStatus(offline);
+      return offline;
     }
     return null;
   }, []);
