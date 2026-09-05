@@ -1,3 +1,5 @@
+import { formatAisleBadge } from './InStoreMode';
+
 // Pure-function unit test for the allDone calculation logic.
 // Verifies that a numeric size match doesn't trigger allDone if the actual
 // ItemIDs don't all appear in the checked Set (defends against ID collisions
@@ -33,5 +35,23 @@ describe('isAllDone (allDone semantics)', () => {
     const items = [{ ItemID: 100 }, { ItemID: 200 }];
     const checked = new Set(['100']);
     expect(isAllDone(items, checked)).toBe(false);
+  });
+});
+
+describe('formatAisleBadge', () => {
+  test('returns empty string for null', () => {
+    expect(formatAisleBadge(null)).toBe('');
+  });
+
+  test('returns empty string for empty string', () => {
+    expect(formatAisleBadge('')).toBe('');
+  });
+
+  test('returns "Aisle N" unchanged for an aisle location', () => {
+    expect(formatAisleBadge('Aisle 14')).toBe('Aisle 14');
+  });
+
+  test('shortens a verbose wall location to "Section, Wall"', () => {
+    expect(formatAisleBadge('In Produce on the Front Wall')).toBe('Produce, Front');
   });
 });

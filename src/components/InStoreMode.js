@@ -492,9 +492,9 @@ const aisleSortKey = (loc) => {
 //   "Back Edge of Deli"               -> "Deli, Back"
 //   "On the Right Edge of Deli"       -> "Deli, Right"
 //   "In Dairy on the Right Wall"      -> "Dairy, Right"
-//   null/empty                         -> "—"
-const formatAisleBadge = (loc) => {
-  if (typeof loc !== "string" || loc.trim() === "") return "—";
+//   null/empty                         -> "" (ItemRow hides the badge span entirely)
+export const formatAisleBadge = (loc) => {
+  if (typeof loc !== "string" || loc.trim() === "") return "";
   const aisleMatch = loc.match(/aisle\s*(\d+\w?)/i);
   if (aisleMatch) return `Aisle ${aisleMatch[1]}`;
   return loc
@@ -629,6 +629,7 @@ QuantityPill.displayName = "QuantityPill";
 const ItemRow = React.memo(({ item, isChecked, couponMatch, onToggle, isFirst }) => {
   const hasCoupon = !!couponMatch;
   const needsAttention = hasCoupon && !couponMatch.couponClipped && !isChecked;
+  const aisleBadge = formatAisleBadge(item.store_location);
 
   let bg = "bg-transparent";
   if (isChecked) bg = "bg-[#FAFAFA]";
@@ -652,14 +653,18 @@ const ItemRow = React.memo(({ item, isChecked, couponMatch, onToggle, isFirst })
           }`}
         >
           {item.ItemName}
-          <span
-            className={`ml-2 text-[11px] align-middle ${
-              isChecked ? "text-muted" : "text-muted/80"
-            }`}
-            aria-label={item.store_location ? `Location: ${item.store_location}` : "Location unknown"}
-          >
-            {formatAisleBadge(item.store_location)}
-          </span>
+          {aisleBadge ? (
+            <span
+              className={`ml-2 text-[11px] align-middle ${
+                isChecked ? "text-muted" : "text-muted/80"
+              }`}
+              aria-label={`Location: ${item.store_location}`}
+            >
+              {aisleBadge}
+            </span>
+          ) : (
+            <span className="sr-only">Location unknown</span>
+          )}
         </div>
         {hasCoupon && !isChecked && (
           <div className="mt-[5px] flex items-center gap-1.5 flex-wrap">
@@ -789,7 +794,7 @@ const ReorderDrawer = ({ sections, onMoveUp, onClose }) => (
   </div>
 );
 
-const ModeMenu = ({ onReorder, onInvite, onClose }) => {
+const ModeMenu = ({ onReorder, onInvite, onClose, wakeLockActive }) => {
   const menuRef = useRef(null);
   useEffect(() => {
     const handle = (e) => {
@@ -827,6 +832,12 @@ const ModeMenu = ({ onReorder, onInvite, onClose }) => {
         <User size={16} className="text-body" />
         Invite partner
       </button>
+      {wakeLockActive && (
+        <div className="px-3 pt-2 pb-1 text-[11px] text-muted flex items-center gap-1.5">
+          <Smartphone size={12} />
+          Screen stays awake while shopping
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -834,12 +845,17 @@ const ModeMenu = ({ onReorder, onInvite, onClose }) => {
 // Invite modal: POSTs to /create_session on mount to reserve a short-lived
 // code (4h TTL) server-side, then shows a shareable `#join/CODE` URL. Partner
 // who opens the URL is redirected to the same week's list and both devices
-// poll shopping_progress for live sync.
+// poll shopping_progress for live sync. The host session is only persisted
+// to sessionStorage once the host actually copies the link (handleCopy) —
+// Cancel / X / backdrop must leave no local trace, even though the
+// short-lived server-side row from create_session already exists (harmless,
+// 4h TTL) by the time this decision is made.
 const InviteModal = ({ weekStartDate, onClose }) => {
   const [code, setCode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const sessionDataRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -854,21 +870,13 @@ const InviteModal = ({ weekStartDate, onClose }) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!cancelled) {
+          sessionDataRef.current = {
+            code: data.code,
+            week_start_date: data.week_start_date,
+            expires_at: data.expires_at,
+          };
           setCode(data.code);
           setLoading(false);
-          // Stash for the presence indicator on the host's own device.
-          try {
-            sessionStorage.setItem(
-              HOST_SESSION_STORAGE_KEY,
-              JSON.stringify({
-                code: data.code,
-                week_start_date: data.week_start_date,
-                expires_at: data.expires_at,
-              })
-            );
-          } catch {
-            /* quota — non-fatal */
-          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -892,6 +900,15 @@ const InviteModal = ({ weekStartDate, onClose }) => {
       }
     } catch {
       /* ignore clipboard failure — still show copied feedback */
+    }
+    // Only now does the host's device remember it has an active invite —
+    // stash for the presence indicator on the host's own device.
+    try {
+      if (sessionDataRef.current) {
+        sessionStorage.setItem(HOST_SESSION_STORAGE_KEY, JSON.stringify(sessionDataRef.current));
+      }
+    } catch {
+      /* quota — non-fatal */
     }
     setCopied(true);
     setTimeout(onClose, 900);
@@ -967,18 +984,21 @@ const InviteModal = ({ weekStartDate, onClose }) => {
   );
 };
 
-// Quiet sage pill announcing a live partner session. Same visual for host or
-// partner — v1 doesn't distinguish "someone joined" from "invite pending"
-// (would need a server-side join counter; out of scope for this pass).
-const PartnerBadge = ({ expiresAt }) => {
+// Quiet sage pill announcing a live partner session. Text depends on role:
+// the host doesn't yet know whether anyone has joined (would need a
+// server-side join counter; out of scope for this pass), so it reads "Invite
+// link active" rather than claiming a partner is present; the joining device
+// knows a host list exists, so it reads "Shopping with partner".
+const PartnerBadge = ({ role, expiresAt }) => {
   const hoursLeft = expiresAt
     ? Math.max(0, Math.ceil((parseExpiryMs(expiresAt) - Date.now()) / 3_600_000))
     : null;
+  const label = role === "host" ? "Invite link active" : "Shopping with partner";
   return (
     <div className="flex items-center justify-center mb-3">
       <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-light border border-primary-border px-3 py-1 text-[12px] font-semibold text-primary">
         <Users size={12} strokeWidth={2.5} />
-        <span>Shopping with partner</span>
+        <span>{label}</span>
         {hoursLeft !== null && hoursLeft > 0 && (
           <span className="text-primary/70 font-normal">· {hoursLeft}h left</span>
         )}
@@ -1111,9 +1131,13 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const [editOrder, setEditOrder] = useState(false);
   // Active partner session (either joined via invite or hosted). Refreshed
   // when the invite modal closes so the badge appears after "Copy link".
-  const [partnerSession, setPartnerSession] = useState(
-    () => readJoinedSession() || readHostSession() || null
-  );
+  const [partnerSession, setPartnerSession] = useState(() => {
+    const joined = readJoinedSession();
+    if (joined) return { ...joined, role: "partner" };
+    const hosted = readHostSession();
+    if (hosted) return { ...hosted, role: "host" };
+    return null;
+  });
 
   const wakeLockRef = useRef(null);
   const celebratedRef = useRef(false);
@@ -1755,13 +1779,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
               </span>
             )}
           </div>
-          {wakeLockActive && (
-            <Smartphone
-              size={14}
-              className="text-primary/60 flex-shrink-0"
-              aria-label="Screen stays awake"
-            />
-          )}
           <button
             type="button"
             onPointerDown={voice.start}
@@ -1821,6 +1838,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
                   setShowMenu(false);
                 }}
                 onClose={() => setShowMenu(false)}
+                wakeLockActive={wakeLockActive}
               />
             )}
           </AnimatePresence>
@@ -1839,7 +1857,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
       {/* Scroll content — all aisles as collapsible sections, in walk order */}
       <div className="flex-1 overflow-y-auto px-3 pt-3 pb-24">
         {partnerSession && (
-          <PartnerBadge expiresAt={partnerSession.expires_at} />
+          <PartnerBadge role={partnerSession.role} expiresAt={partnerSession.expires_at} />
         )}
 
         {grouped.map((section) => (
@@ -1874,8 +1892,14 @@ const InStoreMode = ({ inStoreData, onExit }) => {
             weekStartDate={shoppingList?.weekStartDate}
             onClose={() => {
               setShowInvite(false);
-              // Surface the presence badge as soon as the host has a code.
-              setPartnerSession(readJoinedSession() || readHostSession() || null);
+              // Surface the presence badge as soon as the host has copied a link.
+              const joined = readJoinedSession();
+              if (joined) {
+                setPartnerSession({ ...joined, role: "partner" });
+                return;
+              }
+              const hosted = readHostSession();
+              setPartnerSession(hosted ? { ...hosted, role: "host" } : null);
             }}
           />
         )}
