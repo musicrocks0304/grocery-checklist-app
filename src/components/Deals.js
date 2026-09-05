@@ -106,18 +106,13 @@ const SmartDealCard = ({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <div className="min-w-0">
-              <h3 className="text-sm sm:text-base font-semibold text-heading truncate">
-                {decodeHtmlEntities(deal.frequentProduct.name)}
-              </h3>
-              {deal.frequentProduct.brand && (
-                <p className="text-xs text-muted">{deal.frequentProduct.brand}</p>
-              )}
-            </div>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${conf.bg} ${conf.text}`}>
-              {conf.label}
-            </span>
+          <div className="mb-1">
+            <h3 className="text-sm sm:text-base font-semibold text-heading leading-snug line-clamp-2">
+              {decodeHtmlEntities(deal.frequentProduct.name)}
+            </h3>
+            {deal.frequentProduct.brand && (
+              <p className="text-xs text-muted">{deal.frequentProduct.brand}</p>
+            )}
           </div>
 
           {/* Coupon details */}
@@ -142,6 +137,9 @@ const SmartDealCard = ({
           </p>
 
           <div className="flex items-center gap-3 flex-wrap">
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${conf.bg} ${conf.text}`}>
+              {conf.label}
+            </span>
             <ExpirationBadge expirationDate={deal.coupon.expirationDate} />
 
             {isClipped && !clipStatus && (
@@ -189,7 +187,7 @@ const SmartDealCard = ({
             <button
               onClick={() => onAddToList(deal)}
               disabled={addStatus === 'adding'}
-              className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-xl bg-primary-light text-primary hover:bg-primary-light/80 disabled:bg-background disabled:text-muted transition-colors"
+              className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-xl bg-primary-light text-primary hover:bg-primary-light/80 disabled:bg-background disabled:text-muted transition-colors min-h-[36px]"
               title="Add to this week's grocery list"
             >
               {addStatus === 'adding' ? (
@@ -197,7 +195,7 @@ const SmartDealCard = ({
               ) : (
                 <Plus size={14} />
               )}
-              <span className="hidden sm:inline">Add</span>
+              <span>Add to list</span>
             </button>
           )}
         </div>
@@ -548,22 +546,31 @@ const Deals = ({ onNavigate }) => {
   const handleAddToList = async (deal) => {
     const dealId = deal.id;
     setAddingToList(prev => new Map(prev).set(dealId, 'adding'));
+    const itemName = decodeHtmlEntities(deal.frequentProduct.name);
     try {
       const weekData = getWeekDates();
-      const response = await fetch(ENDPOINTS.hebAddWeeklyItem, {
+      const fetchUrl = new URL(ENDPOINTS.fetchGroceryItems);
+      fetchUrl.searchParams.append('weekStartDate', weekData.startDate);
+      fetchUrl.searchParams.append('weekEndDate', weekData.endDate);
+      fetchUrl.searchParams.append('weekDateRange', weekData.displayRange);
+      const existingRes = await apiFetch(fetchUrl.toString(), { method: 'GET', headers: { Accept: 'application/json' } });
+      if (!existingRes.ok) throw new Error(`HTTP ${existingRes.status}`);
+      const existingItems = await existingRes.json();
+      const alreadyExists = existingItems.some(
+        (it) => (it.ItemName || '').trim().toLowerCase() === itemName.trim().toLowerCase()
+      );
+      if (alreadyExists) {
+        setAddingToList(prev => new Map(prev).set(dealId, 'exists'));
+        return;
+      }
+
+      const addRes = await apiFetch(ENDPOINTS.addOneOffItem, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          itemName: deal.frequentProduct.name,
-          brand: deal.frequentProduct.brand || null,
-          category: deal.frequentProduct.category || null,
-          weekDateRange: weekData.displayRange,
-          weekStartDate: weekData.startDate,
-        }),
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ itemName, weekDateRange: weekData.displayRange }),
       });
-      if (!response.ok) throw new Error(`Server returned ${response.status}`);
-      const result = await response.json();
-      setAddingToList(prev => new Map(prev).set(dealId, result.alreadyExisted ? 'exists' : 'added'));
+      if (!addRes.ok) throw new Error(`HTTP ${addRes.status}`);
+      setAddingToList(prev => new Map(prev).set(dealId, 'added'));
     } catch (err) {
       console.error('[deals] Add to list error:', err.message);
       setAddingToList(prev => new Map(prev).set(dealId, 'error'));
@@ -777,12 +784,12 @@ const Deals = ({ onNavigate }) => {
       </div>
 
       {/* Selection toolbar */}
-      {totalItems > 0 && (
+      {totalItems > 0 && !clipServerUnavailable && (
         <div className="bg-surface rounded-2xl shadow-warm border border-default p-3 mb-4 flex flex-wrap items-center gap-2 transition-colors duration-200">
           <button
             onClick={selectAllUnclipped}
             disabled={isClipping || clipServerUnavailable}
-            className="text-sm font-medium px-4 py-2 rounded-full bg-primary text-white hover:bg-primary-hover disabled:bg-default disabled:cursor-not-allowed transition-colors"
+            className="text-sm font-medium px-4 py-2 rounded-full bg-primary text-white hover:bg-primary-hover disabled:bg-background disabled:text-muted disabled:border disabled:border-default disabled:cursor-not-allowed transition-colors"
           >
             Select All Unclipped
           </button>
@@ -808,7 +815,7 @@ const Deals = ({ onNavigate }) => {
               <button
                 onClick={handleClipSelected}
                 disabled={isClipping || clipServerUnavailable}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-default disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-hover disabled:bg-background disabled:text-muted disabled:border disabled:border-default disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
               >
                 {isClipping ? (
                   <>
