@@ -534,12 +534,14 @@ const HebCart = ({ onNavigate }) => {
         setSessionStatus(data);
         return data;
       }
+      const offline = { active: false, loginSessionValid: false };
+      setSessionStatus(offline);
+      return offline;
     } catch {
       const offline = { active: false, loginSessionValid: false };
       setSessionStatus(offline);
       return offline;
     }
-    return null;
   }, []);
 
   useEffect(() => {
