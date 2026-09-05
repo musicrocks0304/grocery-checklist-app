@@ -821,11 +821,11 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
       {/* Main Chat Area */}
       <div className={`bg-surface lg:rounded-2xl lg:shadow-warm overflow-hidden transition-all transition-colors duration-200 flex flex-col flex-1 min-h-0 ${showMealsPanel ? 'lg:flex-1' : 'w-full lg:max-w-4xl lg:mx-auto'} ${showMealsPanel ? 'lg:mr-0' : ''}`}>
         {/* Toolbar — slim contextual bar, Plan tabs already provide navigation */}
-        <div className="hidden lg:flex items-center justify-between px-3 py-2 lg:px-4 bg-surface border-b border-default">
+        <div className="flex items-center justify-between px-3 py-1.5 lg:px-4 lg:py-2 bg-surface border-b border-default">
           <button
             onClick={() => !isGeneratingGroceryList && setShowMealsPanel(!showMealsPanel)}
             disabled={isGeneratingGroceryList}
-            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${isGeneratingGroceryList ? 'opacity-50 cursor-not-allowed' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
+            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 min-h-[44px] rounded-lg transition-colors ${isGeneratingGroceryList ? 'opacity-50 cursor-not-allowed' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
           >
             <ShoppingCart size={15} />
             <span className="font-medium">Meal Plans</span>
@@ -851,7 +851,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                   window.location.reload();
                 }
               }}
-              className="text-xs text-muted hover:text-body px-2 py-1.5 rounded-lg hover:bg-background transition-colors"
+              className="flex items-center text-xs text-muted hover:text-body px-2 py-1.5 min-h-[44px] rounded-lg hover:bg-background transition-colors"
               title="Start new session"
             >
               New Chat
