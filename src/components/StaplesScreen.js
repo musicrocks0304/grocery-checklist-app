@@ -138,7 +138,7 @@ const StaplesScreen = ({ onReview, staplesHook, mealsHook }) => {
         )}
 
         {groups.length > 0 && (
-          <div className="lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4">
+          <div className="lg:columns-2 xl:columns-3 lg:gap-4">
             {groups.map((g) => (
               <CategorySection
                 key={g.name}

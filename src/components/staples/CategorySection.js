@@ -9,7 +9,7 @@ const CategorySection = ({ group, selected, onToggle, onToggleAll }) => {
   const [expanded, setExpanded] = useState(selectedCount > 0);
 
   return (
-    <div className="mb-3">
+    <div className="mb-3 break-inside-avoid">
       <div className="flex items-center bg-background">
         <button
           type="button"
