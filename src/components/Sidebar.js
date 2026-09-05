@@ -1,6 +1,7 @@
 import React from "react";
-import { Sun, Moon, Home } from "lucide-react";
+import { Sun, Moon, Home, MessageSquarePlus } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
+import { useFeedback } from "../contexts/FeedbackContext";
 
 /**
  * Desktop-only sidebar navigation.
@@ -12,6 +13,7 @@ const Sidebar = ({
   navigation,
 }) => {
   const { isDark, toggleTheme } = useTheme();
+  const { openFeedback } = useFeedback();
 
   // Map legacy screen IDs to new parent IDs for active highlighting
   const LEGACY_TO_NEW = {
@@ -76,8 +78,16 @@ const Sidebar = ({
         })}
       </nav>
 
-      {/* Theme toggle + footer */}
+      {/* Feedback + theme toggle footer */}
       <div className="p-4 border-t border-sidebar-border">
+        <button
+          onClick={openFeedback}
+          aria-label="Send feedback"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-text-muted hover:bg-sidebar-hover hover:text-sidebar-text transition-all duration-200 min-h-[44px]"
+        >
+          <MessageSquarePlus size={20} />
+          <span className="text-sm font-medium">Send feedback</span>
+        </button>
         <button
           onClick={toggleTheme}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-text-muted hover:bg-sidebar-hover hover:text-sidebar-text transition-all duration-200 min-h-[44px]"

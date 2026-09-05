@@ -9,6 +9,7 @@ import { ensureStorageVersion, gcWeekScopedKeys } from "../utils/storageVersion"
 import { resolveScreenFromHash, LEGACY_REDIRECT, VALID_SCREENS } from "../utils/screenRoute";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import { HeaderProvider } from "../contexts/HeaderContext";
+import { FeedbackProvider } from "../contexts/FeedbackContext";
 import AppShell from "./AppShell";
 import Home from "./Home";
 import ChatBot from "./ChatBot";
@@ -21,7 +22,6 @@ import HebCart from "./HebCart";
 import Deals from "./Deals";
 import Plan from "./Plan";
 import Meals from "./Meals";
-import FeedbackFAB from "./FeedbackFAB";
 
 // Screens that need fixed-height layout (flex column with internal scroll)
 // — chat interfaces pin input at bottom, so they need a defined container height
@@ -429,40 +429,42 @@ const App = () => {
   if (currentScreen === "shop") {
     return (
       <ThemeProvider>
-        {toaster}
-        <InStoreMode
-          inStoreData={inStoreData}
-          onExit={() => navigateToScreen("plan")}
-        />
-        <FeedbackFAB currentScreen={currentScreen} />
+        <FeedbackProvider currentScreen={currentScreen}>
+          {toaster}
+          <InStoreMode
+            inStoreData={inStoreData}
+            onExit={() => navigateToScreen("plan")}
+          />
+        </FeedbackProvider>
       </ThemeProvider>
     );
   }
 
   return (
     <ThemeProvider>
-      <HeaderProvider>
-        {toaster}
-        <AppShell
-          currentScreen={currentScreen}
-          onNavigate={navigateToScreen}
-          navigation={navigation}
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentScreen}
-              className={FULL_HEIGHT_SCREENS.has(currentScreen) ? "h-full" : ""}
-              initial={pageTransition.initial}
-              animate={pageTransition.animate}
-              exit={pageTransition.exit}
-              transition={pageTransition.transition}
-            >
-              {renderScreen()}
-            </motion.div>
-          </AnimatePresence>
-        </AppShell>
-        <FeedbackFAB currentScreen={currentScreen} />
-      </HeaderProvider>
+      <FeedbackProvider currentScreen={currentScreen}>
+        <HeaderProvider>
+          {toaster}
+          <AppShell
+            currentScreen={currentScreen}
+            onNavigate={navigateToScreen}
+            navigation={navigation}
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentScreen}
+                className={FULL_HEIGHT_SCREENS.has(currentScreen) ? "h-full" : ""}
+                initial={pageTransition.initial}
+                animate={pageTransition.animate}
+                exit={pageTransition.exit}
+                transition={pageTransition.transition}
+              >
+                {renderScreen()}
+              </motion.div>
+            </AnimatePresence>
+          </AppShell>
+        </HeaderProvider>
+      </FeedbackProvider>
     </ThemeProvider>
   );
 };

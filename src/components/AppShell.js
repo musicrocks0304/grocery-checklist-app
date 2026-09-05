@@ -1,9 +1,10 @@
 import React from "react";
-import { Home } from "lucide-react";
+import { Home, MessageSquarePlus } from "lucide-react";
 import Sidebar from "./Sidebar";
 import BottomTabBar from "./BottomTabBar";
 import { ThemeToggle } from "./ui";
 import { useHeader } from "../contexts/HeaderContext";
+import { useFeedback } from "../contexts/FeedbackContext";
 
 /**
  * App layout shell — combines desktop sidebar + mobile bottom tab bar.
@@ -16,6 +17,7 @@ import { useHeader } from "../contexts/HeaderContext";
  */
 const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
   const { headerContent } = useHeader();
+  const { openFeedback } = useFeedback();
 
   return (
     <div className="flex h-screen bg-background transition-colors duration-200">
@@ -43,7 +45,14 @@ const AppShell = ({ currentScreen, onNavigate, navigation, children }) => {
             <span className="text-base font-bold font-display text-heading">Grocery Planner</span>
           )}
 
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center">
+            <button
+              onClick={openFeedback}
+              aria-label="Send feedback"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-body hover:text-heading"
+            >
+              <MessageSquarePlus size={20} />
+            </button>
             <ThemeToggle />
           </div>
         </header>

@@ -15,6 +15,7 @@ import {
   MicOff,
   MoreHorizontal,
   Filter,
+  MessageSquarePlus,
   User,
   Undo2,
   X,
@@ -30,6 +31,7 @@ import { getWeekDates, getWeekDatesFor } from "../utils/weekDates";
 import { ENDPOINTS, apiFetch } from "../config/api";
 import { DEFAULT_CATEGORY } from "../constants/categories";
 import { useCategories } from "../hooks/useCategories";
+import { useFeedback } from "../contexts/FeedbackContext";
 
 const WALK_ORDER_STORAGE_KEY = "inStoreWalkOrder";
 const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
@@ -794,7 +796,7 @@ const ReorderDrawer = ({ sections, onMoveUp, onClose }) => (
   </div>
 );
 
-const ModeMenu = ({ onReorder, onInvite, onClose, wakeLockActive }) => {
+const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockActive }) => {
   const menuRef = useRef(null);
   useEffect(() => {
     const handle = (e) => {
@@ -831,6 +833,15 @@ const ModeMenu = ({ onReorder, onInvite, onClose, wakeLockActive }) => {
       >
         <User size={16} className="text-body" />
         Invite partner
+      </button>
+      <button
+        type="button"
+        onClick={onFeedback}
+        aria-label="Send feedback"
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-left text-[14px] text-heading hover:bg-background transition-colors"
+      >
+        <MessageSquarePlus size={16} className="text-body" />
+        Send feedback
       </button>
       {wakeLockActive && (
         <div className="px-3 pt-2 pb-1 text-[11px] text-muted flex items-center gap-1.5">
@@ -1104,6 +1115,7 @@ const TripSummaryCard = ({ totalItems, sectionsCleared, totalSections, shoppingM
 };
 
 const InStoreMode = ({ inStoreData, onExit }) => {
+  const { openFeedback } = useFeedback();
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [shoppingList, setShoppingList] = useState(null);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
@@ -1836,6 +1848,10 @@ const InStoreMode = ({ inStoreData, onExit }) => {
                 onInvite={() => {
                   setShowInvite(true);
                   setShowMenu(false);
+                }}
+                onFeedback={() => {
+                  setShowMenu(false);
+                  openFeedback();
                 }}
                 onClose={() => setShowMenu(false)}
                 wakeLockActive={wakeLockActive}
