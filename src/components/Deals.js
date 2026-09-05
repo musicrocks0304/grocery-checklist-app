@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { ENDPOINTS, apiFetch } from '../config/api';
 import { getWeekDates, parseLocalDay } from '../utils/weekDates';
+import { decodeHtmlEntities } from '../utils/text';
 import { useClipCoupons } from '../hooks/useClipCoupons';
 import { useClipServerHealth } from '../hooks/useClipServerHealth';
 
@@ -108,7 +109,7 @@ const SmartDealCard = ({
           <div className="flex items-start justify-between gap-2 mb-1">
             <div className="min-w-0">
               <h3 className="text-sm sm:text-base font-semibold text-heading truncate">
-                {deal.frequentProduct.name}
+                {decodeHtmlEntities(deal.frequentProduct.name)}
               </h3>
               {deal.frequentProduct.brand && (
                 <p className="text-xs text-muted">{deal.frequentProduct.brand}</p>
@@ -137,7 +138,7 @@ const SmartDealCard = ({
           </div>
 
           <p className="text-xs text-muted mb-1 line-clamp-1">
-            {deal.coupon.productName}
+            {decodeHtmlEntities(deal.coupon.productName)}
           </p>
 
           <div className="flex items-center gap-3 flex-wrap">
@@ -241,7 +242,7 @@ const CouponCard = ({ coupon, isSelected, onToggle, isClipping }) => {
         <div className="w-full h-28 bg-background flex items-center justify-center overflow-hidden">
           <img
             src={coupon.image_url}
-            alt={coupon.product_name}
+            alt={decodeHtmlEntities(coupon.product_name)}
             className="w-full h-full object-contain"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
@@ -265,7 +266,7 @@ const CouponCard = ({ coupon, isSelected, onToggle, isClipping }) => {
 
         {/* Product name */}
         <h3 className="text-sm font-semibold text-heading mb-1 line-clamp-2">
-          {coupon.product_name}
+          {decodeHtmlEntities(coupon.product_name)}
         </h3>
 
         {/* Description */}

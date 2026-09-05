@@ -9,6 +9,7 @@ import { getWeekDates, parseLocalDay } from "../utils/weekDates";
 import { TOKENS, THEMES } from "../styles/tokens";
 import { staggerContainer, staggerItem } from "../utils/animations";
 import { ENDPOINTS, apiFetch } from "../config/api";
+import { decodeHtmlEntities } from "../utils/text";
 
 const t = THEMES.green;
 
@@ -16,17 +17,32 @@ const t = THEMES.green;
 // Smart "next step" logic — suggests what to do based on weekly progress
 // ---------------------------------------------------------------------------
 
-function getNextStep(status) {
-  if (status.mealsPlanned === 0) {
-    return { label: "Plan Your Meals", screen: "plan", sublabel: "Start by planning this week's meals" };
+export function getNextStep({ mealsPlanned, listItems, shoppedCount, dealsChecked, cartBuilt }) {
+  if (listItems > 0 && shoppedCount > 0 && shoppedCount < listItems) {
+    const remaining = listItems - shoppedCount;
+    return {
+      label: "Finish shopping",
+      screen: "shop",
+      sublabel: `${remaining} item${remaining === 1 ? "" : "s"} left on your list`,
+    };
   }
-  if (status.listItems === 0) {
-    return { label: "Build Grocery List", screen: "plan", sublabel: "Add items to your weekly list" };
+  if (listItems > 0 && shoppedCount >= listItems) {
+    if (mealsPlanned > 0) {
+      return { label: "Time to cook", screen: "cook", sublabel: "Everything's home — pick tonight's recipe" };
+    }
+    return { label: "Shopping done", screen: "plan", sublabel: "Start next week's list whenever you're ready" };
   }
-  if (status.dealsChecked === false) {
+  if (listItems === 0) {
+    return {
+      label: "Build your list",
+      screen: "plan",
+      sublabel: mealsPlanned === 0 ? "Pick staples or plan meals to get started" : "Add this week's items to your list",
+    };
+  }
+  if (dealsChecked === false) {
     return { label: "Check Deals", screen: "deals", sublabel: "See coupons matching your list" };
   }
-  if (status.cartBuilt === false) {
+  if (cartBuilt === false) {
     return { label: "Build HEB Cart", screen: "cart", sublabel: "Match items and fill your cart" };
   }
   return { label: "Ready to Shop!", screen: "shop", sublabel: "Your list is ready — head to the store" };
@@ -237,9 +253,10 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
   const weeklyStatus = useMemo(() => ({
     mealsPlanned: resolvedMeals,
     listItems: selectedCount,
+    shoppedCount,
     dealsChecked: topDeals !== null,
     cartBuilt: false, // Would need HEB session status — skip for now
-  }), [resolvedMeals, selectedCount, topDeals]);
+  }), [resolvedMeals, selectedCount, shoppedCount, topDeals]);
 
   const nextStep = getNextStep(weeklyStatus);
 
@@ -489,7 +506,7 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-heading truncate">
-                      {deal.frequentProduct?.name}
+                      {decodeHtmlEntities(deal.frequentProduct?.name)}
                     </p>
                     <p className="text-xs text-primary font-semibold">
                       {deal.coupon?.discount || 'Special Offer'}
