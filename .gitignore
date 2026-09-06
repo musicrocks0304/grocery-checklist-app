@@ -54,3 +54,6 @@ yarn-error.log*
 verify-*.png
 plan-mobile-*.png
 backups/
+
+# n8n workflow backups (ops tool)
+.n8n-backups/
