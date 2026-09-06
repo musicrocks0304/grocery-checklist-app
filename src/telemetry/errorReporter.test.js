@@ -51,6 +51,9 @@ describe('helpers', () => {
     expect(a).not.toBe(c);
     expect(stackHash('api', 'Workflow error', '', 'a', 500)).not.toBe(stackHash('api', 'Workflow error', '', 'b', 500));
   });
+  test('LIMITS are pinned to the documented values', () => {
+    expect(LIMITS).toEqual({ message: 500, stack: 2048, perSession: 20, perMinute: 5, frames: 5 });
+  });
 });
 
 describe('reportError', () => {
@@ -123,8 +126,10 @@ describe('reportError', () => {
     reportError({ kind: 'onerror', error: err });
     const body = lastBody();
     expect(body.message.length).toBeLessThanOrEqual(LIMITS.message);
+    expect(body.message.length).toBeLessThanOrEqual(500);
     expect(body.message).not.toContain('secret');
     expect(body.stack.length).toBeLessThanOrEqual(LIMITS.stack);
+    expect(body.stack.length).toBeLessThanOrEqual(2048);
     expect(body.stack).not.toContain('?v=1');
   });
   test('drops ResizeObserver loop noise and empty messages', () => {
