@@ -53,7 +53,7 @@ Shipped state (2026-09-06): spec `docs/superpowers/specs/2026-09-06-test-infrast
 - [x] n8n Error Workflow configured on all active workflows (none has one today) → Slack (`SLACK_WEBHOOK_URL` exists in `C:\hsa-automation\.env`)
 - [x] Home or feedback panel shows nothing new; this is silent instrumentation
 - [ ] Fill `SLACK_WEBHOOK_URL` in `C:\hsa-automation\.env` (Incoming Webhook for #automation-alerts), run `cd /c/hsa-automation && docker compose up -d hsa-local`, then verify with a fresh throwaway post to `client_errors` (new `stack_hash`, message prefixed `[TEST]`) and delete that row; the live sentinel's one-time Slack line was already consumed while the URL was empty. Hashes first recorded while the URL was empty will never alert (Notify? gates on row existence, not on `notified`): when filling the URL, either run `DELETE FROM client_errors WHERE created_at < '<fill time>'` via docker exec (accepting the loss of that history) or accept that those hashes stay silent until the code changes and the hash moves.
-- [ ] First real telemetry (2026-09-06 live run): two `api`/`network` reports on #shop for `shopping_progress_check` (status 0, exec 26528/26584) — benign teardown; rows deleted during Task 8, evidence in the SDD report.
+- [ ] First real telemetry (2026-09-06 live run): two `api`/`network` reports on #shop for `shopping_progress_check` (status 0, exec 26528/26584) — benign teardown; rows deleted during Task 8, evidence in `docs/superpowers/reports/2026-09-06-client-errors-first-telemetry.md`.
 
 Why: the only production signal is the `app_feedback` table; failures Christian never reports are invisible.
 
