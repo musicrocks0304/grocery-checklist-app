@@ -69,7 +69,7 @@ const FeedbackPanel = ({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="pointer-events-auto fixed bottom-0 left-0 right-0 lg:static lg:max-w-lg lg:rounded-2xl bg-surface rounded-t-2xl shadow-warm-xl border border-default max-h-[85vh] flex flex-col"
+            className="pointer-events-auto fixed bottom-0 left-0 right-0 lg:static lg:w-full lg:max-w-lg lg:rounded-2xl bg-surface rounded-t-2xl shadow-warm-xl border border-default max-h-[85vh] flex flex-col"
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           >
             {/* Header */}
@@ -83,7 +83,7 @@ const FeedbackPanel = ({
                 <X size={20} className="text-secondary" />
               </button>
             </div>
-  
+
             {/* Scrollable content */}
             <div className="p-4 space-y-5 overflow-y-auto overscroll-contain flex-1 min-h-0">
               {/* Category picker */}
@@ -106,7 +106,7 @@ const FeedbackPanel = ({
                   ))}
                 </div>
               </div>
-  
+
               {/* Description */}
               <div>
                 <textarea
@@ -118,7 +118,7 @@ const FeedbackPanel = ({
                   className="w-full px-4 py-3 rounded-xl border border-default bg-background text-primary placeholder:text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all duration-200 resize-none text-sm"
                 />
               </div>
-  
+
               {/* Screenshots */}
               <div>
                 <p className="text-sm font-medium text-secondary mb-2">Screenshots</p>
@@ -162,7 +162,7 @@ const FeedbackPanel = ({
                 </p>
               </div>
             </div>
-  
+
             {/* Sticky Submit */}
             <div className="p-4 pt-3 border-t border-default bg-surface shrink-0">
               <button
