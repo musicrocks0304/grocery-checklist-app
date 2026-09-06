@@ -69,9 +69,12 @@ const BottomTabBar = ({ currentScreen, onNavigate }) => {
                   {tab.label}
                 </span>
                 {isActive && (
+                  // framer-motion's layoutId animation writes its own inline `transform`,
+                  // which overrides (rather than composes with) the Tailwind `-translate-x-1/2` that used to sit here — so centre via `marginLeft` instead (w-5 = 20px, half = 10px).
                   <motion.div
                     layoutId="tab-indicator"
-                    className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-primary rounded-full"
+                    className="absolute -bottom-0.5 left-1/2 w-5 h-0.5 bg-primary rounded-full"
+                    style={{ marginLeft: -10 }}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
