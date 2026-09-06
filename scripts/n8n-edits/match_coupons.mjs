@@ -4,6 +4,8 @@
 // going on error so the failure reaches a Code node, and (c) Format Output
 // turns that carried-over error into a throw — which its own error branch
 // (added afterwards by `error-branch`) turns into a Respond 500.
+import { addNoOutputThrow } from './_ai-agent-guard.mjs';
+
 const THROW_MARKER = 'AI agent failed:';
 const AGENT_GUARD = [
   "",
@@ -59,5 +61,9 @@ export default function (wf) {
     format.parameters.jsCode = before.replace(/(if \(skipAgent\) \{[\s\S]*?\n\})/, `$1\n${AGENT_GUARD}`);
     if (!format.parameters.jsCode.includes(THROW_MARKER)) throw new Error('could not find the skipAgent block in Format Output');
   }
+
+  // (d) task 12b review: an agent item with neither `error` nor `output` is
+  // just as broken as an error, and used to fall through to an empty parse.
+  format.parameters.jsCode = addNoOutputThrow(format.parameters.jsCode);
   return wf;
 }

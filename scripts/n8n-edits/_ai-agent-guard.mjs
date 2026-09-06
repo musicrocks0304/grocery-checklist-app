@@ -17,6 +17,25 @@ const GUARD = [
   "",
 ].join('\n');
 
+// Task 12b review: `onError: continueRegularOutput` also carries through an
+// agent that produced NOTHING useful — no `error` and no `output` — which the
+// parser below turns into an empty/garbage 200. Throw on that too, so the
+// existing error branch answers 500.
+export const NO_OUTPUT_MARKER = 'AI agent returned no output';
+const ANCHOR = "  throw new Error('" + THROW_MARKER + " ' + m);\n}";
+const NO_OUTPUT_GUARD = [
+  '',
+  "if (!agentItem || (!('error' in agentItem) && !('output' in agentItem))) {",
+  "  throw new Error('" + NO_OUTPUT_MARKER + "');",
+  '}',
+].join('\n');
+
+export function addNoOutputThrow(code) {
+  if (code.includes(NO_OUTPUT_MARKER)) return code;
+  if (!code.includes(ANCHOR)) throw new Error(`could not find the existing "${THROW_MARKER}" block to anchor to`);
+  return code.replace(ANCHOR, ANCHOR + NO_OUTPUT_GUARD);
+}
+
 export default function aiAgentGuard(wf) {
   const agent = wf.nodes.find((n) => n.name === 'AI Agent');
   const summary = wf.nodes.find((n) => n.name === 'Build Summary');
@@ -28,5 +47,6 @@ export default function aiAgentGuard(wf) {
   if (!summary.parameters.jsCode.includes(THROW_MARKER)) {
     summary.parameters.jsCode = GUARD + summary.parameters.jsCode;
   }
+  summary.parameters.jsCode = addNoOutputThrow(summary.parameters.jsCode);
   return wf;
 }
