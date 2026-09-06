@@ -1,0 +1,7 @@
+{
+  "_recorded": { "at": "hand-written", "endpoint": "api/health", "sanitised": true },
+  "ok": true,
+  "sessionValid": true,
+  "sessionAuthenticated": true,
+  "sessionAgeHours": 2
+}

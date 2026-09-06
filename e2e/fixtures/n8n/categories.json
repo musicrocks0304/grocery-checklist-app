@@ -1,0 +1,7 @@
+[
+  {"id":1,"name":"Fruit & vegetables","walk_order":1},
+  {"id":2,"name":"Bakery & bread","walk_order":2},
+  {"id":5,"name":"Dairy & eggs","walk_order":5},
+  {"id":14,"name":"Household & other","walk_order":14},
+  {"id":15,"name":"One-off items","walk_order":15}
+]

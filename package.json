@@ -21,7 +21,12 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "lint": "eslint src --max-warnings=0",
+    "test:e2e": "playwright test --project mobile --project desktop",
+    "test:e2e:live": "playwright test --project live",
+    "test:e2e:record": "node e2e/support/record-fixtures.mjs",
+    "test:e2e:report": "playwright show-report"
   },
   "eslintConfig": {
     "extends": [
@@ -42,6 +47,7 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17"

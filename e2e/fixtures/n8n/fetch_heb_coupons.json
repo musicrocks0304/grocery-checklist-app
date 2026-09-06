@@ -1,0 +1,24 @@
+[
+  {
+    "hash_id": "h1",
+    "product_name": "Pillsbury Original Crescent Dinner Rolls",
+    "description": "Buttery, flaky crescent rolls",
+    "image_url": null,
+    "coupon_type": "digital",
+    "discount": "$1 off 2",
+    "savings_amount": 1,
+    "expiration_date": "2026-09-30",
+    "clipped_status": 0
+  },
+  {
+    "hash_id": "h2",
+    "product_name": "Danimals Smoothies 12 pk",
+    "description": "Kid-favorite smoothie multipack",
+    "image_url": null,
+    "coupon_type": "digital",
+    "discount": "$1 off",
+    "savings_amount": 1,
+    "expiration_date": "2026-09-30",
+    "clipped_status": 1
+  }
+]

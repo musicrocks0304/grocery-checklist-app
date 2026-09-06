@@ -1,0 +1,54 @@
+[
+  {
+    "ItemID": 23,
+    "ItemName": "Bread",
+    "Category": "Bakery & bread",
+    "Store": "HEB",
+    "GroceryStoreSection": null,
+    "Type": "Basic",
+    "IsActive": 1,
+    "DataSource": "Staples",
+    "QuantitySelected": 1,
+    "IsSelected": 1,
+    "store_location": "Bakery, Back"
+  },
+  {
+    "ItemID": 14,
+    "ItemName": "Grapes",
+    "Category": "Fruit & vegetables",
+    "Store": "HEB",
+    "GroceryStoreSection": null,
+    "Type": "Basic",
+    "IsActive": 1,
+    "DataSource": "Staples",
+    "QuantitySelected": 1,
+    "IsSelected": 1,
+    "store_location": "Produce"
+  },
+  {
+    "ItemID": 31,
+    "ItemName": "Milk",
+    "Category": "Dairy & eggs",
+    "Store": "HEB",
+    "GroceryStoreSection": null,
+    "Type": "Basic",
+    "IsActive": 1,
+    "DataSource": "Staples",
+    "QuantitySelected": 1,
+    "IsSelected": 0,
+    "store_location": "Dairy, Back"
+  },
+  {
+    "ItemID": 100001,
+    "ItemName": "Candles",
+    "Category": "Household & other",
+    "Store": "HEB",
+    "GroceryStoreSection": null,
+    "Type": "OneOff",
+    "IsActive": 1,
+    "DataSource": "OneOff",
+    "QuantitySelected": 1,
+    "IsSelected": 1,
+    "store_location": null
+  }
+]

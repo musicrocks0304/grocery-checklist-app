@@ -1,0 +1,6 @@
+{
+  "_recorded": { "at": "hand-written", "endpoint": "api/heb/session/status", "sanitised": true },
+  "active": false,
+  "loginSessionValid": true,
+  "idleSeconds": 0
+}

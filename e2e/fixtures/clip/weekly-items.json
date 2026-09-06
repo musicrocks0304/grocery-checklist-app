@@ -1,0 +1,14 @@
+{
+  "_recorded": { "at": "hand-written", "endpoint": "api/heb/weekly-items", "sanitised": true },
+  "items": [
+    { "ItemID": 23, "ItemName": "Bread", "couponDiscount": null },
+    {
+      "ItemID": 14,
+      "ItemName": "Grapes",
+      "couponDiscount": "$0.50 off",
+      "couponSavings": 0.5,
+      "couponClipped": 1,
+      "couponProductName": "Seedless Grapes"
+    }
+  ]
+}

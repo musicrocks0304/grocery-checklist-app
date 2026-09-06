@@ -1,0 +1,49 @@
+[
+  {
+    "deals": [
+      {
+        "frequentProduct": {
+          "id": "1001",
+          "name": "Pillsbury Crescent Rolls",
+          "brand": "Pillsbury",
+          "category": "Bakery & bread",
+          "price": 3.12
+        },
+        "coupon": {
+          "hashId": "h1",
+          "productName": "Pillsbury Original Crescent Dinner Rolls",
+          "discount": "$1 off 2",
+          "savingsAmount": 1,
+          "expirationDate": "2026-09-30",
+          "clippedStatus": 0,
+          "imageUrl": null
+        },
+        "confidence": "high",
+        "reason": "Same product"
+      },
+      {
+        "frequentProduct": {
+          "id": "1002",
+          "name": "Danimals Smoothies",
+          "brand": "Danimals",
+          "category": "Dairy & eggs",
+          "price": 4.5
+        },
+        "coupon": {
+          "hashId": "h2",
+          "productName": "Danimals Smoothies 12 pk",
+          "discount": "$1 off",
+          "savingsAmount": 1,
+          "expirationDate": "2026-09-30",
+          "clippedStatus": 1,
+          "imageUrl": null
+        },
+        "confidence": "medium",
+        "reason": "Same brand"
+      }
+    ],
+    "totalDeals": 2,
+    "totalSavings": 2,
+    "cached": true
+  }
+]
