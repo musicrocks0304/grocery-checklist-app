@@ -61,8 +61,20 @@ test.describe('Shop (In-Store Mode)', () => {
       week_start_date: WEEK.startDate,
       item_id: String(firstItem.ItemID),
     });
-    await expect(page.getByRole('checkbox', { name: nameRe(firstItem.ItemName) })).toBeChecked();
     await expect(page.getByText(itemsLeftRe(initialItemsLeft - 1))).toBeVisible();
+    // firstItem shares its category section with an already-checked fixture
+    // row (`shopping_progress.json`), so checking it completes that section
+    // and InStoreMode.js's auto-collapse effect (~line 1497, "Auto-collapse a
+    // section when its last unchecked item gets checked off") immediately
+    // unmounts the row via AnimatePresence — racing a direct toBeChecked()
+    // against that ~200ms exit animation flaked. Re-expand the section
+    // header first so the assertion targets a stable, visible checkbox.
+    const sectionHeader = page.getByRole('button', {
+      name: new RegExp(`^${escapeRegExp(firstItem.Category)}`),
+    });
+    await expect(sectionHeader).toHaveAttribute('aria-expanded', 'false');
+    await sectionHeader.click();
+    await expect(page.getByRole('checkbox', { name: nameRe(firstItem.ItemName) })).toBeChecked();
   });
 
   test('a failed check-off is retried once connectivity returns', async ({ page, backend }) => {
