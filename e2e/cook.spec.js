@@ -25,7 +25,7 @@ test.describe('Cook', () => {
     const meal = { selection_id: 1, WeekDateRange: 'For the week of September 6th to September 12th, 2026', recipe_id: 3, notes: '', created_at: '2026-09-06 12:00:00', recipe_name: 'Chicken tacos', recipe_description: 'Weeknight tacos' };
     backend.set('fetch_weekly_meals', { body: [meal], times: 3 });
     backend.set('choose_recipe_instructions', { body: [meal], times: 3 });
-    backend.set('grab_instructions_fast', { body: [{ output: [{ recipe_id: 3, step_number: 1, instruction_text: 'Cook the chicken', time_minutes: 10 }], all_ingredients: [{ recipe_id: 3, ingredient_name: 'Chicken thighs', quantity: 1, unit_name: 'lb' }] }], times: 2 });
+    backend.set('grab_instructions_fast', { body: [{ output: [{ recipe_id: 3, step_number: 1, instruction_text: 'Cook the chicken', time_minutes: 10 }], all_ingredients: [{ recipe_id: 3, ingredient_name: 'Chicken thighs', quantity: 1, unit_name: 'lb' }] }], times: 1 });
     await open(page, 'cook');
     await expect(main(page).getByRole('heading', { name: 'Chicken tacos' })).toBeVisible();
     // The recipe card's title/description are plain text with no click
