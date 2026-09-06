@@ -1,4 +1,7 @@
 {
-  "_recorded": { "at": "hand-written", "endpoint": "grocery_prep_status", "sanitised": true },
-  "error": "not_found"
+ "_recorded": {
+  "at": "2026-09-06T12:25:20.378Z",
+  "endpoint": "grocery_prep_status",
+  "sanitised": true
+ }
 }
