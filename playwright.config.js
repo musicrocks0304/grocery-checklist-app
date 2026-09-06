@@ -11,7 +11,18 @@ const MOCK_ENV = {
 };
 
 const argv = process.argv;
-const isLive = argv.some((a, i) => a === '--project=live' || (a === '--project' && argv[i + 1] === 'live'));
+const argvIsLive = argv.some((a, i) => a === '--project=live' || (a === '--project' && argv[i + 1] === 'live'));
+// Playwright forks a fresh node process per worker (child_process.fork,
+// which by default copies process.env at fork time but never the parent's
+// argv), and that worker re-requires this file to know which project it's
+// running. Detecting `--project=live` from argv alone is therefore only
+// ever true in the CLI process itself — every worker recomputes isLive as
+// false, collects [mobile, desktop], and dies with "Project live not found
+// in the worker process." Stamping an env var here (before Playwright
+// forks anything) survives into the worker's inherited env, so both
+// processes agree.
+if (argvIsLive) process.env.PW_LIVE_PROJECT = '1';
+const isLive = argvIsLive || process.env.PW_LIVE_PROJECT === '1';
 const liveEnv = isLive ? require('./e2e/support/live-env.js').readLiveEnv() : null;
 
 // The project set is derived from the same `isLive` flag that selects the
