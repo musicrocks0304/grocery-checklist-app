@@ -38,18 +38,7 @@ async function seedIfNeeded(backend) {
   if (NEEDS_OVERRIDE) backend.set('shopping_progress', { body: [], times: 3 });
 }
 
-// src/index.js:9 wraps the app in <React.StrictMode>, which react-scripts
-// keeps active in the dev server this harness runs against (playwright.config.js
-// webServer command). StrictMode double-invokes both effects and setState
-// updater functions in development. InStoreMode.js's handleToggleItem
-// (~line 1436) puts the mutating POST (sendProgressOp) inside the
-// setCheckedItems updater callback, and InviteModal's create_session POST
-// runs in a useEffect on mount — both get fired twice per real tap/mount
-// under StrictMode (verified empirically: a single click produced 2 recorded
-// POSTs). This never happens in a production build, but it is genuinely what
-// this dev-server-backed harness observes, so assertions below tolerate >=1
-// occurrence and verify every recorded call's body, rather than asserting
-// an exact call count.
+// Runs against a production build (no StrictMode double-invoke): request counts are exact.
 
 test.describe('Shop (In-Store Mode)', () => {
   test('renders items grouped by aisle with the remaining count', async ({ page, backend }) => {
@@ -65,12 +54,13 @@ test.describe('Shop (In-Store Mode)', () => {
     await seedIfNeeded(backend);
     await open(page, 'shop');
     await page.getByRole('checkbox', { name: nameRe(firstItem.ItemName) }).click();
-    await expect.poll(() => backend.calls('shopping_progress_check').length).toBeGreaterThanOrEqual(1);
+    await expect.poll(() => backend.calls('shopping_progress_check').length).toBe(1);
     // handleToggleItem (InStoreMode.js ~line 1436) posts item_id as the
     // string form of ItemID (`item.ItemID.toString()`), not a number.
-    for (const call of backend.calls('shopping_progress_check')) {
-      expect(call.body).toEqual({ week_start_date: WEEK.startDate, item_id: String(firstItem.ItemID) });
-    }
+    expect(backend.calls('shopping_progress_check')[0].body).toEqual({
+      week_start_date: WEEK.startDate,
+      item_id: String(firstItem.ItemID),
+    });
     await expect(page.getByRole('checkbox', { name: nameRe(firstItem.ItemName) })).toBeChecked();
     await expect(page.getByText(itemsLeftRe(initialItemsLeft - 1))).toBeVisible();
   });
@@ -78,27 +68,24 @@ test.describe('Shop (In-Store Mode)', () => {
   test('a failed check-off is retried once connectivity returns', async ({ page, backend }) => {
     await seedIfNeeded(backend);
     await open(page, 'shop');
-    // times: 2 covers both StrictMode-doubled POSTs from the single tap below
-    // (see the block comment above) so the pending-op entry Shop tracks for
-    // this item is reliably left in the "failed" state either way.
-    backend.set('shopping_progress_check', { status: 500, body: { success: false, error: 'Workflow error' }, times: 2 });
+    backend.set('shopping_progress_check', { status: 500, body: { success: false, error: 'Workflow error' }, times: 1 });
     await page.getByRole('checkbox', { name: nameRe(firstItem.ItemName) }).click();
     const firstItemCalls = () =>
       backend.calls('shopping_progress_check').filter((c) => c.body.item_id === String(firstItem.ItemID)).length;
-    await expect.poll(firstItemCalls).toBeGreaterThanOrEqual(1);
+    await expect.poll(firstItemCalls).toBe(1);
 
     await page.getByRole('checkbox', { name: nameRe(secondItem.ItemName) }).click();
     const secondItemCalls = () =>
       backend.calls('shopping_progress_check').filter((c) => c.body.item_id === String(secondItem.ItemID)).length;
-    await expect.poll(secondItemCalls).toBeGreaterThanOrEqual(1);
+    await expect.poll(secondItemCalls).toBe(1);
 
     // Failed ops are NOT re-sent on the next tap (InStoreMode.js
     // drainPendingOps, ~line 1183-1204) — only on the `online` window event
     // or a visible-tab poll tick. Trigger the drain explicitly and confirm
-    // the first item's failed op gets re-sent (more calls for it than before).
+    // the first item's failed op gets re-sent exactly once more.
     const beforeOnline = firstItemCalls();
     await page.evaluate(() => window.dispatchEvent(new Event('online')));
-    await expect.poll(firstItemCalls, { timeout: 15000 }).toBeGreaterThan(beforeOnline);
+    await expect.poll(firstItemCalls, { timeout: 15000 }).toBe(beforeOnline + 1);
   });
 
   test('the ⋯ menu opens Feedback', async ({ page, backend }) => {
@@ -112,18 +99,13 @@ test.describe('Shop (In-Store Mode)', () => {
     await expect(page.getByRole('heading', { name: 'Send Feedback' })).toBeVisible();
   });
 
-  test('Invite posts create_session and shows the code', async ({ page, backend }) => {
+  test('Invite posts create_session exactly once and shows the code', async ({ page, backend }) => {
     await open(page, 'shop');
     await page.getByRole('button', { name: 'More' }).click();
     await page.getByRole('button', { name: 'Invite partner' }).click();
     await expect(page.getByText('E2E1')).toBeVisible();
-    // See the StrictMode block comment above — InviteModal's mount effect
-    // can fire create_session twice in this dev-server harness; assert every
-    // recorded call carries the right body rather than an exact count of 1.
-    expect(backend.calls('create_session').length).toBeGreaterThanOrEqual(1);
-    for (const call of backend.calls('create_session')) {
-      expect(call.body).toEqual({ week_start_date: WEEK.startDate });
-    }
+    expect(backend.calls('create_session')).toHaveLength(1);
+    expect(backend.calls('create_session')[0].body).toEqual({ week_start_date: WEEK.startDate });
     await page.getByRole('button', { name: 'Close' }).click();
   });
 

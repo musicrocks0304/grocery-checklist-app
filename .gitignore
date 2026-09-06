@@ -10,6 +10,7 @@
 
 # production
 /build
+/build-e2e
 
 # environment variables
 .env
