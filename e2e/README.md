@@ -22,7 +22,13 @@ Playwright specs for the grocery-checklist-app. Three projects
 ## Fixed week / frozen clock
 Hermetic tests freeze the clock at `WEEK.frozenClock` (`e2e/support/week.js`)
 inside the fixed week `2026-09-06`–`2026-09-12` so the Thursday-rollover
-week logic always resolves the same way.
+week logic always resolves the same way. `page.clock.install()` fakes
+`setTimeout`/`setInterval`/`Date`/`requestAnimationFrame` and does **not**
+auto-advance, so no interval-driven behaviour (HebCart's 30s poll,
+InStoreMode's drain poll, toast auto-dismiss, session-expiry countdowns) will
+ever fire on its own in this suite. If a spec needs one of those to run, call
+`page.clock.fastForward(ms)` explicitly rather than waiting — waiting for a
+frozen timer will simply time out.
 
 ## When to re-record
 When a workflow's response shape changes. Not for date drift — the recorder
@@ -34,15 +40,20 @@ rewrites live dates itself.
 
 ## Live specs (`e2e/live/`)
 Real n8n + clip backend, real API key, real data for the current week — no
-mocking. Run:
+mocking. `npm run test:e2e:live` is the **only** way the live project runs —
+`--project` must be `=live` (not a separate ` live` argument, which
+Playwright would otherwise swallow as a second, non-existent project) and a
+bare `npx playwright test` never collects it: `playwright.config.js` derives
+the entire project set from the same flag that selects the live webServer,
+so the hermetic and live suites can never be collected together. Run:
 ```
 npm run test:e2e:live
 ```
 or a single spec:
 ```
-npx playwright test --project live e2e/live/plan.live.spec.js
-npx playwright test --project live e2e/live/shop.live.spec.js
-npx playwright test --project live e2e/live/feedback.live.spec.js
+npx playwright test --project=live e2e/live/plan.live.spec.js
+npx playwright test --project=live e2e/live/shop.live.spec.js
+npx playwright test --project=live e2e/live/feedback.live.spec.js
 ```
 Requires `REACT_APP_API_KEY` (and optionally `REACT_APP_API_BASE_URL`,
 `REACT_APP_CLIP_SERVER_URL`) in repo-root `.env`; `e2e/support/live-env.js`

@@ -8,7 +8,7 @@ test.describe('Cook', () => {
     backend.set('choose_recipe_instructions', { body: [], times: 3 });
     await open(page, 'cook');
     await expect(main(page).getByText('No meals planned yet')).toBeVisible();
-    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect(page.getByRole('status')).toHaveCount(0, { timeout: 2000 });
   });
 
   test('with a planned meal the recipe list renders and selecting it requests instructions', async ({ page, backend }) => {

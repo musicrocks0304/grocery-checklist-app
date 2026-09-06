@@ -28,6 +28,8 @@ test('check an item, it persists, uncheck via the endpoint, it clears', async ({
   const checked = new Set(progress.map((r) => String(r.item_id)));
   const target = items.find((i) => i.IsSelected === 1 && !checked.has(String(i.ItemID)));
   test.skip(!target, 'no unchecked item');
+  // eslint-disable-next-line no-console
+  console.log('shop.live: targeting', target.ItemName, target.ItemID);
 
   // Restore state (uncheck via the endpoint) even if a mid-test assertion
   // fails, so a broken run never leaves real shopping_progress mutated —

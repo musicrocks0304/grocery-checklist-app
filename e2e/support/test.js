@@ -10,6 +10,7 @@ const test = base.test.extend({
     await use(backend);
     base.expect(backend.keyErrors, 'n8n requests without X-API-Key').toEqual([]);
     base.expect(backend.unmocked, 'unmocked backend requests').toEqual([]);
+    base.expect(backend.offHost, 'requests to third-party hosts').toEqual([]);
   },
 });
 

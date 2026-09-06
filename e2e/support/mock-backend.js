@@ -8,6 +8,14 @@ const { WEEK } = require('./week.js');
 const FIXTURES = path.join(__dirname, '..', 'fixtures');
 const N8N_HOST = 'n8n.test';
 const CLIP_HOST = 'clip.test';
+// Hosts every hermetic run legitimately talks to regardless of which spec is
+// running: Google Fonts (public/index.html's <link>, on every page load) and
+// HEB's image CDN (referenced by all ~40 coupon images in
+// fixtures/n8n/fetch_heb_coupons.json). Both are aborted by the catch-all
+// below like any other third-party host — the app never gets a real
+// response — but they are already-audited, so they aren't recorded as
+// "unexpected" the way a genuinely new third-party host would be.
+const KNOWN_ABORTED_HOSTS = new Set(['fonts.googleapis.com', 'fonts.gstatic.com', 'images.heb.com']);
 
 function readFixture(rel) {
   const file = path.join(FIXTURES, rel);
@@ -25,6 +33,7 @@ class MockBackend {
     this.unmocked = [];
     this.clipState = 'expired';
     this.keyErrors = [];
+    this.offHost = [];          // URLs aborted by the third-party catch-all below
     this.oneoffCounter = 900000; // per-test state; a module-level counter would leak across tests
   }
 
@@ -52,6 +61,23 @@ class MockBackend {
   async install() {
     await this.page.route(`**/${N8N_HOST}/**`, (route) => this.handleN8n(route));
     await this.page.route(`**/${CLIP_HOST}/**`, (route) => this.handleClip(route));
+    // Catch-all, registered last so it is matched *first* (Playwright runs
+    // routes in reverse registration order, most-recently-registered wins
+    // unless it calls route.fallback()). It must fall back — not just
+    // continue() — for the two mock hosts, or it would swallow every n8n/
+    // clip request before handleN8n/handleClip ever saw it. localhost/
+    // 127.0.0.1 (the app itself) is let through with continue(). Everything
+    // else is a real third-party host — e.g. the ~40 images.heb.com URLs in
+    // fetch_heb_coupons.json, or the Google Fonts stylesheet/preconnect in
+    // public/index.html — and is aborted so the hermetic suite can never
+    // reach the real internet.
+    await this.page.route('**/*', (route) => {
+      const host = new URL(route.request().url()).hostname;
+      if (host === N8N_HOST || host === CLIP_HOST) return route.fallback();
+      if (host === 'localhost' || host === '127.0.0.1') return route.continue();
+      if (!KNOWN_ABORTED_HOSTS.has(host)) this.offHost.push(route.request().url());
+      return route.abort();
+    });
   }
 
   calls(p) { return this.records.get(p) || []; }

@@ -14,8 +14,29 @@ const argv = process.argv;
 const isLive = argv.some((a, i) => a === '--project=live' || (a === '--project' && argv[i + 1] === 'live'));
 const liveEnv = isLive ? require('./e2e/support/live-env.js').readLiveEnv() : null;
 
+// The project set is derived from the same `isLive` flag that selects the
+// webServer, so the two can never disagree: a bare `npx playwright test`
+// (isLive === false) can only ever collect/run the hermetic projects, and
+// `--project=live` (or `--project live`) can only ever collect/run the live
+// project. testIgnore is set at the top level (not per-project) so that
+// e2e/live/support.js — which reads the real .env key at module scope — is
+// never even required unless the operator explicitly asked for `live`.
+const mobileProject = { name: 'mobile', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, timezoneId: 'America/Chicago' } };
+const desktopProject = { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, timezoneId: 'America/Chicago' } };
+const liveProject = {
+  name: 'live',
+  testMatch: /live\/.*\.spec\.js/,
+  retries: 0,
+  workers: 1,
+  // Never trace/screenshot the live project — a Playwright trace records
+  // full request headers, so a live failure would otherwise write the real
+  // `X-API-Key` (plus screenshots of real data) to test-results/.
+  use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, trace: 'off', screenshot: 'off' },
+};
+
 module.exports = defineConfig({
   testDir: 'e2e',
+  testIgnore: isLive ? undefined : /live\//,
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
@@ -40,11 +61,13 @@ module.exports = defineConfig({
         port: 3000,
         reuseExistingServer: false,
         timeout: 240000,
+        // stdout defaults to 'ignore' — without piping it, a failed
+        // `react-scripts build` ("Failed to compile" + the offending file,
+        // printed to stdout) is swallowed and all you see is "Process from
+        // config.webServer exited early."
+        stdout: 'pipe',
+        stderr: 'pipe',
         env: { ...MOCK_ENV, BUILD_PATH: 'build-e2e', GENERATE_SOURCEMAP: 'false' },
       },
-  projects: [
-    { name: 'mobile', testIgnore: /live\//, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
-    { name: 'desktop', testIgnore: /live\//, use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
-    { name: 'live', testMatch: /live\/.*\.spec\.js/, retries: 0, workers: 1, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
-  ],
+  projects: isLive ? [liveProject] : [mobileProject, desktopProject],
 });

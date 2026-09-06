@@ -23,5 +23,5 @@ describe('ItemRow', () => {
     expect(onToggle).toHaveBeenCalledWith(42);
   });
 
-  // divider is presentational; covered by e2e screenshots
+  // divider only toggles a border class; not asserted in unit tests
 });
