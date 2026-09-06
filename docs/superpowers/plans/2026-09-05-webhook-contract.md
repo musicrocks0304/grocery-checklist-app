@@ -1522,9 +1522,20 @@ Append `DONE sub-project A <date> — contract --wave 3 green; bundle <hash>; wa
 
 _Recorded at execution time: list of endpoints returning `EMPTY BODY`, any `not JSON`/leak findings, mutation sequence outcome._
 
-## Step zero results (filled in during Task 10 Step 4)
+## Step zero results (recorded 2026-09-05 21:51 local, before any n8n workflow edit)
 
-_Recorded at execution time: status / content-type / body / elapsed for `add_oneoff_item` and `shopping_progress_check` with MySQL paused; failing node and error-item JSON keys from the executions._
+With `hsa-mysql` paused (23 s), keyed requests with the browser `Origin`:
+
+| endpoint | status | content-type | body | elapsed |
+|---|---|---|---|---|
+| `add_oneoff_item` | 200 | application/json | empty (0 bytes) | 10.8 s |
+| `shopping_progress_check` | 200 | application/json | empty (0 bytes) | 10.9 s |
+
+Executions 25795 (`Check Item`) and 25793/25794 (two read workflows a real client hit during the pause) all ended `status: error` at the MySQL node with `connect ETIMEDOUT` (error object keys: `errorno, code, syscall, fatal, message, stack`; no hostname in `message`). Conclusion: on this n8n a MySQL outage is an **empty 200**, never a 500 JSON — the `Respond 500` error branches (and the client's `empty` error code, already deployed) are load-bearing. The `RESPOND_500_BODY` expression reads `error.message` → `connect ETIMEDOUT`, which passes the leak assertions.
+
+Baseline (Task 8, third run): `29 passed, 10 failed, 45 info`; empty-200 reads `chat_history`, `grab_instructions_fast`; empty-200 probes on every endpoint whose first Code node throws on `{}` (n8n answers any unhandled node error with an empty 200).
+
+Deploy (Task 10 Step 3): `main` fast-forwarded to 47a997f and pushed; Netlify bundle `[exited` live.
 
 ## Wave results (filled in during Tasks 11–13)
 
