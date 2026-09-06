@@ -1065,10 +1065,10 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 }
 ```
 
-`RESPOND_500_BODY` (one line; the sanitiser cuts the message at the first SQL keyword or `near`, masks hostnames, caps at 200 chars, never serialises the error object — MySQL's error object carries the interpolated SQL in `description`):
+`RESPOND_500_BODY` (one line; the sanitiser cuts the message at the first SQL keyword or `near`, masks hostnames, caps at 200 chars, never serialises the error object — MySQL's error object carries the interpolated SQL in `description`; the `$json.message` fallback was removed during review because an error item keeps the input json and `call_grocery_agent` carries the user's chat text in that field):
 
 ```
-={{ (() => { const e = $json.error; const raw = typeof e === 'string' ? e : ((e && e.message) || $json.message || 'Workflow error'); const safe = String(raw).split(/\bnear\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b/i)[0].replace(/host\.docker\.internal|hsa-[a-z0-9_-]+/gi, 'db').trim().slice(0, 200); return JSON.stringify({ success: false, error: safe || 'Workflow error' }); })() }}
+={{ (() => { const e = $json.error; const raw = typeof e === 'string' ? e : ((e && e.message) || 'Workflow error'); const safe = String(raw).split(/\bnear\b|\bSELECT\b|\bINSERT\b|\bUPDATE\b|\bDELETE\b/i)[0].replace(/host\.docker\.internal|hsa-[a-z0-9_-]+/gi, 'db').trim().slice(0, 200); return JSON.stringify({ success: false, error: safe || 'Workflow error' }); })() }}
 ```
 
 - [ ] **Step 1: Write the tool**
@@ -1087,7 +1087,7 @@ if (!KEY) { console.error(`N8N_API_KEY not found in ${ENV_FILE}`); process.exit(
 const SETTINGS_KEYS = ['executionOrder', 'saveDataErrorExecution', 'saveDataSuccessExecution', 'saveManualExecutions', 'saveExecutionProgress', 'executionTimeout', 'errorWorkflow', 'timezone'];
 const CRED = { id: 'OzxeppJmnYuJpXbO', name: 'Grocery App API Key' };
 const DATA_TYPES = ['n8n-nodes-base.mySql', 'n8n-nodes-base.postgres', 'n8n-nodes-base.httpRequest', 'n8n-nodes-base.code'];
-export const RESPOND_500_BODY = "={{ (() => { const e = $json.error; const raw = typeof e === 'string' ? e : ((e && e.message) || $json.message || 'Workflow error'); const safe = String(raw).split(/\\bnear\\b|\\bSELECT\\b|\\bINSERT\\b|\\bUPDATE\\b|\\bDELETE\\b/i)[0].replace(/host\\.docker\\.internal|hsa-[a-z0-9_-]+/gi, 'db').trim().slice(0, 200); return JSON.stringify({ success: false, error: safe || 'Workflow error' }); })() }}";
+export const RESPOND_500_BODY = "={{ (() => { const e = $json.error; const raw = typeof e === 'string' ? e : ((e && e.message) || 'Workflow error'); const safe = String(raw).split(/\\bnear\\b|\\bSELECT\\b|\\bINSERT\\b|\\bUPDATE\\b|\\bDELETE\\b/i)[0].replace(/host\\.docker\\.internal|hsa-[a-z0-9_-]+/gi, 'db').trim().slice(0, 200); return JSON.stringify({ success: false, error: safe || 'Workflow error' }); })() }}";
 
 async function api(method, path, body) {
   const res = await fetch(`${BASE}${path}`, { method, headers: { 'X-N8N-API-KEY': KEY, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
@@ -1255,7 +1255,7 @@ Append the results to this plan file's "Step zero results" section and commit (`
 
 ## Task 11: n8n wave 1 — reads
 
-**Scope:** auth on the 8 unauthenticated GET workflows; branch audit on the reads that the baseline (Task 8 Step 2) reported as `EMPTY BODY`.
+**Scope:** auth on the 8 unauthenticated GET workflows; branch audit on the reads that the baseline (Task 8 Step 2) reported as `EMPTY BODY`; **plus `Respond 500` error branches on every read workflow's MySQL/Postgres/Code nodes (Ruling 7: this n8n answers any unhandled node error with an empty 200, so the spec's "untouched" reads would fail Goal 2)**; plus the `match_coupons` AI bypass (Ruling 5: IF node routing `skipAgent` to Format Output; `onError: continueRegularOutput` on the AI Agent and a throw in Format Output when the agent item carries `error`).
 
 **Files:** `scripts/n8n-edits/chat_history.mjs` (and one file per additional read that needs the aggregate pattern — same code, different node names).
 
@@ -1383,7 +1383,7 @@ node $W error-branch selection_uncheck --nodes "Uncheck Item"
 node $W error-branch shopping_progress_check --nodes "Check Item"
 node $W error-branch shopping_progress_uncheck --nodes "Uncheck Item"
 node $W error-branch create_session --nodes "Prepare Session,Insert Session"
-node $W error-branch save_coupon_matches --nodes "Route Request,Save Matches,Accept Coupon"
+node $W error-branch save_coupon_matches --nodes "Route Request,Save Matches,Accept Coupon"   # also: the baseline shows `{}` → empty 200, so the Switch's `error` route to `Respond Error` (400) is not firing — inspect with `show` and wire the fallback output before the gate
 node $W error-branch submit_feedback --nodes "Insert Feedback"
 node $W error-branch update_feedback_status --nodes "Build SQL,Update Feedback"
 node $W error-branch create_grocery_list --nodes "Extract Week Range,Delete Old Staples,Transform for DB Input,Execute a SQL query"
@@ -1461,14 +1461,13 @@ Apply and `show smart_deals`: `Basic LLM Chain` has no flags; `Format and Cache 
 
 ```bash
 W=scripts/n8n-wave.mjs
-node $W unswallow transcribe_grocery_item --nodes "Whisper Transcribe"
 node $W error-branch transcribe_grocery_item --nodes "Build Response"
 node $W error-branch smart_match_grocery --nodes "Build Match Prompt,Format Output"
 node $W error-branch categorize_heb_product --nodes "Build Prompt,Format Output"
 node $W error-branch grocery_prep --nodes "Generate Job ID,Init Job"
 ```
 
-`grocery_prep`: only the two nodes before `Respond` get branches; everything after the response is the orchestrator's concern (spec). `transcribe_grocery_item`: with the swallower gone, a missing/invalid audio upload becomes n8n's `500 {"message":"Error in workflow"}`; the client maps any non-2xx to the "server" toast exactly as it did for `{success:false}`, so no UX change.
+`grocery_prep`: only the two nodes before `Respond` get branches; everything after the response is the orchestrator's concern (spec). `transcribe_grocery_item`: **keep** the Whisper node's `continueRegularOutput` and Build Response's `{success:false, error:'no_audio'|'whisper_error'}` 200 (Ruling 12): on this n8n an unswallowed LangChain/OpenAI node error yields an empty 200, which is worse than the by-design JSON; the contract test's probe carries `allow2xx`.
 
 - [ ] **Step 4: Gate**
 
