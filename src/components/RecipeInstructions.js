@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, 
 import { getWeekDates } from '../utils/weekDates';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
-import { ENDPOINTS, apiJson } from '../config/api';
+import { ENDPOINTS, apiJson, ApiError } from '../config/api';
 import { RECIPE_INSTRUCTIONS_SAMPLE_DATA } from '../utils/fallbackData';
 
 const CHOOSE_RECIPE_WEBHOOK_URL = ENDPOINTS.chooseRecipeInstructions;
@@ -305,7 +305,8 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
 
       } catch (error) {
         let errorMessage = error.message;
-        if (error.name === 'AbortError') {
+        const timedOut = error?.name === 'AbortError' || (error instanceof ApiError && error.code === 'timeout');
+        if (timedOut) {
           errorMessage = 'Request timed out after 30 seconds';
           addDebugLog('Webhook request timed out');
         } else {
