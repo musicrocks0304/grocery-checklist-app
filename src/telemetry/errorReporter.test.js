@@ -179,4 +179,20 @@ describe('reportError', () => {
     expect(reportError({ kind: 'onerror', message: 'no-storage' })).toBe(false);
     getItem.mockRestore(); setItem.mockRestore();
   });
+  test('api network reports are dropped after pagehide and resume after pageshow', () => {
+    const netErr = Object.assign(new Error('Network error — check your connection'), { code: 'network', status: 0 });
+    window.dispatchEvent(new Event('pagehide'));
+    expect(reportError({ kind: 'api', error: netErr, endpoint: 'shopping_progress_check', status: 0 })).toBe(false);
+    const httpErr = Object.assign(new Error('Workflow error'), { code: 'http', status: 500 });
+    expect(reportError({ kind: 'api', error: httpErr, endpoint: 'shopping_progress_check', status: 500 })).toBe(true);
+    window.dispatchEvent(new Event('pageshow'));
+    expect(reportError({ kind: 'api', error: netErr, endpoint: 'categories', status: 0 })).toBe(true);
+  });
+  test('uninstall clears the unloading flag', () => {
+    window.dispatchEvent(new Event('pagehide'));
+    uninstallErrorReporter();
+    installErrorReporter({ url: URL, apiKey: 'test-key' });
+    const netErr = Object.assign(new Error('Network error — check your connection'), { code: 'network', status: 0 });
+    expect(reportError({ kind: 'api', error: netErr, endpoint: 'shopping_progress_check', status: 0 })).toBe(true);
+  });
 });

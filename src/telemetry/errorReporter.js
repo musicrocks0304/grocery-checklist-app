@@ -17,6 +17,9 @@ let config = null;
 let memory = freshMemory();
 let onError = null;
 let onRejection = null;
+let onPageHide = null;
+let onPageShow = null;
+let unloading = false;
 
 function freshMemory() { return { seen: new Set(), count: 0, session: null, sent: [] }; }
 function storage() { try { return window.sessionStorage; } catch { return null; } }
@@ -102,6 +105,7 @@ export function reportError(input) {
     if (!message) return false;
     if (NOISE.test(message)) return false;
     if (kind === 'api' && error && error.code === 'network' && typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+    if (kind === 'api' && error && error.code === 'network' && unloading) return false;
     const stack = kind === 'api' ? '' : stripQueries(error && error.stack ? error.stack : '').slice(0, LIMITS.stack);
     const hash = stackHash(kind, message, stack, kind === 'api' ? endpoint : '', kind === 'api' ? status : '');
     if (memory.seen.has(hash)) return false;
@@ -161,8 +165,12 @@ export function installErrorReporter(options) {
         else reportError({ kind: 'unhandledrejection', message: String(reason) });
       } catch { /* never throw */ }
     };
+    onPageHide = () => { unloading = true; };
+    onPageShow = () => { unloading = false; };
     window.addEventListener('error', onError);
     window.addEventListener('unhandledrejection', onRejection);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
     return true;
   } catch { config = null; return false; }
 }
@@ -172,6 +180,8 @@ export function uninstallErrorReporter() {
   try {
     if (onError) window.removeEventListener('error', onError);
     if (onRejection) window.removeEventListener('unhandledrejection', onRejection);
+    if (onPageHide) window.removeEventListener('pagehide', onPageHide);
+    if (onPageShow) window.removeEventListener('pageshow', onPageShow);
   } catch { /* ignore */ }
-  config = null; onError = null; onRejection = null; memory = freshMemory();
+  config = null; onError = null; onRejection = null; onPageHide = null; onPageShow = null; unloading = false; memory = freshMemory();
 }
