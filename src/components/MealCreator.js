@@ -3,7 +3,7 @@ import { Send, Sparkles, ChefHat, ArrowLeft, ChevronDown, ChevronUp, Wifi, Clock
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
-import { ENDPOINTS, apiFetch, apiJson } from '../config/api';
+import { ENDPOINTS, apiFetch, apiJson, userMessage } from '../config/api';
 
 // Generate or retrieve a creator-specific session ID — keyed by week so each grocery week gets fresh history
 const getCreatorSessionId = () => {
@@ -523,7 +523,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
       if (refreshMeals) await refreshMeals();
     } catch (error) {
       addDebugLog('Error adding to week:', error.message);
-      toast.error(`Failed to add meal. ${error.message}`);
+      toast.error(userMessage(error, 'Failed to add meal.'));
     } finally {
       setIsAddingToWeek(false);
     }

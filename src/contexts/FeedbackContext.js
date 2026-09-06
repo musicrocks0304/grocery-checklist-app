@@ -25,6 +25,7 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const clientIdRef = useRef(null);
+  const submittingRef = useRef(false);
   const { isDark } = useTheme();
 
   const reset = useCallback(() => {
@@ -100,7 +101,9 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
       toast.error('Please pick a category');
       return;
     }
+    if (submittingRef.current) return;
 
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
       const weekData = getWeekDates();
@@ -139,6 +142,7 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
         : 'Failed to send feedback. Try again?';
       toast.error(message);
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   }, [description, category, screenshots, currentScreen, isDark, handleClose]);

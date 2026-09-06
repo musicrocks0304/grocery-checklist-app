@@ -1,4 +1,4 @@
-import { apiFetch, ApiError, apiJson, showApiError, ENDPOINTS } from './api';
+import { apiFetch, ApiError, apiJson, showApiError, userMessage, ENDPOINTS } from './api';
 
 // Save originals
 const originalFetch = global.fetch;
@@ -249,6 +249,38 @@ describe('apiJson', () => {
     const err = await p.catch((e) => e);
     expect(err.name).toBe('AbortError');
     expect(err).not.toBeInstanceOf(ApiError);
+  });
+
+  test('response.text() rejecting (connection dropped mid-body) → code network', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: '',
+      text: () => Promise.reject(new TypeError('network error')),
+    });
+    const err = await apiJson('https://example.com/x').catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.code).toBe('network');
+  });
+
+  test('a non-network throw from fetch propagates unchanged, not wrapped as ApiError', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new RangeError('bad'));
+    const err = await apiJson('https://example.com/x', { retries: 0 }).catch((e) => e);
+    expect(err).toBeInstanceOf(RangeError);
+    expect(err).not.toBeInstanceOf(ApiError);
+    expect(err.message).toBe('bad');
+  });
+});
+
+describe('userMessage', () => {
+  test('returns the ApiError message for a network-coded error', () => {
+    const err = new ApiError('network', 'Network error — check your connection');
+    expect(userMessage(err, 'fallback')).toBe('Network error — check your connection');
+  });
+
+  test('returns the fallback for an http-coded ApiError', () => {
+    const err = new ApiError('http', 'Error in workflow');
+    expect(userMessage(err, 'fallback')).toBe('fallback');
   });
 });
 

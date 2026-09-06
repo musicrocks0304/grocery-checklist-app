@@ -242,10 +242,18 @@ export async function apiJson(url, options = {}) {
       if (options.signal?.aborted) throw err;
       throw new ApiError('timeout', 'Request timed out');
     }
-    throw new ApiError('network', 'Network error — check your connection');
+    if (err instanceof TypeError || err instanceof DOMException || err?.name === 'TypeError') {
+      throw new ApiError('network', 'Network error — check your connection');
+    }
+    throw err;
   }
 
-  const text = await response.text();
+  let text;
+  try {
+    text = await response.text();
+  } catch {
+    throw new ApiError('network', 'Network error — check your connection', { status: response.status });
+  }
   const trimmed = text.trim();
   let body = null;
   let parsed = false;
@@ -270,6 +278,20 @@ export async function apiJson(url, options = {}) {
     throw new ApiError('invalid_json', 'The server sent an unreadable response', { status: response.status, body: text });
   }
   return body;
+}
+
+/**
+ * Pick a user-facing message for a caught error: the ApiError's own message
+ * when it is one of the codes known to be safe to show verbatim
+ * (forbidden/timeout/network — never a server-supplied string), otherwise a
+ * caller-supplied fallback. Use this at toast sites that currently
+ * concatenate a raw `error.message` into a sentence.
+ */
+export function userMessage(err, fallback = 'Something went wrong') {
+  if (err instanceof ApiError && ['forbidden', 'timeout', 'network'].includes(err.code)) {
+    return err.message;
+  }
+  return fallback;
 }
 
 /**

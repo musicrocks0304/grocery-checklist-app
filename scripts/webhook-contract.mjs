@@ -88,13 +88,25 @@ async function checkProbe(ep) {
   if (r.status >= 200 && r.status < 300) {
     if (leak(r)) return record('FAIL', ep.method, ep.path, 'probe → 2xx', r.status, `leaks internals: ${r.text.slice(0, 80)}`);
     if (ep.softBeforeWave && WAVE < ep.wave) return record('INFO', ep.method, ep.path, 'probe → 2xx (pre-wave)', r.status, 'pre-wave: ' + (r.isJson ? r.text.slice(0, 60) : 'EMPTY/non-JSON body'));
-    if (ep.allow2xx && r.isJson) return record('PASS', ep.method, ep.path, 'probe → JSON (no-op)', r.status);
+    if (ep.allow2xx && r.isJson) return record('PASS', ep.method, ep.path, 'probe → JSON (no-op)', r.status, 'JSON 2xx by design (no-op)');
     return record('FAIL', ep.method, ep.path, 'probe → ≥400', r.status, r.text.trim() ? `invalid body accepted: ${r.text.slice(0, 60)}` : 'EMPTY BODY (workflow errored without a Respond node)');
   }
   if (assertErrorBody(ep, r, 'probe → error JSON') === null) record('PASS', ep.method, ep.path, 'probe → error JSON', r.status, r.text.slice(0, 60));
 }
 
 const isArr = (j) => Array.isArray(j);
+// Probe-tier rule (final-review C1): no probe body may ever reach a
+// MySQL/Postgres node that mutates. `checkProbe` sends its body WITH the
+// API key, so "the workflow will reject an empty body" is not a safe
+// assumption — several endpoints' first data node runs a live INSERT/
+// UPDATE/DELETE against production before any validation Code node would
+// stop it. An endpoint whose first data node can run with an empty/`{}`
+// body reaching a mutating SQL node MUST be `probe-nokey` (with a `reason`
+// naming that node) instead of `probe`. `probe` is reserved for endpoints
+// where the `{}` (or otherwise-empty) body is proven to die before any
+// mutating node — e.g. a Code-level 400 (`save_coupon_matches`), an
+// `items: []` short-circuit (`match_coupons`, `smart_match_grocery`), or a
+// no-SQL external-API error (`transcribe_grocery_item`'s Whisper call).
 const EP = [
   { path: 'categories', method: 'GET', wave: 1, tier: 'read', expect: isArr },
   { path: 'fetch_grocery_items', method: 'GET', wave: 1, tier: 'read', query: { weekStartDate: WEEK_START, weekEndDate: WEEK_END, weekDateRange: WEEK_RANGE }, expect: isArr },
@@ -108,22 +120,22 @@ const EP = [
   { path: 'choose_recipe_instructions', method: 'GET', wave: 1, tier: 'read', query: { weekDateRange: WEEK_RANGE }, expect: isArr },
   { path: 'grab_instructions_fast', method: 'GET', wave: 1, tier: 'read', query: { weekDateRange: WEEK_RANGE, recipe_id: String(RECIPE_ID) }, expect: (j) => j !== null && typeof j === 'object' },
   { path: 'fetch_heb_coupons', method: 'GET', wave: 1, tier: 'read', expect: isArr },
-  { path: 'get_recipe_items', method: 'POST', wave: 1, tier: 'probe' },
+  { path: 'get_recipe_items', method: 'POST', wave: 1, tier: 'probe-nokey', reason: '"Execute a SQL query" runs an INSERT IGNORE on an empty body' },
   { path: 'match_coupons', method: 'POST', wave: 1, tier: 'probe', body: { items: [] }, allow2xx: true, softBeforeWave: true },
   { path: 'meal_creator_build', method: 'POST', wave: 1, tier: 'probe-nokey' },
-  { path: 'add_grocery_items', method: 'POST', wave: 1, tier: 'probe' },
+  { path: 'add_grocery_items', method: 'POST', wave: 1, tier: 'probe-nokey', reason: '"Insert rows in a table" runs on an empty body' },
   ...['add_oneoff_item', 'selection_check', 'shopping_progress_check', 'shopping_progress_uncheck', 'selection_uncheck', 'add_weekly_selection', 'remove_weekly_selection', 'remove_weekly_item', 'create_session'].map((path) => ({ path, method: 'POST', wave: 2, tier: 'mutate' })),
   { path: 'save_coupon_matches', method: 'POST', wave: 2, tier: 'probe' },
-  { path: 'update_feedback_status', method: 'POST', wave: 2, tier: 'probe' },
+  { path: 'update_feedback_status', method: 'POST', wave: 2, tier: 'probe-nokey', reason: '"Update Feedback" runs on an empty body' },
   { path: 'submit_feedback', method: 'POST', wave: 2, tier: 'probe-nokey', reason: 'writes the bug list; no delete endpoint' },
-  { path: 'create_grocery_list', method: 'POST', wave: 2, tier: 'probe' },
-  { path: 'deactivate_grocery_item', method: 'POST', wave: 2, tier: 'probe' },
-  { path: 'meal_ingredients', method: 'POST', wave: 2, tier: 'probe', allow2xx: true },
-  { path: 'meal_creator_save', method: 'POST', wave: 2, tier: 'probe' },
+  { path: 'create_grocery_list', method: 'POST', wave: 2, tier: 'probe-nokey', reason: '"Delete Old Staples" runs on an empty body' },
+  { path: 'deactivate_grocery_item', method: 'POST', wave: 2, tier: 'probe-nokey', reason: '"Update rows in a table" — the last baseline ran UPDATE GroceryItems … WHERE ItemID = NaN' },
+  { path: 'meal_ingredients', method: 'POST', wave: 2, tier: 'probe-nokey', reason: '"Insert Meal Ingredients" runs on an empty body' },
+  { path: 'meal_creator_save', method: 'POST', wave: 2, tier: 'probe-nokey', reason: '"Insert Recipe" runs on an empty body' },
   { path: 'meal_creator_propose', method: 'POST', wave: 2, tier: 'probe-nokey' },
   { path: 'call_grocery_agent', method: 'POST', wave: 2, tier: 'probe-nokey' },
   { path: 'smart_match_grocery', method: 'POST', wave: 3, tier: 'probe', body: { items: [] }, allow2xx: true, softBeforeWave: true },
-  { path: 'transcribe_grocery_item', method: 'POST', wave: 3, tier: 'probe', softBeforeWave: true },
+  { path: 'transcribe_grocery_item', method: 'POST', wave: 3, tier: 'probe', allow2xx: true, softBeforeWave: true },
   { path: 'smart_deals', method: 'POST', wave: 3, tier: 'probe-nokey' },
   { path: 'grocery_prep', method: 'POST', wave: 3, tier: 'probe-nokey' },
   { path: 'categorize_heb_product', method: 'POST', wave: 3, tier: 'probe-nokey' },

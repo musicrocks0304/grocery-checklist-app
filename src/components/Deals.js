@@ -358,7 +358,7 @@ const Deals = ({ onNavigate }) => {
         mode: 'cors',
         retries: 0,
       });
-      const result = Array.isArray(data) ? data[0] : data;
+      const result = (Array.isArray(data) ? data[0] : data) || {};
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const activeDeals = (result.deals || []).filter(d => {

@@ -119,7 +119,7 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
           timeout: 15000,
           retries: 0,
         });
-        const result = Array.isArray(data) ? data[0] : data;
+        const result = (Array.isArray(data) ? data[0] : data) || {};
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const allDeals = (result.deals || []).filter(d => {
@@ -213,7 +213,7 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
       try {
         const url = new URL(ENDPOINTS.groceryPrepStatus);
         url.searchParams.append('jobId', prepJob.jobId);
-        const data = await apiJson(url.toString());
+        const data = await apiJson(url.toString(), { retries: 0, timeout: 8000 });
 
         if (data.status === 'completed') {
           setPrepJob(prev => ({ ...prev, status: 'completed', summary: data.summary, currentStep: 'done' }));

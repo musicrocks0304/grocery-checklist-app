@@ -51,7 +51,7 @@ const SmartDeals = ({ onNavigate }) => {
         retries: 0,
       });
       // n8n respondToWebhook wraps in array
-      const result = Array.isArray(data) ? data[0] : data;
+      const result = (Array.isArray(data) ? data[0] : data) || {};
       // Filter out deals with expired coupons (can come from cache)
       const today = new Date();
       today.setHours(0, 0, 0, 0);

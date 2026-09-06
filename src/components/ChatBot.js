@@ -3,7 +3,7 @@ import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, Sparkles, Plus, X, Shoppin
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
-import { ENDPOINTS, apiFetch, apiJson } from '../config/api';
+import { ENDPOINTS, apiFetch, apiJson, userMessage } from '../config/api';
 
 // Generate or retrieve session ID — keyed by week so each grocery week gets fresh history
 const getSessionId = () => {
@@ -272,7 +272,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
       if (refreshMeals) await refreshMeals();
       addDebugLog('Added meal to DB and refreshed:', mealName);
     } catch (error) {
-      toast.error(`Failed to add "${mealName}". ${error.message}`);
+      toast.error(userMessage(error, `Failed to add "${mealName}".`));
       addDebugLog('Error adding meal:', error.message);
     } finally {
       setAddingRecipeIds(prev => {

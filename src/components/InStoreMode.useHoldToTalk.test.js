@@ -326,6 +326,37 @@ describe('useHoldToTalk — failure modes', () => {
     expect(result.current.state).toBe('idle');
   });
 
+  test('15s fetch deadline fires (AbortError) → onError("network"), state idle', async () => {
+    jest.useFakeTimers();
+    setupMocks({
+      fetchImpl: (_url, opts) => new Promise((_resolve, reject) => {
+        opts.signal.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted.', 'AbortError'));
+        });
+      }),
+    });
+    const onError = jest.fn();
+    const { result } = renderHook(() =>
+      useHoldToTalk({ endpoint: ENDPOINT, onResult: jest.fn(), onError })
+    );
+
+    await act(async () => { await result.current.start({}); });
+
+    // Auto-stop past MAX_RECORD_MS (8s) drives submitRecording, which then
+    // arms its own FETCH_TIMEOUT_MS (15s) AbortController and calls fetch.
+    await act(async () => {
+      jest.advanceTimersByTime(8001);
+    });
+    // Advance past the 15s deadline to fire that AbortController.
+    await act(async () => {
+      jest.advanceTimersByTime(15001);
+    });
+
+    jest.useRealTimers();
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('network'));
+    expect(result.current.state).toBe('idle');
+  });
+
   test('server returns success:false → onError("server"), state idle', async () => {
     setupMocks({
       fetchImpl: async () => ({

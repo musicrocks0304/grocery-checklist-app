@@ -8,10 +8,10 @@ const BASE = process.env.N8N_API_BASE || 'http://localhost:5679/api/v1';
 const KEY = (readFileSync(ENV_FILE, 'utf8').match(/^N8N_API_KEY=(.*)$/m) || [])[1]?.trim();
 if (!KEY) { console.error(`N8N_API_KEY not found in ${ENV_FILE}`); process.exit(1); }
 
-const SETTINGS_KEYS = ['executionOrder', 'saveDataErrorExecution', 'saveDataSuccessExecution', 'saveManualExecutions', 'saveExecutionProgress', 'executionTimeout', 'errorWorkflow', 'timezone'];
+const SETTINGS_KEYS = ['executionOrder', 'saveDataErrorExecution', 'saveDataSuccessExecution', 'saveManualExecutions', 'saveExecutionProgress', 'executionTimeout', 'errorWorkflow', 'timezone', 'callerPolicy', 'availableInMCP'];
 const CRED = { id: 'OzxeppJmnYuJpXbO', name: 'Grocery App API Key' };
 const DATA_TYPES = ['n8n-nodes-base.mySql', 'n8n-nodes-base.postgres', 'n8n-nodes-base.httpRequest', 'n8n-nodes-base.code'];
-export const RESPOND_500_BODY = "={{ (() => { const e = $json.error; const raw = typeof e === 'string' ? e : ((e && e.message) || $json.message || 'Workflow error'); const safe = String(raw).split(/\\bnear\\b|\\bSELECT\\b|\\bINSERT\\b|\\bUPDATE\\b|\\bDELETE\\b/i)[0].replace(/host\\.docker\\.internal|hsa-[a-z0-9_-]+/gi, 'db').trim().slice(0, 200); return JSON.stringify({ success: false, error: safe || 'Workflow error' }); })() }}";
+export const RESPOND_500_BODY = "={{ (() => { const e = $json.error; const raw = typeof e === 'string' ? e : ((e && e.message) || 'Workflow error'); const safe = String(raw).split(/\\bnear\\b|\\bSELECT\\b|\\bINSERT\\b|\\bUPDATE\\b|\\bDELETE\\b/i)[0].replace(/host\\.docker\\.internal|hsa-[a-z0-9_-]+/gi, 'db').trim().slice(0, 200); return JSON.stringify({ success: false, error: safe || 'Workflow error' }); })() }}";
 
 async function api(method, path, body) {
   const res = await fetch(`${BASE}${path}`, { method, headers: { 'X-N8N-API-KEY': KEY, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
@@ -47,6 +47,8 @@ async function save(wf) {
   const backupPath = `${backupDir}/${wf.id}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
   writeFileSync(backupPath, JSON.stringify(pristine, null, 1));
   console.log(`pre-save backup: ${backupPath}`);
+  const dropped = Object.keys(wf.settings || {}).filter((k) => !SETTINGS_KEYS.includes(k));
+  if (dropped.length) console.warn(`dropping settings keys: ${dropped.join(', ')}`);
   const settings = Object.fromEntries(Object.entries(wf.settings || {}).filter(([k]) => SETTINGS_KEYS.includes(k)));
   await api('PUT', `/workflows/${wf.id}`, { name: wf.name, nodes: wf.nodes, connections: wf.connections, settings });
   await cycle(wf.id, wf.name);
@@ -88,6 +90,9 @@ function errorBranch(wf, names) {
     delete n.continueOnFail;
     const main = (wf.connections[name] ||= { main: [] }).main;
     main[0] ||= [];
+    if (main[1] && main[1].length && !(main[1].length === 1 && main[1][0].node === 'Respond 500')) {
+      throw new Error(`node "${name}" already has an error output wired to ${main[1].map((x) => x.node).join('+')}`);
+    }
     main[1] = [{ node: 'Respond 500', type: 'main', index: 0 }];
   }
 }
