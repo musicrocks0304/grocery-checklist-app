@@ -580,8 +580,10 @@ describe('apiJson → reportError', () => {
     await expect(apiJson(url)).rejects.toMatchObject({ code: 'forbidden' });
     global.fetch = jest.fn().mockResolvedValue(res(404, '{"error":"nope"}'));
     await expect(apiJson(url)).rejects.toMatchObject({ code: 'http', status: 404 });
-    global.fetch = jest.fn(() => new Promise(() => {}));
-    await expect(apiJson(url, { timeout: 5, retries: 0 })).rejects.toMatchObject({ code: 'timeout' });
+    global.fetch = jest.fn().mockImplementation((_url, opts) => new Promise((_resolve, reject) => {
+      opts.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    await expect(apiJson(url, { timeout: 20, retries: 0 })).rejects.toMatchObject({ code: 'timeout' });
     expect(reportError).not.toHaveBeenCalled();
   });
   test('empty, invalid_json and network report', async () => {
