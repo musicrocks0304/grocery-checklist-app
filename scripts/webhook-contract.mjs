@@ -4,12 +4,22 @@
 // See docs/superpowers/specs/2026-09-05-webhook-contract-design.md §4.
 import { readFileSync } from 'node:fs';
 
+const USAGE = 'Usage: node scripts/webhook-contract.mjs [--wave 0|1|2|3] [--only <path>] [--base <url>]';
 const args = process.argv.slice(2);
-const flag = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; };
-const WAVE = Number(flag('--wave', '3'));
+const flagIndex = (name) => args.indexOf(name);
+const flag = (name, def) => { const i = flagIndex(name); return i >= 0 ? args[i + 1] : def; };
+const usageExit = (msg) => { console.error(msg); console.error(USAGE); process.exit(2); };
+
+const waveIdx = flagIndex('--wave');
+if (waveIdx >= 0 && (args[waveIdx + 1] === undefined || !/^[0-3]$/.test(args[waveIdx + 1]))) usageExit(`--wave must be one of 0,1,2,3, got: ${args[waveIdx + 1]}`);
+const WAVE = Number(flag('--wave', '0'));
+
+const onlyIdx = flagIndex('--only');
+if (onlyIdx >= 0 && (args[onlyIdx + 1] === undefined || args[onlyIdx + 1].startsWith('--'))) usageExit('--only requires a value');
 const ONLY = flag('--only', null);
 
-const env = Object.fromEntries(readFileSync('.env', 'utf8').split(/\r?\n/).filter((l) => /^[A-Z_]+=/.test(l)).map((l) => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1).trim()]; }));
+const stripQuotes = (v) => { const m = v.match(/^(['"])(.*)\1$/); return m ? m[2] : v; };
+const env = Object.fromEntries(readFileSync('.env', 'utf8').split(/\r?\n/).filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => { const i = l.indexOf('='); return [l.slice(0, i), stripQuotes(l.slice(i + 1).trim())]; }));
 const KEY = env.REACT_APP_API_KEY;
 const BASE = flag('--base', env.REACT_APP_API_BASE_URL || 'https://n8n-grocery.needexcelexpert.com/webhook');
 if (!KEY) { console.error('REACT_APP_API_KEY missing from .env'); process.exit(1); }
@@ -52,7 +62,7 @@ function leak(r) { return LEAK.test(r.text); }
 
 async function checkNoKey(ep) {
   const enforced = ep.wave <= WAVE;
-  const r = await request(ep.path, { method: ep.method, query: ep.query, body: ep.method === 'POST' ? {} : undefined, key: false });
+  const r = await request(ep.path, { method: ep.method, query: ep.query, body: ep.method === 'POST' ? (ep.body ?? {}) : undefined, key: false });
   if (unregistered(r)) return record('FAIL', ep.method, ep.path, 'no-key', r.status, 'webhook not registered (re-activate the workflow)');
   if (r.status === 403) return record('PASS', ep.method, ep.path, 'no-key → 403', r.status);
   record(enforced ? 'FAIL' : 'INFO', ep.method, ep.path, `no-key (wave ${ep.wave})`, r.status, enforced ? 'expected 403' : 'auth not yet enabled');
@@ -76,9 +86,10 @@ async function checkRead(ep) {
 async function checkProbe(ep) {
   const r = await request(ep.path, { method: 'POST', body: ep.body ?? {} });
   if (r.status >= 200 && r.status < 300) {
+    if (leak(r)) return record('FAIL', ep.method, ep.path, 'probe → 2xx', r.status, `leaks internals: ${r.text.slice(0, 80)}`);
     if (ep.softBeforeWave && WAVE < ep.wave) return record('INFO', ep.method, ep.path, 'probe → 2xx (pre-wave)', r.status, 'pre-wave: ' + (r.isJson ? r.text.slice(0, 60) : 'EMPTY/non-JSON body'));
     if (ep.allow2xx && r.isJson) return record('PASS', ep.method, ep.path, 'probe → JSON (no-op)', r.status);
-    return record('FAIL', ep.method, ep.path, 'probe → ≥400', r.status, `invalid body accepted: ${r.text.slice(0, 60)}`);
+    return record('FAIL', ep.method, ep.path, 'probe → ≥400', r.status, r.text.trim() ? `invalid body accepted: ${r.text.slice(0, 60)}` : 'EMPTY BODY (workflow errored without a Respond node)');
   }
   if (assertErrorBody(ep, r, 'probe → error JSON') === null) record('PASS', ep.method, ep.path, 'probe → error JSON', r.status, r.text.slice(0, 60));
 }
@@ -118,12 +129,15 @@ const EP = [
   { path: 'categorize_heb_product', method: 'POST', wave: 3, tier: 'probe-nokey' },
 ];
 
+if (ONLY && !EP.some((e) => e.path === ONLY)) { console.error(`no endpoint named ${ONLY}`); process.exit(2); }
+
 async function post(path, body) { return request(path, { method: 'POST', body }); }
 function okJson(ep, r, check, pred) {
-  if (r.status < 200 || r.status >= 300) { if (assertErrorBody(ep, r, check) === null) record('FAIL', 'POST', ep.path, check, r.status, 'expected 2xx'); return false; }
-  if (!r.isJson) { record('FAIL', 'POST', ep.path, check, r.status, r.text.trim() ? 'not JSON' : 'EMPTY BODY'); return false; }
+  const method = ep.method || 'POST';
+  if (r.status < 200 || r.status >= 300) { if (assertErrorBody(ep, r, check) === null) record('FAIL', method, ep.path, check, r.status, 'expected 2xx'); return false; }
+  if (!r.isJson) { record('FAIL', method, ep.path, check, r.status, r.text.trim() ? 'not JSON' : 'EMPTY BODY'); return false; }
   const ok = pred ? pred(r.json) : true;
-  record(ok ? 'PASS' : 'FAIL', 'POST', ep.path, check, r.status, ok ? '' : r.text.slice(0, 80));
+  record(ok ? 'PASS' : 'FAIL', method, ep.path, check, r.status, ok ? '' : r.text.slice(0, 80));
   return ok;
 }
 const ep = (path) => EP.find((e) => e.path === path);
@@ -148,8 +162,8 @@ async function mutationSequence() {
     okJson(ep('remove_weekly_item'), await post('remove_weekly_item', { ...selBody, itemName: NAME_ONEOFF }), 'remove one-off item', success);
     okJson(ep('fetch_grocery_items'), await request('fetch_grocery_items', { query: ep('fetch_grocery_items').query }), 'list clean', (j) => isArr(j) && !j.some((i) => String(i.ItemName || '').startsWith('__contract_test')));
     const sess = await post('create_session', { week_start_date: WEEK_START });
-    if (okJson(ep('create_session'), sess, 'create session', (j) => typeof j.code === 'string' && j.code.length === 4)) {
-      okJson({ path: 'join_session' }, await request('join_session', { query: { code: sess.json.code } }), 'join created session', (j) => j && j.found === true);
+    if (okJson(ep('create_session'), sess, 'create session', (j) => j && typeof j.code === 'string' && j.code.length === 4)) {
+      okJson({ ...ep('join_session') }, await request('join_session', { query: { code: sess.json.code } }), 'join created session', (j) => j && j.found === true);
     }
   } finally {
     await post('shopping_progress_uncheck', progBody).catch(() => {});
@@ -157,23 +171,49 @@ async function mutationSequence() {
     await post('remove_weekly_selection', { weekDateRange: WEEK_RANGE, recipeId: RECIPE_ID }).catch(() => {});
     await post('remove_weekly_item', selBody).catch(() => {});
     await post('remove_weekly_item', { ...selBody, itemName: NAME_ONEOFF }).catch(() => {});
-    console.log(`\nCLEANUP (run via docker exec, these rows have no delete endpoint):\n  DELETE FROM shopping_sessions WHERE week_start_date = '${WEEK_START}';\n  DELETE FROM oneoff_items WHERE name = '${NAME_ONEOFF}';`);
+    printCleanupBlock();
   }
 }
 
-(async () => {
+let cleanupPrinted = false;
+function printCleanupBlock() {
+  if (cleanupPrinted) return;
+  cleanupPrinted = true;
+  console.log(`\nCLEANUP (run via docker exec, these rows have no delete endpoint):\n  DELETE FROM shopping_sessions WHERE week_start_date = '${WEEK_START}';\n  DELETE FROM oneoff_items WHERE name = '${NAME_ONEOFF}';`);
+}
+
+async function main() {
   console.log(`webhook contract — base ${BASE} — enforcing 403 for waves ≤ ${WAVE}\n`);
+  if (WAVE >= 1) {
+    const targets = EP.filter((e) => e.tier !== 'read' && e.wave <= WAVE && (!ONLY || e.path === ONLY)).map((e) => e.path);
+    if (targets.length) console.log(`keyless POSTs will be sent to: ${targets.join(', ')} — these must already require the key; abort with Ctrl-C if wave ${WAVE} is not live\n`);
+  }
   let ranSequence = false;
+  let sentKeylessNonRead = false;
   for (const e of EP) {
     if (ONLY && e.path !== ONLY) continue;
-    if (e.wave <= WAVE || e.tier === 'read') await checkNoKey(e);
-    else record('INFO', e.method, e.path, 'no-key check deferred', '-', `auth enabled in wave ${e.wave}`);
-    if (e.tier === 'read') await checkRead(e);
-    else if (e.tier === 'probe') await checkProbe(e);
-    else if (e.tier === 'probe-nokey') record('INFO', e.method, e.path, 'with-key skipped', '-', e.reason || 'AI/orchestration cost or side effects');
-    else if (e.tier === 'mutate' && !ranSequence && !ONLY) { ranSequence = true; await mutationSequence(); }
+    try {
+      if (e.wave <= WAVE || e.tier === 'read') {
+        if (e.tier !== 'read') sentKeylessNonRead = true;
+        await checkNoKey(e);
+      } else {
+        record('INFO', e.method, e.path, 'no-key check deferred', '-', `auth enabled in wave ${e.wave}`);
+      }
+      if (e.tier === 'read') await checkRead(e);
+      else if (e.tier === 'probe') await checkProbe(e);
+      else if (e.tier === 'probe-nokey') record('INFO', e.method, e.path, 'with-key skipped', '-', e.reason || 'AI/orchestration cost or side effects');
+      else if (e.tier === 'mutate' && !ranSequence && !ONLY) { ranSequence = true; await mutationSequence(); }
+    } catch (err) {
+      record('FAIL', e.method, e.path, 'exception', '-', String(err.message).slice(0, 80));
+    }
   }
+  if (ranSequence || sentKeylessNonRead) printCleanupBlock();
+}
+
+main().catch((err) => {
+  record('FAIL', '-', '-', 'exception', '-', String(err.message).slice(0, 80));
+}).finally(() => {
   const fails = results.filter((r) => r.level === 'FAIL');
   console.log(`\n${results.filter((r) => r.level === 'PASS').length} passed, ${fails.length} failed, ${results.filter((r) => r.level === 'INFO').length} info`);
   process.exit(WAVE === 0 ? 0 : (fails.length ? 1 : 0));
-})();
+});
