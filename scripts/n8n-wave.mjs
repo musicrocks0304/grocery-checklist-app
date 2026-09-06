@@ -100,13 +100,22 @@ function errorBranch(wf, names) {
 
 // --- Task 12b: database-outage guards -------------------------------------
 // n8n 1.121.3 does NOT route a connection-level DB failure (`connect ETIMEDOUT`
-// while MySQL is down) to `onError: continueErrorOutput`; it passes the node's
-// INPUT item down output 0 and the success chain keeps running, so a mutation
-// endpoint answers 200 {"success":true} without having written anything.
-// `DB ok?` re-checks each data node's output just before the success Respond:
-// the Webhook item is recognisable by its `webhookUrl` key, and a node that ran
-// but produced nothing (or only an `alwaysOutputData` `{}` placeholder) is a
-// failure too for a node that must have produced a row.
+// while MySQL is down) to `onError: continueErrorOutput`; n8n-core's
+// workflow-execute does `nodeSuccessData = [executionData.data.main[0]]`, i.e.
+// it passes THE FAILING NODE'S OWN INPUT ITEM down output 0 and the success
+// chain keeps running, so a mutation endpoint answers 200 {"success":true}
+// without having written anything.
+//
+// That input item is webhook-shaped only when the node sits directly after the
+// Webhook; behind a Code/Switch/IF node it looks like a perfectly ordinary
+// result. So `DB ok?` checks what each data node actually produced:
+//   mutation  — n8n's MySql v2 prepareOutput emits exactly {success:true} for a
+//               non-SELECT executeQuery statement, so require that.
+//   require   — a named key must be present (single-row lookups).
+//   strict    — non-empty output that is not a passthrough of an upstream item.
+//   lenient   — anything except a passthrough (0 rows / `{}` are legitimate).
+// `passthrough` = the Webhook marker OR deep-equality with any upstream node's
+// output on the branch that feeds this node.
 function ensureRespond503(wf, successRespond) {
   const canonicalParams = { respondWith: 'json', responseBody: RESPOND_503_BODY, options: { responseCode: 503, responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }] } } };
   let node = wf.nodes.find((n) => n.name === 'Respond 503');
@@ -122,8 +131,36 @@ function ensureRespond503(wf, successRespond) {
 }
 
 // `null` from get() = the node never ran on this execution (e.g. the untaken
-// branch of an IF) and is skipped; `undefined` = it ran and produced nothing.
-const guardExpression = (strict, lenient) => `={{ (() => { const S = ${JSON.stringify(strict)}; const L = ${JSON.stringify(lenient)}; const get = (n) => { try { const it = $(n).first(); return it ? (it.json || {}) : undefined; } catch (e) { return null; } }; for (const n of S) { const j = get(n); if (j === null) continue; if (j === undefined || 'webhookUrl' in j || Object.keys(j).length === 0) return false; } for (const n of L) { const j = get(n); if (j === null || j === undefined) continue; if ('webhookUrl' in j) return false; } return true; })() }}`;
+// branch of an IF) and is skipped; `undefined` = it ran and produced nothing
+// (allowed for `lenient` only).
+const GUARD_MODES = ['mutation', 'require', 'strict', 'lenient'];
+const guardExpression = (specs) => `={{ (() => { const SPECS = ${JSON.stringify(specs)}; const get = (n, i) => { try { const it = $(n).first(i || 0); return it ? (it.json || {}) : undefined; } catch (e) { return null; } }; const pass = (s, j) => { if (!j || typeof j !== 'object') return false; if ('webhookUrl' in j) return true; const t = JSON.stringify(j); for (const u of s.upstream) { const p = get(u[0], u[1]); if (p && typeof p === 'object' && JSON.stringify(p) === t) return true; } return false; }; for (const s of SPECS) { const j = get(s.name, 0); if (j === null) continue; if (s.mode === 'mutation') { if (!(j && j.success === true)) return false; continue; } if (s.mode === 'require') { if (!(j && s.key in j)) return false; continue; } if (s.mode === 'strict') { if (!(j && Object.keys(j).length > 0 && !pass(s, j))) return false; continue; } if (j !== undefined && pass(s, j)) return false; } return true; })() }}`;
+
+// upstream = every connection in the FINAL wiring whose target is this node,
+// as [sourceNodeName, sourceOutputIndex].
+function upstreamOf(wf, name) {
+  const seen = new Set();
+  const upstream = [];
+  for (const [src, conns] of Object.entries(wf.connections)) {
+    (conns.main || []).forEach((out, idx) => {
+      for (const c of out || []) {
+        if (c.node !== name) continue;
+        const k = `${src} ${idx}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        upstream.push([src, idx]);
+      }
+    });
+  }
+  return upstream;
+}
+function buildSpecs(wf, entries) {
+  return entries.map((e) => {
+    const spec = { name: e.name, mode: e.mode, upstream: upstreamOf(wf, e.name) };
+    if (e.mode === 'require') spec.key = e.key;
+    return spec;
+  });
+}
 
 const guardNode = (id, name, position, expression) => ({
   id,
@@ -141,7 +178,7 @@ const guardNode = (id, name, position, expression) => ({
   },
 });
 
-function dbGuard(wf, { strict = [], lenient = [], respond = null, first = null }) {
+function dbGuard(wf, { entries = [], respond = null, first = null }) {
   const responds = wf.nodes.filter((n) => n.type === 'n8n-nodes-base.respondToWebhook');
   let success;
   if (respond) {
@@ -152,23 +189,27 @@ function dbGuard(wf, { strict = [], lenient = [], respond = null, first = null }
     if (candidates.length !== 1) throw new Error(`cannot pick the success Respond node — found ${candidates.length} [${candidates.map((n) => n.name).join(', ')}]; pass --respond`);
     success = candidates[0];
   }
-  if (!strict.length && !lenient.length) throw new Error('--strict and/or --lenient must name at least one node');
-  for (const name of [...strict, ...lenient, ...(first ? [first] : [])]) {
-    const n = wf.nodes.find((x) => x.name === name);
-    if (!n) throw new Error(`node "${name}" not found`);
-    if (n.type === 'n8n-nodes-base.respondToWebhook') throw new Error(`node "${name}" is a respondToWebhook node; it cannot be guarded`);
+  if (!entries.length) throw new Error(`at least one of ${GUARD_MODES.map((m) => `--${m}`).join(', ')} must name a node`);
+  const names = entries.map((e) => e.name);
+  if (first && !names.includes(first)) throw new Error(`--first node "${first}" must also be listed in one of the mode flags`);
+  for (const e of entries) {
+    const n = wf.nodes.find((x) => x.name === e.name);
+    if (!n) throw new Error(`node "${e.name}" not found`);
+    if (n.type === 'n8n-nodes-base.respondToWebhook') throw new Error(`node "${e.name}" is a respondToWebhook node; it cannot be guarded`);
+    if (e.mode === 'require' && !e.key) throw new Error(`--require needs "Node:key" for node "${e.name}"`);
   }
   ensureRespond503(wf, success);
 
   const slug = respond ? respond.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : null;
   const guardName = respond ? `DB ok? (${respond})` : 'DB ok?';
   const guardId = respond ? `db-guard-${slug}` : 'db-guard';
-  const expression = guardExpression(strict, lenient);
-  const existing = wf.nodes.find((n) => n.name === guardName);
-  if (existing) {
-    existing.parameters.conditions.conditions[0].leftValue = expression; // idempotent: refresh the condition, leave the wiring
-  } else {
-    wf.nodes.push(guardNode(guardId, guardName, [success.position[0] - 220, success.position[1]], expression));
+  const earlyName = respond ? `DB ok (early)? (${respond})` : 'DB ok (early)?';
+  const earlyId = respond ? `db-guard-early-${slug}` : 'db-guard-early';
+
+  // Wire first, then derive the specs, so `upstream` always describes the
+  // FINAL graph (an early guard becomes the upstream of the node after it).
+  if (!wf.nodes.some((n) => n.name === guardName)) {
+    wf.nodes.push(guardNode(guardId, guardName, [success.position[0] - 220, success.position[1]], ''));
     for (const [name, conns] of Object.entries(wf.connections)) {
       if (name === guardName) continue;
       for (const out of conns.main || []) {
@@ -177,23 +218,19 @@ function dbGuard(wf, { strict = [], lenient = [], respond = null, first = null }
     }
     wf.connections[guardName] = { main: [[{ node: success.name, type: 'main', index: 0 }], [{ node: 'Respond 503', type: 'main', index: 0 }]] };
   }
-
-  if (first) {
+  if (first && !wf.nodes.some((n) => n.name === earlyName)) {
     const anchor = wf.nodes.find((x) => x.name === first);
-    const earlyName = respond ? `DB ok (early)? (${respond})` : 'DB ok (early)?';
-    const earlyId = respond ? `db-guard-early-${slug}` : 'db-guard-early';
-    const earlyExpression = strict.includes(first) ? guardExpression([first], []) : guardExpression([], [first]);
-    const earlyExisting = wf.nodes.find((n) => n.name === earlyName);
-    if (earlyExisting) {
-      earlyExisting.parameters.conditions.conditions[0].leftValue = earlyExpression;
-    } else {
-      wf.nodes.push(guardNode(earlyId, earlyName, [anchor.position[0] + 180, anchor.position[1]], earlyExpression));
-      const conns = (wf.connections[first] ||= { main: [] });
-      const downstream = conns.main[0] || [];
-      conns.main[0] = [{ node: earlyName, type: 'main', index: 0 }];
-      wf.connections[earlyName] = { main: [downstream, [{ node: 'Respond 503', type: 'main', index: 0 }]] };
-    }
+    wf.nodes.push(guardNode(earlyId, earlyName, [anchor.position[0] + 180, anchor.position[1]], ''));
+    const conns = (wf.connections[first] ||= { main: [] });
+    const downstream = conns.main[0] || [];
+    conns.main[0] = [{ node: earlyName, type: 'main', index: 0 }];
+    wf.connections[earlyName] = { main: [downstream, [{ node: 'Respond 503', type: 'main', index: 0 }]] };
   }
+
+  const specs = buildSpecs(wf, entries);
+  const setCondition = (name, value) => { wf.nodes.find((n) => n.name === name).parameters.conditions.conditions[0].leftValue = value; };
+  setCondition(guardName, guardExpression(specs));
+  if (first) setCondition(earlyName, guardExpression(specs.filter((s) => s.name === first)));
   return wf;
 }
 
@@ -212,10 +249,10 @@ function dropAod(wf, names) {
   return wf;
 }
 
-const USAGE = 'usage: n8n-wave.mjs export | show <path> | auth <path…> | error-branch <path> --nodes "A,B" | unswallow <path> --nodes "A,B" | db-guard <path> --strict "A,B" [--lenient "C,D"] [--respond "Respond X"] [--first "A"] | drop-aod <path> --nodes "A,B" | apply <path> <file.mjs> | cycle <path>';
+const USAGE = 'usage: n8n-wave.mjs export | show <path> | auth <path…> | error-branch <path> --nodes "A,B" | unswallow <path> --nodes "A,B" | db-guard <path> [--mutation "A,B"] [--require "N:key"] [--strict "C"] [--lenient "D"] [--respond "Respond X"] [--first "A"] | drop-aod <path> --nodes "A,B" | apply <path> <file.mjs> | cycle <path>';
 const [cmd, ...rest] = process.argv.slice(2);
 const opt = (name) => { const i = rest.indexOf(name); return i >= 0 ? rest[i + 1] : null; };
-const VALUE_FLAGS = ['--nodes', '--nodes-json', '--strict', '--strict-json', '--lenient', '--lenient-json', '--respond', '--first'];
+const VALUE_FLAGS = ['--nodes', '--nodes-json', ...GUARD_MODES.flatMap((m) => [`--${m}`, `--${m}-json`]), '--respond', '--first'];
 const paths = rest.filter((a, i) => !a.startsWith('--') && !VALUE_FLAGS.includes(rest[i - 1]));
 // --<name> "A,B" for simple names; --<name>-json '["A, with comma","B"]' when a node name contains a comma.
 function nameList(base, { required = false } = {}) {
@@ -223,8 +260,9 @@ function nameList(base, { required = false } = {}) {
   if (json !== null && json !== undefined) {
     let parsed;
     try { parsed = JSON.parse(json); } catch { parsed = null; }
-    if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every((s) => typeof s === 'string')) {
-      console.error(`--${base}-json must parse to a non-empty array of strings`);
+    const ok = (s) => typeof s === 'string' || (Array.isArray(s) && s.length === 2 && s.every((x) => typeof x === 'string'));
+    if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every(ok)) {
+      console.error(`--${base}-json must parse to a non-empty array of strings (or ["Node","key"] pairs for --require-json)`);
       console.error(USAGE);
       process.exit(2);
     }
@@ -240,6 +278,22 @@ function nameList(base, { required = false } = {}) {
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 const nodeList = () => nameList('nodes', { required: true });
+
+// One entry per guarded node. `--require` takes "Node:key" (or, in
+// --require-json, ["Node", "key"] pairs as well as "Node:key" strings).
+function guardEntries() {
+  const entries = [];
+  for (const mode of GUARD_MODES) {
+    for (const raw of nameList(mode)) {
+      if (mode !== 'require') { entries.push({ name: raw, mode }); continue; }
+      if (Array.isArray(raw)) { entries.push({ name: raw[0], mode, key: raw[1] }); continue; }
+      const i = raw.lastIndexOf(':');
+      if (i <= 0) { console.error(`--require entries must be "Node:key", got: ${raw}`); process.exit(2); }
+      entries.push({ name: raw.slice(0, i).trim(), mode, key: raw.slice(i + 1).trim() });
+    }
+  }
+  return entries;
+}
 
 (async () => {
   switch (cmd) {
@@ -273,7 +327,7 @@ const nodeList = () => nameList('nodes', { required: true });
     case 'unswallow': { const wf = await byPath(paths[0]); for (const name of nodeList()) { const n = wf.nodes.find((x) => x.name === name); if (!n) throw new Error(`node "${name}" not found`); delete n.continueOnFail; delete n.onError; } await save(wf); break; }
     case 'db-guard': {
       const wf = await byPath(paths[0]);
-      dbGuard(wf, { strict: nameList('strict'), lenient: nameList('lenient'), respond: opt('--respond') || null, first: opt('--first') || null });
+      dbGuard(wf, { entries: guardEntries(), respond: opt('--respond') || null, first: opt('--first') || null });
       await save(wf); break;
     }
     case 'drop-aod': { const wf = await byPath(paths[0]); dropAod(wf, nodeList()); await save(wf); break; }

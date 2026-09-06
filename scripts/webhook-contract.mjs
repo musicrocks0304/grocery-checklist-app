@@ -205,11 +205,21 @@ async function faultMode() {
   const docker = (verb) => execSync(`docker ${verb} ${MYSQL_CONTAINER}`, { stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
   console.log(`webhook contract — FAULT MODE — base ${BASE}`);
   console.log(`PAUSING ${MYSQL_CONTAINER} — other clients will fail for ~30 s\n`);
-  docker('pause');
+  // Ctrl-C must never leave the database paused.
+  const onSignal = (sig) => {
+    try { docker('unpause'); console.log(`\n${sig}: unpaused ${MYSQL_CONTAINER}`); } catch (e) { console.error(`\n${sig}: UNPAUSE FAILED — run: docker unpause ${MYSQL_CONTAINER}`); }
+    process.exit(130);
+  };
+  process.once('SIGINT', () => onSignal('SIGINT'));
+  process.once('SIGTERM', () => onSignal('SIGTERM'));
   try {
+    docker('pause');
     const cases = [
       { path: 'add_oneoff_item', method: 'POST', run: () => request('add_oneoff_item', { method: 'POST', body: { itemName: NAME_ONEOFF, weekDateRange: WEEK_RANGE }, timeout: 25000 }) },
       { path: 'fetch_weekly_meals', method: 'GET', run: () => request('fetch_weekly_meals', { query: { weekDateRange: WEEK_RANGE }, timeout: 25000 }) },
+      { path: 'create_session', method: 'POST', run: () => request('create_session', { method: 'POST', body: { week_start_date: WEEK_START }, timeout: 25000 }) },
+      // an UPDATE that matches no row when healthy, so it is safe to replay
+      { path: 'save_coupon_matches', method: 'POST', run: () => request('save_coupon_matches', { method: 'POST', body: { acceptCoupon: NAME_SEL }, timeout: 25000 }) },
     ];
     for (const c of cases) {
       try {
