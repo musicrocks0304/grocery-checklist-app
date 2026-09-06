@@ -401,7 +401,12 @@ function guardEntries() {
           changed++; console.log(`set errorWorkflow on ${wf.name} (${wf.id})`);
         } catch (e) {
           failed++; console.error(`FAILED ${wf.name} (${wf.id}): ${e.message}`);
-          console.error('aborting after first failure — fix the cause and re-run; the command is idempotent');
+          console.error(`recovery for ${wf.name} (${wf.id}):`);
+          console.error(`  pre-change backup: ${dir}/${wf.id}.json`);
+          console.error(`  curl -X POST -H "X-N8N-API-KEY: $N8N_API_KEY" ${BASE}/workflows/${wf.id}/activate`);
+          const wh = webhookNode(wf);
+          if (wh) console.error(`  node scripts/n8n-wave.mjs cycle ${wh.parameters.path}`);
+          console.error('aborting after first failure — reactivate/repair the workflow above by hand (a re-run only visits ACTIVE workflows and cannot see one left inactive), then re-run; already-set workflows are skipped');
           break;
         }
       }
