@@ -1,0 +1,19 @@
+{
+  "name": "n8n Error → Slack",
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all", "saveManualExecutions": true },
+  "nodes": [
+    { "id": "error-trigger", "name": "Error Trigger", "type": "n8n-nodes-base.errorTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {} },
+    {
+      "id": "format", "name": "Format", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [220, 0],
+      "parameters": { "jsCode": "const e = $input.first().json || {};\nconst ex = e.execution || {};\nconst wf = e.workflow || {};\nconst msg = String((ex.error && ex.error.message) || 'unknown error').slice(0, 300);\nconst link = ex.url || (ex.id && wf.id ? `http://localhost:5679/workflow/${wf.id}/executions/${ex.id}` : '(no execution id)');\nconst name = wf.name || wf.id || 'unknown workflow';\nreturn [{ json: { text: `[grocery-n8n] ${name} failed at ${ex.lastNodeExecuted || '?'}: ${msg} — ${link}` } }];" }
+    },
+    {
+      "id": "slack", "name": "Slack", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [440, 0],
+      "parameters": { "method": "POST", "url": "={{ $env.SLACK_WEBHOOK_URL }}", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ text: $json.text }) }}", "options": {} }
+    }
+  ],
+  "connections": {
+    "Error Trigger": { "main": [ [ { "node": "Format", "type": "main", "index": 0 } ] ] },
+    "Format": { "main": [ [ { "node": "Slack", "type": "main", "index": 0 } ] ] }
+  }
+}

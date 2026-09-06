@@ -55,6 +55,24 @@ async function save(wf) {
   await cycle(wf.id, wf.name);
   show(await api('GET', `/workflows/${wf.id}`));
 }
+// PUT a workflow fetched by id (schedule/error workflows have no webhook node,
+// so byPath/save do not apply). No cycle: n8n re-registers triggers on update.
+async function saveById(wf) {
+  const pristine = await api('GET', `/workflows/${wf.id}`);
+  const backupDir = '.n8n-backups/pre-save';
+  mkdirSync(backupDir, { recursive: true });
+  const backupPath = `${backupDir}/${wf.id}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+  writeFileSync(backupPath, JSON.stringify(pristine, null, 1));
+  console.log(`pre-save backup: ${backupPath}`);
+  const settings = Object.fromEntries(Object.entries(wf.settings || {}).filter(([k]) => SETTINGS_KEYS.includes(k)));
+  await api('PUT', `/workflows/${wf.id}`, { name: wf.name, nodes: wf.nodes, connections: wf.connections, settings });
+  const after = await api('GET', `/workflows/${wf.id}`);
+  if (pristine.active && !after.active) {
+    console.warn(`${wf.name} (${wf.id}) went inactive after PUT — reactivating`);
+    await api('POST', `/workflows/${wf.id}/activate`);
+  }
+  return api('GET', `/workflows/${wf.id}`);
+}
 async function cycle(id, name) {
   await api('POST', `/workflows/${id}/deactivate`);
   try {
@@ -350,6 +368,41 @@ function guardEntries() {
       const inactive = rest.includes('--inactive');
       if (!inactive) await api('POST', `/workflows/${created.id}/activate`);
       console.log(`created ${created.name} (${created.id})${inactive ? ' (inactive)' : ' and activated'}`);
+      break;
+    }
+    case 'apply-id': {
+      const wf = await api('GET', `/workflows/${paths[0]}`);
+      const mod = await import(pathToFileURL(paths[1]).href);
+      const edited = await mod.default(wf, { ensureRespond500, errorBranch, RESPOND_500_BODY, ensureRespond503, dbGuard, dropAod, RESPOND_503_BODY });
+      const saved = await saveById(edited || wf);
+      console.log(`${saved.name} (${saved.id}) active=${saved.active} nodes=${saved.nodes.map((n) => n.name).join(' → ')}`);
+      break;
+    }
+    case 'error-workflow': {
+      const id = paths[0];
+      if (!id) throw new Error('usage: error-workflow <errorWorkflowId>');
+      const target = await api('GET', `/workflows/${id}`);
+      if (!target.nodes.some((n) => n.type === 'n8n-nodes-base.errorTrigger')) throw new Error(`${target.name} (${id}) has no Error Trigger node`);
+      const dir = `.n8n-backups/${new Date().toISOString().replace(/[:.]/g, '-')}`;
+      mkdirSync(dir, { recursive: true });
+      let changed = 0, skipped = 0, failed = 0;
+      for (const w of await listActive()) {
+        if (w.id === id) continue;
+        const wf = await api('GET', `/workflows/${w.id}`);
+        writeFileSync(`${dir}/${wf.id}.json`, JSON.stringify(wf, null, 1));
+        if (wf.settings?.errorWorkflow === id) { skipped++; continue; }
+        const settings = { ...Object.fromEntries(Object.entries(wf.settings || {}).filter(([k]) => SETTINGS_KEYS.includes(k))), errorWorkflow: id };
+        try {
+          await api('PUT', `/workflows/${wf.id}`, { name: wf.name, nodes: wf.nodes, connections: wf.connections, settings });
+          let after = await api('GET', `/workflows/${wf.id}`);
+          if (!after.active) { console.warn(`${wf.name} (${wf.id}) went inactive after PUT — reactivating`); await api('POST', `/workflows/${wf.id}/activate`); after = await api('GET', `/workflows/${wf.id}`); }
+          if (after.settings?.errorWorkflow !== id) throw new Error('errorWorkflow not persisted');
+          if (!after.active) throw new Error('workflow is inactive');
+          changed++; console.log(`set errorWorkflow on ${wf.name} (${wf.id})`);
+        } catch (e) { failed++; console.error(`FAILED ${wf.name} (${wf.id}): ${e.message}`); }
+      }
+      console.log(`error-workflow ${id}: changed=${changed} skipped=${skipped} failed=${failed} (backups in ${dir})`);
+      if (failed) process.exit(1);
       break;
     }
     default: console.log(USAGE); process.exit(1);
