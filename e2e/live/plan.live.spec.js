@@ -15,8 +15,8 @@ test('add a one-off, see it, remove it, gone after reload', async ({ page, api }
   page.on('dialog', (d) => d.accept());
 
   // Capture the real current week from the app's own fetch_grocery_items GET
-  // (never compute it locally) so the finally-block restore below posts the
-  // same weekDateRange/weekStartDate the UI itself used.
+  // (never compute it locally) so the restore step below posts the same
+  // weekDateRange/weekStartDate the UI itself used.
   const itemsReqPromise = page.waitForRequest((r) => r.url().includes('/fetch_grocery_items'));
   await open(page, 'plan');
   const itemsReqUrl = new URL((await itemsReqPromise).url());
@@ -25,6 +25,11 @@ test('add a one-off, see it, remove it, gone after reload', async ({ page, api }
 
   const main = page.locator('main');
 
+  // Primary assertions and the restore live in their own try/catch blocks —
+  // a failed restore must never replace (mask) the original test failure,
+  // so the primary error (if any) is what the test ultimately throws (same
+  // pattern as shop.live.spec.js).
+  let testError;
   try {
     const added = page.waitForResponse((r) => r.url().includes('/add_oneoff_item'));
     await main.getByPlaceholder('Quick add one-off item…').fill(NAME);
@@ -39,15 +44,37 @@ test('add a one-off, see it, remove it, gone after reload', async ({ page, api }
 
     await open(page, 'plan');
     await expect(main.getByRole('button', { name: `Remove one-off ${NAME}` })).toHaveCount(0);
-  } finally {
-    // Idempotent restore: if the UI removal above already ran, this simply
-    // no-ops server-side (nothing left to remove for this week). If an
-    // earlier assertion failed before the UI removal completed, this still
-    // gets NAME off the real week's list — never leave a failed run with a
-    // real WeeklyGroceryList row.
-    const res = await api.post('remove_weekly_item', { itemName: NAME, weekDateRange, weekStartDate });
-    expect(res.ok()).toBeTruthy();
+  } catch (err) {
+    testError = err;
   }
+
+  // Idempotent restore: if the UI removal above already ran, this simply
+  // no-ops server-side (nothing left to remove for this week). If an
+  // earlier assertion failed before the UI removal completed, this still
+  // gets NAME off the real week's list — never leave a failed run with a
+  // real WeeklyGroceryList row.
+  if (!weekDateRange || !weekStartDate) {
+    // eslint-disable-next-line no-console
+    console.warn('plan.live: weekDateRange/weekStartDate missing from the captured request — skipping the remove_weekly_item restore POST');
+  } else {
+    try {
+      const res = await api.post('remove_weekly_item', { itemName: NAME, weekDateRange, weekStartDate });
+      expect(res.ok()).toBeTruthy();
+      const resBody = await res.json();
+      expect(resBody.success).toBe(true);
+    } catch (restoreErr) {
+      if (testError) {
+        // The primary assertion already failed — surface the restore
+        // problem without letting it replace (mask) the original failure.
+        // eslint-disable-next-line no-console
+        console.warn('plan.live: restore (remove_weekly_item) also failed after the primary assertion failed:', restoreErr);
+      } else {
+        throw restoreErr;
+      }
+    }
+  }
+
+  if (testError) throw testError;
 });
 
 test.afterAll(() => {

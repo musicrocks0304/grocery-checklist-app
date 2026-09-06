@@ -56,9 +56,10 @@ refuses to run without a key. Three specs, serial, minimal mutations:
   locally), checks it off in the UI, confirms the count drops and persists
   across reload, then restores state by POSTing
   `shopping_progress_uncheck` directly (via `X-API-Key` + the Netlify
-  `Origin`) in a `finally` block so the mutation is undone even if an
-  assertion fails. Skips if nothing is left to check this week, or if every
-  selected item is already checked.
+  `Origin`) in a separate restore step that cannot mask the original
+  failure, so the mutation is undone even if an assertion fails. Skips if
+  nothing is left to check this week, or if every selected item is already
+  checked.
 - **Feedback** — opens `#plan` (not `#home`, see below), opens and closes
   the panel from the header/sidebar trigger. Never clicks "Submit
   Feedback" — this suite must never create a real feedback row.
