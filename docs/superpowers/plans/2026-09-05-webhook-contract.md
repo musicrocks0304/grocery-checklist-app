@@ -1537,9 +1537,16 @@ Baseline (Task 8, third run): `29 passed, 10 failed, 45 info`; empty-200 reads `
 
 Deploy (Task 10 Step 3): `main` fast-forwarded to 47a997f and pushed; Netlify bundle `main.800ec3b3.js` live.
 
-## Wave results (filled in during Tasks 11–13)
+## Wave results (recorded 2026-09-06)
 
-_Recorded at execution time: backup directory, contract-test summary line, UI checks, anything deviating from the plan._
+| wave | commit | backup dir | gate | notes |
+|---|---|---|---|---|
+| 1 (16 reads) | 8c8a326 | `.n8n-backups/2026-09-06T02-55-55-752Z` | `--wave 1`: 44 passed / 1 failed (the wave-2 `save_coupon_matches` probe, later made soft) | auth on 8 reads; aggregate pattern on chat_history, choose_recipe_instructions, fetch_heb_coupons; `grab_instructions_fast` Merge Results guard; `Respond 500` on all 16 (Ruling 7); `match_coupons` agent bypass (Ruling 5) |
+| 2 (18 mutations) | 365596d | `.n8n-backups/2026-09-06T03-12-19-099Z` | `--wave 2`: 63 / 0 / 21 | auth on 12; `Respond 500` on 18; `app_feedback.client_id` + unique index + `INSERT IGNORE`; `save_coupon_matches` Switch rules rewritten; `update_feedback_status` unswallowed; AI pattern on `meal_creator_propose`/`call_grocery_agent` |
+| 2b (outage guards) | d4cad5d → f3b00ed → bc506ce | `.n8n-backups/2026-09-06T03-41-19-257Z`, `…T04-08-32-216Z`, `…T04-44-07-407Z` | `--wave 2`: 63 / 0 / 21; `--fault`: 4 / 4 (503) | Ruling 19/20: 37 `DB ok?` guards on 31 workflows, `alwaysOutputData` dropped on 12 mutation nodes; two fix rounds (Code-fed pass-through; placeholder short-circuit) |
+| 3 (AI/orchestration) | ec128ee | see task-13 report | `--wave 3`: 70 / 0 / 14; `--fault`: 4 / 4 | auth on 5; Smart Deals reroute (cache write after response, LLM failure → 500); `smart_match` agent bypass; transcribe swallower kept (Ruling 12); `grocery_prep` guard on `Init Job` (strict, Ruling 21) |
+
+Live UI after each wave (headless Chromium): Plan add/remove one-off, Shop check-off persists, Cook empty state, Feedback open/close, Deals renders (7 deals after wave 3), 0 keyless n8n requests.
 
 ---
 

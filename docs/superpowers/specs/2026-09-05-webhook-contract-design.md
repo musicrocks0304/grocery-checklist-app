@@ -104,3 +104,17 @@ Date: 2026-09-05 (revised after adversarial review the same day). Sub-project A 
 - Deactivate/activate can leave a webhook unregistered. Mitigation: contract test immediately after each edit, with the browser-equivalent detection above.
 - Removing a swallower changes behaviour from "silent partial success" to "visible 500" for Smart Deals and transcription; that is the intent, and the client no longer retries those.
 - Migrating 50 call sites is wide but mechanical; the nine text-parsing sites are handled by hand. Hook tests plus the Playwright checks guard the deploy.
+
+
+## Execution notes (2026-09-06, after shipping)
+
+Facts that overturned parts of this spec during execution; the ledger records each as a numbered ruling.
+
+- **n8n 1.121.3 with `responseMode: responseNode` answers ANY unhandled node error with HTTP 200 and an empty body** (MySQL `connect ETIMEDOUT`, Code throws, LangChain errors) — never `500 {"message":"Error in workflow"}`. The `Respond 500` branches are therefore load-bearing for every workflow, including reads.
+- **A connection-level MySQL error is not routed to the error output**: n8n passes the failing node's INPUT item down output 0 (`continueOnFail` semantics in `workflow-execute.js`). Per-item SQL errors do reach output 1. `alwaysOutputData` adds a `{}` placeholder on output 0 even when the error went to output 1. Consequence: a DB outage produced `200 {"success":true,…}` from `add_oneoff_item` after wave 2. Fix: `scripts/n8n-wave.mjs db-guard` inserts an IF `DB ok?` before each success Respond (modes `mutation` = exactly `{success:true}`, `require` = named key, `strict`/`lenient` = not webhook-shaped and differs from the upstream item; `lenient` tolerates `{}`) routing to `Respond 503`; `alwaysOutputData` was dropped from INSERT/UPDATE/DELETE nodes (they emit `{success:true}` on their own). `smart_deals` answers 500 (first node's error branch) rather than 503 on an outage.
+- **LangChain nodes** (AI Agent, LLM chain) throw on an empty prompt and are not `error-branch` targets; each AI workflow got an IF bypass for the `skipAgent` path (where one exists), `onError: continueRegularOutput` on the AI node, and a throw in the following Code node when the item carries `error` or is empty.
+- **`transcribe_grocery_item` keeps its Whisper swallower** (`continueRegularOutput`) and the by-design `{success:false, error:'no_audio'}` 200; removing it would have produced an empty 200.
+- **Contract test safety**: a keyless request to a not-yet-authenticated POST endpoint executes the workflow (it launched two prep jobs and an LLM run during the first baseline); the script now sends keyless requests only for endpoints whose wave is enforced (`--wave` defaults to 0), and keyed probes only to endpoints whose empty body cannot reach a mutating node. The week display string is `For the week of January 4th to January 10th, 2026` (year once).
+- `useClipCoupons`/`useClipServerHealth` talk to the clip server and were intentionally left on raw `fetch` (§2a listed them in error).
+- `save_coupon_matches`'s Switch rules were malformed (rule 0 matched everything); fixed in wave 2. `submit_feedback` stores an empty sanitised `client_id` as SQL NULL.
+- The n8n public API accepts the full stored `settings` object (`callerPolicy`, `availableInMCP` included).

@@ -4,22 +4,34 @@ Living checklist for the post-review hardening program. Tick items as they ship;
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` dropped
 
-## A. Webhook exposure + response contract — `[~]` spec approved 2026-09-05
+## A. Webhook exposure + response contract — `[x]` shipped 2026-09-06
 
 Spec: `docs/superpowers/specs/2026-09-05-webhook-contract-design.md`. Handoff: `docs/superpowers/handoffs/2026-09-05-webhook-contract-handoff.md`.
 
-- [ ] `ApiError` + `apiJson` in `src/config/api.js`; POST/PUT/DELETE default to `retries: 0`
-- [ ] Migrate the 50 `apiFetch` sites (hand-review the 9 `response.text()` sites in ChatBot/MealCreator); add the missing `ok` check on `grocery_prep` in Home.js; delete dead `SessionManager.js`
-- [ ] `submit_feedback` idempotency: client `client_id` UUID + unique index on `app_feedback.client_id` + `INSERT IGNORE`
-- [ ] Scraper store-locations scripts send `X-API-Key` (new `GROCERY_APP_API_KEY` in scraper `.env`); `review-feedback` command sends it (parsed from app `.env`, never inlined)
-- [ ] `scripts/webhook-contract.mjs` with the three tiers (exercised / auth-probe with invalid body / skipped) and error-body leakage assertions; sends `Origin` header
-- [ ] Step zero fault injection (`docker pause hsa-mysql`) recorded before n8n edits
-- [ ] n8n wave 1: auth on the 16 read workflows (+ branch audit where a zero-row stop exists)
-- [ ] n8n wave 2: list/progress/feedback/session mutations + the 6 authenticated mutating workflows: auth, remove error swallowers, `Respond 500` on MySQL/Postgres/HTTP/Code error outputs, branch audit
-- [ ] n8n wave 3: `grocery_prep`, `smart_deals`, `smart_match_grocery`, `transcribe_grocery_item`, `categorize_heb_product`
-- [ ] Live contract test green; memory + ledger updated
+- [x] `ApiError` + `apiJson` in `src/config/api.js`; POST/PUT/DELETE default to `retries: 0`
+- [x] Migrate the 50 `apiFetch` sites (hand-review the 9 `response.text()` sites in ChatBot/MealCreator); add the missing `ok` check on `grocery_prep` in Home.js; delete dead `SessionManager.js`
+- [x] `submit_feedback` idempotency: client `client_id` UUID + unique index on `app_feedback.client_id` + `INSERT IGNORE`
+- [x] Scraper store-locations scripts send `X-API-Key` (new `GROCERY_APP_API_KEY` in scraper `.env`); `review-feedback` command sends it (parsed from app `.env`, never inlined)
+- [x] `scripts/webhook-contract.mjs` with the three tiers (exercised / auth-probe with invalid body / skipped) and error-body leakage assertions; sends `Origin` header
+- [x] Step zero fault injection (`docker pause hsa-mysql`) recorded before n8n edits
+- [x] n8n wave 1: auth on the 16 read workflows (+ branch audit where a zero-row stop exists)
+- [x] n8n wave 2: list/progress/feedback/session mutations + the 6 authenticated mutating workflows: auth, remove error swallowers, `Respond 500` on MySQL/Postgres/HTTP/Code error outputs, branch audit
+- [x] n8n wave 3: `grocery_prep`, `smart_deals`, `smart_match_grocery`, `transcribe_grocery_item`, `categorize_heb_product`
+- [x] Live contract test green; memory + ledger updated
 
-Why: 25 of 39 webhooks accept unauthenticated calls (17 mutating); MySQL outages have produced empty 200s read as success; AI POSTs are retried twice on 500.
+Why: 25 of 39 webhooks accepted unauthenticated calls (17 mutating); MySQL outages produced empty 200s read as success; AI POSTs were retried twice on 500.
+
+Shipped state (2026-09-06): all 39 webhooks require `X-API-Key`; `apiJson` live (bundle main.800ec3b3.js); 37 `DB ok?` guards → `Respond 503` on 31 workflows; `Respond 500` branches on every pre-response MySQL/Postgres/Code node; `app_feedback.client_id` + `INSERT IGNORE`; `save_coupon_matches` Switch fixed; `scripts/webhook-contract.mjs --wave 3` = 70 passed / 0 failed; `--fault` = 4/4 503. Ledger of every ruling: `.superpowers/sdd/2026-09-05-webhook-contract/progress.md` (git-ignored; rulings summarised in memory).
+
+Deferred from A (assign to E/F or fix opportunistically):
+- `smart_deals`: a 0-row `Fetch Clipped IDs` / `SQL Match Products to Coupons` stops the flow before the guard (empty 200 → client "empty response" toast); needs `alwaysOutputData` + `{}` tolerance in `Overlay Clipped Status` / `Build AI Prompt`.
+- `get_recipe_items`: the post-response `Transform for Weekly Selections → Execute a SQL query` branch is unguarded (silent failure after the response).
+- SELECT nodes with `alwaysOutputData` keep a bounded double-response race on per-item SQL errors (`Respond 500` vs `[]` 200).
+- `chat_history` (Postgres) is not exercised by `--fault`.
+- `meal_creator_propose`/`call_grocery_agent`: Postgres archive nodes run after the response and are unbranched.
+- `Lookup OneOff ID`/`Lookup Session` use `require` guards; a genuine zero-row lookup answers 503.
+- Client: `Coupons.js`, `Deals.js`, `RecipeInstructions.js`, `Home.js` still render raw `err.message` (use `userMessage()`); `useCategories` shim is dead code; `useWeekMeals` failure test exercises real backoff.
+
 
 ## B. Test infrastructure — `[ ]`
 
