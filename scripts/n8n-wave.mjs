@@ -399,7 +399,11 @@ function guardEntries() {
           if (after.settings?.errorWorkflow !== id) throw new Error('errorWorkflow not persisted');
           if (!after.active) throw new Error('workflow is inactive');
           changed++; console.log(`set errorWorkflow on ${wf.name} (${wf.id})`);
-        } catch (e) { failed++; console.error(`FAILED ${wf.name} (${wf.id}): ${e.message}`); }
+        } catch (e) {
+          failed++; console.error(`FAILED ${wf.name} (${wf.id}): ${e.message}`);
+          console.error('aborting after first failure — fix the cause and re-run; the command is idempotent');
+          break;
+        }
       }
       console.log(`error-workflow ${id}: changed=${changed} skipped=${skipped} failed=${failed} (backups in ${dir})`);
       if (failed) process.exit(1);
