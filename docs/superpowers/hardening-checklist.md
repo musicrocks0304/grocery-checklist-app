@@ -31,6 +31,7 @@ Deferred from A (assign to E/F or fix opportunistically):
 - `meal_creator_propose`/`call_grocery_agent`: Postgres archive nodes run after the response and are unbranched.
 - `Lookup OneOff ID`/`Lookup Session` use `require` guards; a genuine zero-row lookup answers 503.
 - Client: `Coupons.js`, `Deals.js`, `RecipeInstructions.js`, `Home.js` still render raw `err.message` (use `userMessage()`); `useCategories` shim is dead code; `useWeekMeals` failure test exercises real backoff.
+- Deferred from A/B, now observable via E: `api`-kind `client_errors` rows will surface the `smart_deals` 0-row stop, the SELECT double-response race, and the Deals `deal.id` failure the next time any of them fires in production — check `client_errors` before re-investigating those from scratch.
 
 
 ## B. Test infrastructure — `[x]` shipped 2026-09-06
@@ -46,13 +47,18 @@ Why: two regressions in the 2026-09-05 fix run were only caught by reviewers; ad
 
 Shipped state (2026-09-06): spec `docs/superpowers/specs/2026-09-06-test-infrastructure-design.md`, plan `docs/superpowers/plans/2026-09-06-test-infrastructure.md`, branch `feat/test-infrastructure` fast-forwarded into `main` at 9cc0322. Two production bugs fixed along the way: desktop feedback panel Submit button off-screen (`FeedbackPanel.js`), bottom-tab active indicator ~10px off centre (`BottomTabBar.js`). Deferred from B: Deals `deal.id` undefined on add (fixture-derived), spec extras not in the plan (Cook timer fast-forward, Cart build SSE), `#meals` routing assertion bound to the ChatBot greeting copy, popup windows escape the hermetic catch-all (no spec opens one), `App.test.js` one-off flake under CPU load, StrictMode double-POST smell on the dev server (hermetic suite uses a production build for that reason).
 
-## E. Client error telemetry — `[ ]`
+## E. Client error telemetry — `[x]` shipped 2026-09-06
 
-- [ ] `window.onerror` / `unhandledrejection` / React ErrorBoundary post to a new `client_errors` webhook (screen, message, stack hash, user agent, week); dedupe by stack hash per session; respects the A contract (key, JSON)
-- [ ] n8n Error Workflow configured on all active workflows (none has one today) → Slack (`SLACK_WEBHOOK_URL` exists in `C:\hsa-automation\.env`)
-- [ ] Home or feedback panel shows nothing new; this is silent instrumentation
+- [x] `window.onerror` / `unhandledrejection` / React ErrorBoundary post to a new `client_errors` webhook (screen, message, stack hash, user agent, week); dedupe by stack hash per session; respects the A contract (key, JSON)
+- [x] n8n Error Workflow configured on all active workflows (none has one today) → Slack (`SLACK_WEBHOOK_URL` exists in `C:\hsa-automation\.env`)
+- [x] Home or feedback panel shows nothing new; this is silent instrumentation
+- [ ] Fill `SLACK_WEBHOOK_URL` in `C:\hsa-automation\.env` (Incoming Webhook for #automation-alerts), run `cd /c/hsa-automation && docker compose up -d hsa-local`, then verify with a fresh throwaway post to `client_errors` (new `stack_hash`, message prefixed `[TEST]`) and delete that row; the live sentinel's one-time Slack line was already consumed while the URL was empty.
 
 Why: the only production signal is the `app_feedback` table; failures Christian never reports are invisible.
+
+Shipped state (2026-09-06): reporter `src/telemetry/errorReporter.js` catches `onerror`/`unhandledrejection`/React ErrorBoundary/`api` (from `apiJson`) kinds, deduped via `sessionStorage` by an FNV-1a hash of the stack, capped at 20/session and 5/minute, sent as a raw `keepalive` fetch; installed from `src/index.js`. `apiJson` only reports `network`/`empty`/`invalid_json`/`http>=500` codes (4xx client errors are not telemetry). Workflow "Client Error Telemetry" (id `CPnstolvOjSGOm3z`) at `POST /webhook/client_errors`: Validate → `Respond 400` on an invalid body → "Seen before?" → `INSERT IGNORE` → "Notify?" → Slack (first sight of a `stack_hash`, throttled to ≤10/h) → "DB ok?" (`Respond`) → `Respond`, with `Respond 500`/`Respond 503` on the A contract. Table `client_errors` (`docs/migrations/2026-09-06-client-errors.sql`) with a 90-day sweep node `Purge Old Client Errors` appended to Daily Maintenance (`NGvnsYXF8cpFTHA1`). Error Workflow "n8n Error → Slack" (id `NVS9ZMdzpWSdSBn2`, inactive by design — Error Trigger → Format → HTTP to `$env.SLACK_WEBHOOK_URL`) is set as `settings.errorWorkflow` on all 42 active workflows via the new `node scripts/n8n-wave.mjs error-workflow <id>` (also new: `create <file.json> [--inactive]`, `apply-id <id> <edit.mjs>`; definitions in `scripts/n8n-workflows/`). Contract entry `client_errors` added to `scripts/webhook-contract.mjs` (wave 3, probe). Hermetic coverage: `e2e/telemetry.spec.js` (78 hermetic tests now), Jest 257. Live coverage: `e2e/live/telemetry.live.spec.js` posts a permanent sentinel row (session `00000000-0000-4000-8000-0000000e2e01`, hash `e2e00001`) idempotently and asserts the 400 on an empty body.
+
+Deviation found during live verification: `SLACK_WEBHOOK_URL` in `C:\hsa-automation\.env` is empty today, so every Slack post from both the Client Error Telemetry workflow and the Error Workflow fails silently — rows are still stored (`notified=1`), but the Error Workflow's own execution ends in error at its Slack node. Verified on the probe: `Format` produced `[grocery-n8n] ZZ Error Probe (delete after use) failed at Boom: [TEST] error workflow probe — safe to ignore [line 1] — http://localhost:5679/workflow/…/executions/26491`. The follow-up item above is unticked until `SLACK_WEBHOOK_URL` is filled in and re-verified.
 
 ## G. Accessibility pass — `[ ]`
 
@@ -107,3 +113,13 @@ Why: UI-level patches hide inconsistent source data; walk order depends on it.
 - [ ] Rate limiting at Cloudflare for `submit_feedback`, `create_session`, `grocery_prep`, `transcribe_grocery_item` (explicit non-goal of A; free plan allows one rule)
 - [ ] Per-device auth token (real protection; deferred by user decision)
 - [ ] Invite session created only on "Copy link" (UI change; deferred)
+- [ ] Notify sub-workflow for the Respond 500/503 branches (scraper-originated failures are not reported by the client)
+- [ ] Slack gate keyed by stack hash re-alerts once per build for a surviving bug; switch to (message, screen) if noisy
+- [ ] Error Workflow cannot see workflows that end with an empty 200 after a Respond already fired
+- [ ] Slack `text` interpolates client-controlled `message` unescaped (strip `<`/`>` or code-span it)
+- [ ] Validate truncates before regex-matching `stack_hash`/`session_id`
+- [ ] The notify throttle is raceable (SELECT then INSERT)
+- [ ] `client_time` is stored UTC while `created_at` is server-local
+- [ ] An unhandled `apiJson` rejection is reported twice (kind `api` + kind `unhandledrejection`)
+- [ ] Error Workflow `Format` has no fallback for the trigger-failure payload shape
+- [ ] `error-workflow`/`listActive` unpaginated at 100

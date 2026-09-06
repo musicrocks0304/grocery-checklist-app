@@ -74,6 +74,11 @@ refuses to run without a key. Three specs, serial, minimal mutations:
 - **Feedback** — opens `#plan` (not `#home`, see below), opens and closes
   the panel from the header/sidebar trigger. Never clicks "Submit
   Feedback" — this suite must never create a real feedback row.
+- **Telemetry** — posts the permanent `[TEST] live smoke sentinel` row to
+  `client_errors` (session `00000000-0000-4000-8000-0000000e2e01`, hash
+  `e2e00001`); the second post proves `INSERT IGNORE` (`new:false`), an empty
+  body proves the 400. Never delete that row: the next run would re-notify
+  Slack. No browser is opened.
 
 No live spec ever visits Deals or Home: both fire a Smart Deals request
 on mount (Home does it in the background as part of its own dashboard
@@ -85,3 +90,4 @@ a real LLM run.
 DELETE FROM oneoff_items WHERE name='__e2e_live__';
 docker exec -it <mysql-container> mysql -u root -p hsa -e "DELETE FROM oneoff_items WHERE name='__e2e_live__';"
 ```
+The client_errors sentinel row is intentional residue — leave it.
