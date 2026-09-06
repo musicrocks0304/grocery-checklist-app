@@ -3,7 +3,7 @@ import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, Sparkles, Plus, X, Shoppin
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiFetch, apiJson } from '../config/api';
 
 // Generate or retrieve session ID — keyed by week so each grocery week gets fresh history
 const getSessionId = () => {
@@ -93,6 +93,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
+        // apiFetch on purpose: an empty body is the "no history yet" signal (see webhook-contract spec §2a).
         const response = await apiFetch(
           `${CHAT_HISTORY_URL}?sessionId=${encodeURIComponent(sessionId)}`,
           {
@@ -258,7 +259,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
     setAddingRecipeIds(prev => new Set(prev).add(String(recipeId)));
     try {
       const weekData = getWeekDates();
-      const response = await apiFetch(ENDPOINTS.addWeeklySelection, {
+      await apiJson(ENDPOINTS.addWeeklySelection, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -267,15 +268,11 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
           notes: '',
         }),
       });
-      if (response.ok) {
-        toast.success(`Added "${mealName}" to this week!`);
-        if (refreshMeals) await refreshMeals();
-        addDebugLog('Added meal to DB and refreshed:', mealName);
-      } else {
-        toast.error(`Failed to add "${mealName}".`);
-      }
+      toast.success(`Added "${mealName}" to this week!`);
+      if (refreshMeals) await refreshMeals();
+      addDebugLog('Added meal to DB and refreshed:', mealName);
     } catch (error) {
-      toast.error(`Failed to add "${mealName}". Check connection.`);
+      toast.error(`Failed to add "${mealName}". ${error.message}`);
       addDebugLog('Error adding meal:', error.message);
     } finally {
       setAddingRecipeIds(prev => {
@@ -299,7 +296,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
 
     try {
       const weekData = getWeekDates();
-      await apiFetch(ENDPOINTS.removeWeeklySelection, {
+      await apiJson(ENDPOINTS.removeWeeklySelection, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -756,7 +753,8 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
         },
         body: JSON.stringify(recipePayload),
         mode: 'cors',
-        signal: controller.signal
+        signal: controller.signal,
+        retries: 0,
       });
 
       clearTimeout(timeoutId);
@@ -1233,7 +1231,7 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
                         const weekData = getWeekDates();
                         try {
                           await Promise.all(toRemove.map(m =>
-                            apiFetch(ENDPOINTS.removeWeeklySelection, {
+                            apiJson(ENDPOINTS.removeWeeklySelection, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({

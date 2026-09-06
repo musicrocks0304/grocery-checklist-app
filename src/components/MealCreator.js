@@ -3,7 +3,7 @@ import { Send, Sparkles, ChefHat, ArrowLeft, ChevronDown, ChevronUp, Wifi, Clock
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiFetch, apiJson } from '../config/api';
 
 // Generate or retrieve a creator-specific session ID — keyed by week so each grocery week gets fresh history
 const getCreatorSessionId = () => {
@@ -61,7 +61,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     if (!mealToRemove) return;
     try {
       const weekData = getWeekDates();
-      await apiFetch(ENDPOINTS.removeWeeklySelection, {
+      await apiJson(ENDPOINTS.removeWeeklySelection, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -103,6 +103,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
+        // apiFetch on purpose: an empty body is the "no history yet" signal (see webhook-contract spec §2a).
         const response = await apiFetch(
           `${CHAT_HISTORY_URL}?sessionId=${encodeURIComponent(sessionId)}`,
           { headers: { Accept: 'application/json' }, signal: controller.signal }
@@ -387,25 +388,17 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     try {
       const payload = { recipe: fullRecipe };
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-      const response = await apiFetch(SAVE_WEBHOOK_URL, {
+      let data = await apiJson(SAVE_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(payload),
         mode: 'cors',
-        signal: controller.signal
+        timeout: 60000,
+        retries: 0,
       });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-
-      const responseText = await response.text();
-      addDebugLog('Save response:', responseText);
-
-      let data = JSON.parse(responseText);
       if (Array.isArray(data) && data.length > 0) data = data[0];
+
+      addDebugLog('Save response:', data);
 
       if (data.success) {
         setSaveResult(data);
@@ -433,7 +426,7 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     // subgraph is disconnected — a DB no-op that only polluted chat memory
     // and refreshed the meal count before anything was written (bug FB#39).
     try {
-      const response = await apiFetch(ENDPOINTS.addWeeklySelection, {
+      await apiJson(ENDPOINTS.addWeeklySelection, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -441,107 +434,96 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
           recipeId: Number(saveResult.recipeId),
           notes: '',
         }),
-        mode: 'cors'
+        mode: 'cors',
+        retries: 0,
       });
 
-      if (response.ok) {
-        toast.success(`Added to this week's meals!`);
-        addDebugLog('Added to weekly_selections:', saveResult.recipeId);
+      toast.success(`Added to this week's meals!`);
+      addDebugLog('Added to weekly_selections:', saveResult.recipeId);
 
-        // Now extract ingredients and insert them into WeeklyGroceryList
-        // so they appear under the "Meals" filter on the Grocery Selection screen
-        try {
-          addDebugLog('Extracting recipe ingredients for grocery list...');
-          const recipeId = String(saveResult.recipeId);
-          const ingredientPayload = {
-            recipe_ids: JSON.stringify([recipeId]),
-            session_id: sessionId,
-            timestamp: new Date().toISOString(),
-            meal_count: '1',
-            meals: JSON.stringify([{
+      // Now extract ingredients and insert them into WeeklyGroceryList
+      // so they appear under the "Meals" filter on the Grocery Selection screen
+      try {
+        addDebugLog('Extracting recipe ingredients for grocery list...');
+        const recipeId = String(saveResult.recipeId);
+        const ingredientPayload = {
+          recipe_ids: JSON.stringify([recipeId]),
+          session_id: sessionId,
+          timestamp: new Date().toISOString(),
+          meal_count: '1',
+          meals: JSON.stringify([{
+            id: recipeId,
+            name: saveResult.recipeName,
+            description: fullRecipe?.recipe_description || ''
+          }]),
+          week_start_date: weekData.startDate,
+          week_end_date: weekData.endDate,
+          week_display_range: weekData.displayRange
+        };
+
+        const ingredientData = await apiJson(ENDPOINTS.getRecipeItems, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(ingredientPayload),
+          mode: 'cors',
+          retries: 0,
+        });
+
+        addDebugLog('Got recipe ingredients:', ingredientData);
+
+        // Transform into the format /meal_ingredients expects
+        const rawIngredients = ingredientData[0]?.output?.ingredients || ingredientData?.output?.ingredients || [];
+        if (rawIngredients.length > 0) {
+          let itemId = 1;
+          const transformedIngredients = rawIngredients.map(ing => ({
+            ItemID: itemId++,
+            ItemName: ing.name,
+            Category: ing.grocery_category || ing.category || 'Pantry staples',
+            Store: 'HEB',
+            IsSelected: 1,
+            QuantitySelected: ing.purchaseQuantity || '1',
+            Unit: ing.purchaseUnit || null,
+          }));
+
+          const mealIngredientsPayload = {
+            ingredients: JSON.stringify(transformedIngredients),
+            totalItems: transformedIngredients.length.toString(),
+            selectedMeals: JSON.stringify([{
               id: recipeId,
               name: saveResult.recipeName,
               description: fullRecipe?.recipe_description || ''
             }]),
-            week_start_date: weekData.startDate,
-            week_end_date: weekData.endDate,
-            week_display_range: weekData.displayRange
+            weekStartDate: weekData.startDate,
+            weekEndDate: weekData.endDate,
+            weekDateRange: weekData.displayRange,
+            timestamp: new Date().toISOString(),
+            source: 'meal_creator_add_to_week'
           };
 
-          const ingredientResponse = await apiFetch(ENDPOINTS.getRecipeItems, {
+          await apiJson(ENDPOINTS.mealIngredients, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(ingredientPayload),
-            mode: 'cors'
+            body: JSON.stringify(mealIngredientsPayload),
+            mode: 'cors',
+            retries: 0,
           });
 
-          if (ingredientResponse.ok) {
-            const ingredientData = await ingredientResponse.json();
-            addDebugLog('Got recipe ingredients:', ingredientData);
-
-            // Transform into the format /meal_ingredients expects
-            const rawIngredients = ingredientData[0]?.output?.ingredients || ingredientData?.output?.ingredients || [];
-            if (rawIngredients.length > 0) {
-              let itemId = 1;
-              const transformedIngredients = rawIngredients.map(ing => ({
-                ItemID: itemId++,
-                ItemName: ing.name,
-                Category: ing.grocery_category || ing.category || 'Pantry staples',
-                Store: 'HEB',
-                IsSelected: 1,
-                QuantitySelected: ing.purchaseQuantity || '1',
-                Unit: ing.purchaseUnit || null,
-              }));
-
-              const mealIngredientsPayload = {
-                ingredients: JSON.stringify(transformedIngredients),
-                totalItems: transformedIngredients.length.toString(),
-                selectedMeals: JSON.stringify([{
-                  id: recipeId,
-                  name: saveResult.recipeName,
-                  description: fullRecipe?.recipe_description || ''
-                }]),
-                weekStartDate: weekData.startDate,
-                weekEndDate: weekData.endDate,
-                weekDateRange: weekData.displayRange,
-                timestamp: new Date().toISOString(),
-                source: 'meal_creator_add_to_week'
-              };
-
-              const insertResponse = await apiFetch(ENDPOINTS.mealIngredients, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(mealIngredientsPayload),
-                mode: 'cors'
-              });
-
-              if (insertResponse.ok) {
-                addDebugLog(`Inserted ${transformedIngredients.length} ingredients into grocery list`);
-              } else {
-                addDebugLog('Failed to insert meal ingredients:', insertResponse.status);
-              }
-            } else {
-              addDebugLog('No ingredients returned from recipe extraction');
-            }
-          } else {
-            addDebugLog('Failed to extract recipe ingredients:', ingredientResponse.status);
-          }
-        } catch (ingredientError) {
-          // Don't fail the whole operation if ingredient extraction fails
-          addDebugLog('Error extracting/inserting ingredients:', ingredientError.message);
-          console.error('Ingredient extraction error:', ingredientError);
+          addDebugLog(`Inserted ${transformedIngredients.length} ingredients into grocery list`);
+        } else {
+          addDebugLog('No ingredients returned from recipe extraction');
         }
-
-        // Refresh AFTER the full chain so the meals count/strip reflects
-        // the final DB state.
-        if (refreshMeals) await refreshMeals();
-      } else {
-        toast.error('Failed to add meal to this week. Please try again.');
-        addDebugLog('Webhook returned non-OK:', response.status);
+      } catch (ingredientError) {
+        // Don't fail the whole operation if ingredient extraction fails
+        addDebugLog('Error extracting/inserting ingredients:', ingredientError.message);
+        console.error('Ingredient extraction error:', ingredientError);
       }
+
+      // Refresh AFTER the full chain so the meals count/strip reflects
+      // the final DB state.
+      if (refreshMeals) await refreshMeals();
     } catch (error) {
       addDebugLog('Error adding to week:', error.message);
-      toast.error('Failed to add meal. Check your connection.');
+      toast.error(`Failed to add meal. ${error.message}`);
     } finally {
       setIsAddingToWeek(false);
     }
