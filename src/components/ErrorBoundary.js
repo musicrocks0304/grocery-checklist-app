@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, RotateCcw } from 'lucide-react';
+import { reportError } from '../telemetry/errorReporter';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -13,6 +14,7 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('[ErrorBoundary] Uncaught error:', error, errorInfo);
+    reportError({ kind: 'boundary', error });
   }
 
   handleReload = () => {

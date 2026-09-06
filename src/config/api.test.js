@@ -1,4 +1,7 @@
 import { apiFetch, ApiError, apiJson, showApiError, userMessage, ENDPOINTS } from './api';
+import { reportError } from '../telemetry/errorReporter';
+
+jest.mock('../telemetry/errorReporter', () => ({ reportError: jest.fn() }));
 
 // Save originals
 const originalFetch = global.fetch;
@@ -307,5 +310,49 @@ describe('ENDPOINTS — per-tap selection', () => {
 describe('ENDPOINTS — weekly meal ingredients', () => {
   test('fetchWeeklyMealIngredients endpoint is defined', () => {
     expect(ENDPOINTS.fetchWeeklyMealIngredients).toMatch(/\/fetch_weekly_meal_ingredients$/);
+  });
+});
+
+describe('apiJson → reportError', () => {
+  beforeEach(() => { reportError.mockClear(); });
+  const url = 'https://n8n.test/webhook/fetch_grocery_items?weekStartDate=2026-09-06';
+
+  test('http 500 after retries reports kind api with endpoint and status', async () => {
+    instant();
+    global.fetch = jest.fn().mockResolvedValue(res(500, '{"success":false,"error":"Workflow error"}'));
+    await expect(apiJson(url)).rejects.toMatchObject({ code: 'http', status: 500 });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError.mock.calls[0][0]).toMatchObject({ kind: 'api', endpoint: 'fetch_grocery_items', status: 500 });
+    expect(reportError.mock.calls[0][0].error.message).toBe('Workflow error');
+  });
+  test('503 reports; 403, 404 and a timeout do not', async () => {
+    instant();
+    global.fetch = jest.fn().mockResolvedValue(res(503, '{"success":false,"error":"Database unavailable"}'));
+    await expect(apiJson(url, { method: 'POST' })).rejects.toMatchObject({ code: 'http', status: 503 });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    reportError.mockClear();
+    global.fetch = jest.fn().mockResolvedValue(res(403, 'Forbidden'));
+    await expect(apiJson(url)).rejects.toMatchObject({ code: 'forbidden' });
+    global.fetch = jest.fn().mockResolvedValue(res(404, '{"error":"nope"}'));
+    await expect(apiJson(url)).rejects.toMatchObject({ code: 'http', status: 404 });
+    global.fetch = jest.fn().mockImplementation((_url, opts) => new Promise((_resolve, reject) => {
+      opts.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    await expect(apiJson(url, { timeout: 20, retries: 0 })).rejects.toMatchObject({ code: 'timeout' });
+    expect(reportError).not.toHaveBeenCalled();
+  });
+  test('empty, invalid_json and network report', async () => {
+    instant();
+    global.fetch = jest.fn().mockResolvedValue(res(200, '   '));
+    await expect(apiJson(url, { retries: 0 })).rejects.toMatchObject({ code: 'empty' });
+    global.fetch = jest.fn().mockResolvedValue(res(200, '<html>'));
+    await expect(apiJson(url, { retries: 0 })).rejects.toMatchObject({ code: 'invalid_json' });
+    global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(apiJson(url, { retries: 0 })).rejects.toMatchObject({ code: 'network' });
+    expect(reportError.mock.calls.map((c) => c[0].error.code)).toEqual(['empty', 'invalid_json', 'network']);
+    expect(reportError.mock.calls.every((c) => c[0].endpoint === 'fetch_grocery_items')).toBe(true);
+  });
+  test('ENDPOINTS.clientErrors is defined', () => {
+    expect(ENDPOINTS.clientErrors).toMatch(/\/client_errors$/);
   });
 });

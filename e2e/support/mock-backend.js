@@ -53,6 +53,8 @@ class MockBackend {
         return { code: 'E2E1', week_start_date: WEEK.startDate, expires_at: '2026-09-09 14:00:00' };
       case 'add_weekly_selection': case 'remove_weekly_selection':
         return readFixture('n8n/fetch_weekly_meals.json') || [];
+      case 'client_errors':
+        return { success: true, new: true };
       default:
         return undefined;
     }

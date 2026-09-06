@@ -1,4 +1,5 @@
 import toast from 'react-hot-toast';
+import { reportError } from '../telemetry/errorReporter';
 
 /**
  * Centralized API configuration.
@@ -114,6 +115,9 @@ export const ENDPOINTS = {
   submitFeedback: `${API_BASE_URL}/submit_feedback`,
   fetchFeedback: `${API_BASE_URL}/fetch_feedback`,
 
+  // Client error telemetry (hardening sub-project E)
+  clientErrors: `${API_BASE_URL}/client_errors`,
+
   // Grocery Prep
   groceryPrep: `${API_BASE_URL}/grocery_prep`,
   groceryPrepStatus: `${API_BASE_URL}/grocery_prep_status`,
@@ -224,6 +228,24 @@ export class ApiError extends Error {
 const MUTATING_METHODS = ['POST', 'PUT', 'DELETE'];
 const FORBIDDEN_MESSAGE = "This app version can't reach the server. Reload and try again.";
 
+const REPORTED_CODES = ['network', 'empty', 'invalid_json'];
+/** Last path segment of a URL, query stripped, ≤ 80 chars — the only URL fact telemetry may carry. */
+function endpointOf(url) {
+  try {
+    const p = new URL(String(url), window.location.origin).pathname;
+    return p.slice(p.lastIndexOf('/') + 1).slice(0, 80);
+  } catch {
+    return String(url).split('?')[0].split('/').pop().slice(0, 80);
+  }
+}
+/** Throw an ApiError, first telling telemetry about server faults (never forbidden/timeout/4xx). */
+function raise(url, err) {
+  if (REPORTED_CODES.includes(err.code) || (err.code === 'http' && err.status >= 500)) {
+    reportError({ kind: 'api', error: err, endpoint: endpointOf(url), status: err.status || 0 });
+  }
+  throw err;
+}
+
 /**
  * apiFetch + JSON contract. Returns the parsed body on 2xx; throws ApiError
  * otherwise. Mutations (POST/PUT/DELETE) default to retries: 0 — retrying a
@@ -243,7 +265,7 @@ export async function apiJson(url, options = {}) {
       throw new ApiError('timeout', 'Request timed out');
     }
     if (err instanceof TypeError || err instanceof DOMException || err?.name === 'TypeError') {
-      throw new ApiError('network', 'Network error — check your connection');
+      raise(url, new ApiError('network', 'Network error — check your connection'));
     }
     throw err;
   }
@@ -252,7 +274,7 @@ export async function apiJson(url, options = {}) {
   try {
     text = await response.text();
   } catch {
-    throw new ApiError('network', 'Network error — check your connection', { status: response.status });
+    raise(url, new ApiError('network', 'Network error — check your connection', { status: response.status }));
   }
   const trimmed = text.trim();
   let body = null;
@@ -269,13 +291,13 @@ export async function apiJson(url, options = {}) {
     const message = typeof field === 'string' && field.trim()
       ? field
       : `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
-    throw new ApiError('http', message, { status: response.status, body: parsed ? body : text });
+    raise(url, new ApiError('http', message, { status: response.status, body: parsed ? body : text }));
   }
   if (trimmed === '') {
-    throw new ApiError('empty', 'The server sent an empty response', { status: response.status });
+    raise(url, new ApiError('empty', 'The server sent an empty response', { status: response.status }));
   }
   if (!parsed) {
-    throw new ApiError('invalid_json', 'The server sent an unreadable response', { status: response.status, body: text });
+    raise(url, new ApiError('invalid_json', 'The server sent an unreadable response', { status: response.status, body: text }));
   }
   return body;
 }
