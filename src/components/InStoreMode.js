@@ -792,7 +792,7 @@ const ReorderDrawer = ({ sections, onMoveUp, onClose }) => (
   </div>
 );
 
-const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockActive }) => {
+export const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockActive }) => {
   const menuRef = useRef(null);
   useEffect(() => {
     const handle = (e) => {
@@ -857,7 +857,7 @@ const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockActive }) 
 // Cancel / X / backdrop must leave no local trace, even though the
 // short-lived server-side row from create_session already exists (harmless,
 // 4h TTL) by the time this decision is made.
-const InviteModal = ({ weekStartDate, onClose }) => {
+export const InviteModal = ({ weekStartDate, onClose }) => {
   const [code, setCode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -995,7 +995,7 @@ const InviteModal = ({ weekStartDate, onClose }) => {
 // server-side join counter; out of scope for this pass), so it reads "Invite
 // link active" rather than claiming a partner is present; the joining device
 // knows a host list exists, so it reads "Shopping with partner".
-const PartnerBadge = ({ role, expiresAt }) => {
+export const PartnerBadge = ({ role, expiresAt }) => {
   const hoursLeft = expiresAt
     ? Math.max(0, Math.ceil((parseExpiryMs(expiresAt) - Date.now()) / 3_600_000))
     : null;
