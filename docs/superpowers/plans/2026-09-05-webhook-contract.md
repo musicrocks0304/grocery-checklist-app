@@ -1535,7 +1535,7 @@ Executions 25795 (`Check Item`) and 25793/25794 (two read workflows a real clien
 
 Baseline (Task 8, third run): `29 passed, 10 failed, 45 info`; empty-200 reads `chat_history`, `grab_instructions_fast`; empty-200 probes on every endpoint whose first Code node throws on `{}` (n8n answers any unhandled node error with an empty 200).
 
-Deploy (Task 10 Step 3): `main` fast-forwarded to 47a997f and pushed; Netlify bundle `[exited` live.
+Deploy (Task 10 Step 3): `main` fast-forwarded to 47a997f and pushed; Netlify bundle `main.800ec3b3.js` live.
 
 ## Wave results (filled in during Tasks 11–13)
 
