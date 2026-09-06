@@ -5,7 +5,7 @@ import {
   CheckCircle2, XCircle, SkipForward, ArrowRight, Star,
   RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiJson } from '../config/api';
 import { getWeekDateRange } from '../utils/weekDates';
 import toast from 'react-hot-toast';
 
@@ -818,23 +818,21 @@ const HebCart = ({ onNavigate }) => {
         }));
 
         try {
-          const aiRes = await apiFetch(ENDPOINTS.hebSmartMatch, {
+          const aiData = await apiJson(ENDPOINTS.hebSmartMatch, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: batchItems, frequentProducts: batchFrequentProducts }),
+            timeout: 120000,
+            retries: 0,
           });
+          const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
+          const count = await processAiMatches(resultObj, frequentProductIds, frequentProducts, newMatches);
+          phase1Matched += count;
+          setMatches(prev => ({ ...prev, ...newMatches }));
 
-          if (aiRes.ok) {
-            const aiData = await aiRes.json();
-            const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
-            const count = await processAiMatches(resultObj, frequentProductIds, frequentProducts, newMatches);
-            phase1Matched += count;
-            setMatches(prev => ({ ...prev, ...newMatches }));
-
-            setMatchProgress(
-              `Phase 1: Matched ${phase1Matched} of ${needsMatch.length} from purchase history...`
-            );
-          }
+          setMatchProgress(
+            `Phase 1: Matched ${phase1Matched} of ${needsMatch.length} from purchase history...`
+          );
         } catch (err) {
           console.error(`[heb-cart] Phase 1 AI match error (batch ${batchIdx + 1}):`, err.message);
         }
@@ -920,19 +918,17 @@ const HebCart = ({ onNavigate }) => {
           );
 
           try {
-            const aiRes = await apiFetch(ENDPOINTS.hebSmartMatch, {
+            const aiData = await apiJson(ENDPOINTS.hebSmartMatch, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ items: batchItems, frequentProducts: batchFrequentProducts }),
+              timeout: 120000,
+              retries: 0,
             });
-
-            if (aiRes.ok) {
-              const aiData = await aiRes.json();
-              const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
-              const allValidIds = new Set([...searchProductIds, ...frequentProductIds]);
-              await processAiMatches(resultObj, allValidIds, frequentProducts, newMatches);
-              setMatches(prev => ({ ...prev, ...newMatches }));
-            }
+            const resultObj = Array.isArray(aiData) ? aiData[0] : aiData;
+            const allValidIds = new Set([...searchProductIds, ...frequentProductIds]);
+            await processAiMatches(resultObj, allValidIds, frequentProducts, newMatches);
+            setMatches(prev => ({ ...prev, ...newMatches }));
           } catch (err) {
             console.error(`[heb-cart] Phase 2 AI match error:`, err.message);
           }

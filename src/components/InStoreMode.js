@@ -28,7 +28,7 @@ import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/ani
 import { EmptyState } from "./ui";
 import confetti from "canvas-confetti";
 import { getWeekDates, getWeekDatesFor } from "../utils/weekDates";
-import { ENDPOINTS, apiFetch } from "../config/api";
+import { ENDPOINTS, apiJson } from "../config/api";
 import { DEFAULT_CATEGORY } from "../constants/categories";
 import { useCategories } from "../hooks/useCategories";
 import { useFeedback } from "../contexts/FeedbackContext";
@@ -248,25 +248,21 @@ export const useHoldToTalk = ({ endpoint, onResult, onError }) => {
 
     let resJson = null;
     try {
-      const res = await fetch(endpoint, {
+      resJson = await apiJson(endpoint, {
         method: "POST",
         body: form,
         signal: controller.signal,
+        timeout: FETCH_TIMEOUT_MS,
+        retries: 0,
       });
       clearTimeout(timeoutId);
-      if (!res.ok) {
-        setState("idle");
-        if (onErrorRef.current) onErrorRef.current("server");
-        return;
-      }
-      resJson = await res.json();
     } catch (err) {
       clearTimeout(timeoutId);
       setState("idle");
-      // Both the abort timeout and a network failure surface as "network"
-      // to the user — they can't tell the difference and the recovery is
-      // the same (try again).
-      if (onErrorRef.current) onErrorRef.current("network");
+      // Timeout, caller abort and network failures all mean "try again";
+      // anything the server answered (403/5xx/empty/invalid JSON) is "server".
+      const isNetwork = err?.name === "AbortError" || err?.code === "network" || err?.code === "timeout";
+      if (onErrorRef.current) onErrorRef.current(isNetwork ? "network" : "server");
       return;
     }
 
@@ -872,14 +868,13 @@ const InviteModal = ({ weekStartDate, onClose }) => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiFetch(ENDPOINTS.createSession, {
+        const data = await apiJson(ENDPOINTS.createSession, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(weekStartDate ? { week_start_date: weekStartDate } : {}),
           timeout: 10000,
+          retries: 0,
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
         if (!cancelled) {
           sessionDataRef.current = {
             code: data.code,
@@ -1169,16 +1164,15 @@ const InStoreMode = ({ inStoreData, onExit }) => {
 
   const sendProgressOp = useCallback((itemId, desired, weekStart, token) => {
     const endpoint = desired ? ENDPOINTS.shoppingProgressCheck : ENDPOINTS.shoppingProgressUncheck;
-    apiFetch(endpoint, {
+    apiJson(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ week_start_date: weekStart, item_id: itemId }),
     })
-      .then((res) => {
+      .then(() => {
         const entry = pendingOpsRef.current.get(itemId);
         if (!entry || entry.token !== token) return; // superseded by a newer toggle
-        if (res.ok) pendingOpsRef.current.delete(itemId);
-        else entry.failed = true;
+        pendingOpsRef.current.delete(itemId);
       })
       .catch(() => {
         const entry = pendingOpsRef.current.get(itemId);
@@ -1266,14 +1260,12 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         url.searchParams.append("weekEndDate", weekData.endDate);
         url.searchParams.append("weekDateRange", weekData.displayRange);
         url.searchParams.append("timestamp", new Date().toISOString());
-        const response = await apiFetch(url.toString(), {
+        const data = await apiJson(url.toString(), {
           method: "GET",
           mode: "cors",
           headers: { Accept: "application/json" },
         });
-        if (cancelled || !response.ok) return;
-        const data = await response.json();
-        if (!Array.isArray(data)) return;
+        if (cancelled || !Array.isArray(data)) return;
         const selectedItems = data
           .filter((item) => item.IsSelected === 1)
           .map((item) => ({ ...item, quantity: item.QuantitySelected || 1 }));
@@ -1342,16 +1334,13 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         // Backend JOINs against WeeklyGroceryList on WeekDateRange so stale
         // rows (items no longer on the list) are filtered out server-side.
         url.searchParams.append("week_date_range", weekRange);
-        const response = await apiFetch(url.toString(), {
+        const data = await apiJson(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
         });
-        if (response.ok) {
-          const data = await response.json();
-          const checkedIds = Array.isArray(data) ? data.map((row) => String(row.item_id)) : [];
-          setCheckedItems(new Set(checkedIds));
-          return;
-        }
+        const checkedIds = Array.isArray(data) ? data.map((row) => String(row.item_id)) : [];
+        setCheckedItems(new Set(checkedIds));
+        return;
       } catch {
         /* fall through to localStorage fallback */
       }
@@ -1380,23 +1369,20 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         const url = `${ENDPOINTS.hebWeeklyItems}?weekDateRange=${encodeURIComponent(
           shoppingList.weekDateRange
         )}`;
-        const response = await apiFetch(url, { timeout: 10000 });
-        if (response.ok) {
-          const data = await response.json();
-          const items = data.items || data || [];
-          const lookup = {};
-          (Array.isArray(items) ? items : []).forEach((item) => {
-            if (item.couponDiscount && item.ItemName) {
-              lookup[item.ItemName.toLowerCase()] = {
-                couponDiscount: item.couponDiscount,
-                couponSavings: item.couponSavings,
-                couponClipped: item.couponClipped,
-                couponProductName: item.couponProductName,
-              };
-            }
-          });
-          setCouponLookup(lookup);
-        }
+        const data = await apiJson(url, { timeout: 10000 });
+        const items = data.items || data || [];
+        const lookup = {};
+        (Array.isArray(items) ? items : []).forEach((item) => {
+          if (item.couponDiscount && item.ItemName) {
+            lookup[item.ItemName.toLowerCase()] = {
+              couponDiscount: item.couponDiscount,
+              couponSavings: item.couponSavings,
+              couponClipped: item.couponClipped,
+              couponProductName: item.couponProductName,
+            };
+          }
+        });
+        setCouponLookup(lookup);
       } catch {
         setCouponLoadFailed(true);
       }
@@ -1647,16 +1633,14 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         const url = new URL(ENDPOINTS.shoppingProgress);
         url.searchParams.append("week_start_date", weekStart);
         if (weekRange) url.searchParams.append("week_date_range", weekRange);
-        const res = await apiFetch(url.toString(), {
+        const data = await apiJson(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
           timeout: 8000,
           retries: 0,
         });
-        if (cancelled || !res.ok) return;
-        const data = await res.json();
-        const remoteIds = Array.isArray(data) ? data.map((r) => String(r.item_id)) : [];
         if (cancelled) return;
+        const remoteIds = Array.isArray(data) ? data.map((r) => String(r.item_id)) : [];
         // Re-check mutation timestamp in case user toggled during the fetch.
         if (Date.now() - lastLocalMutationRef.current < 2000) return;
         setCheckedItems((prev) => {

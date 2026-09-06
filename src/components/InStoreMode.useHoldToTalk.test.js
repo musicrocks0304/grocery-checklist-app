@@ -69,6 +69,8 @@ const setupMocks = ({ permission = 'prompt', getUserMediaImpl, fetchImpl } = {})
     fetchImpl ||
       (async () => ({
         ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ success: true, transcript: 'milk' }),
         json: async () => ({ success: true, transcript: 'milk' }),
       }))
   );
@@ -93,40 +95,50 @@ afterEach(() => {
 // --- Tests ---
 
 describe('useHoldToTalk — happy path', () => {
-  test('press, hold past MIN_PRESS_MS, release → fetch fires and onResult is called with transcript', async () => {
-    setupMocks({
-      fetchImpl: async () => ({
-        ok: true,
-        json: async () => ({ success: true, transcript: 'milk' }),
-      }),
+  describe('with API key header assertion', () => {
+    beforeEach(() => { process.env.REACT_APP_API_KEY = 'test-key'; });
+    afterEach(() => { delete process.env.REACT_APP_API_KEY; });
+
+    test('press, hold past MIN_PRESS_MS, release → fetch fires and onResult is called with transcript', async () => {
+      setupMocks({
+        fetchImpl: async () => ({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ success: true, transcript: 'milk' }),
+          json: async () => ({ success: true, transcript: 'milk' }),
+        }),
+      });
+      const onResult = jest.fn();
+      const { result } = renderHook(() =>
+        useHoldToTalk({ endpoint: ENDPOINT, onResult, onError: jest.fn() })
+      );
+
+      await act(async () => { await result.current.start({}); });
+      expect(result.current.state).toBe('recording');
+
+      // Simulate >250ms held by reaching into the test API. Since MIN_PRESS_MS
+      // is gated on Date.now(), we use real time + a small wait.
+      await new Promise((r) => setTimeout(r, 270));
+
+      await act(async () => { await result.current.stop(); });
+
+      await waitFor(() => expect(onResult).toHaveBeenCalledWith('milk'));
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [url, init] = global.fetch.mock.calls[0];
+      expect(url).toBe(ENDPOINT);
+      expect(init.method).toBe('POST');
+      expect(init.headers['X-API-Key']).toBe('test-key');
+      expect(init.body).toBeInstanceOf(FormData);
+      expect(result.current.state).toBe('idle');
     });
-    const onResult = jest.fn();
-    const { result } = renderHook(() =>
-      useHoldToTalk({ endpoint: ENDPOINT, onResult, onError: jest.fn() })
-    );
-
-    await act(async () => { await result.current.start({}); });
-    expect(result.current.state).toBe('recording');
-
-    // Simulate >250ms held by reaching into the test API. Since MIN_PRESS_MS
-    // is gated on Date.now(), we use real time + a small wait.
-    await new Promise((r) => setTimeout(r, 270));
-
-    await act(async () => { await result.current.stop(); });
-
-    await waitFor(() => expect(onResult).toHaveBeenCalledWith('milk'));
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const [url, init] = global.fetch.mock.calls[0];
-    expect(url).toBe(ENDPOINT);
-    expect(init.method).toBe('POST');
-    expect(init.body).toBeInstanceOf(FormData);
-    expect(result.current.state).toBe('idle');
   });
 
   test('empty transcript → onResult called with "" (caller decides UX)', async () => {
     setupMocks({
       fetchImpl: async () => ({
         ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ success: true, transcript: '' }),
         json: async () => ({ success: true, transcript: '' }),
       }),
     });
@@ -210,6 +222,8 @@ describe('useHoldToTalk — MAX_RECORD_MS auto-stop', () => {
     setupMocks({
       fetchImpl: async () => ({
         ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ success: true, transcript: 'milk' }),
         json: async () => ({ success: true, transcript: 'milk' }),
       }),
     });
@@ -316,6 +330,8 @@ describe('useHoldToTalk — failure modes', () => {
     setupMocks({
       fetchImpl: async () => ({
         ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ success: false, error: 'whisper_error' }),
         json: async () => ({ success: false, error: 'whisper_error' }),
       }),
     });
@@ -332,7 +348,7 @@ describe('useHoldToTalk — failure modes', () => {
 
   test('server returns HTTP 5xx → onError("server")', async () => {
     setupMocks({
-      fetchImpl: async () => ({ ok: false, status: 500, json: async () => ({}) }),
+      fetchImpl: async () => ({ ok: false, status: 500, text: async () => '', json: async () => ({}) }),
     });
     const onError = jest.fn();
     const { result } = renderHook(() =>
