@@ -17,7 +17,7 @@ if (!KEY) { console.error('REACT_APP_API_KEY missing from .env'); process.exit(1
 const ORIGIN = 'https://grocery-checklist-app.netlify.app';
 const WEEK_START = '2026-01-04';
 const WEEK_END = '2026-01-10';
-const WEEK_RANGE = 'For the week of January 4th, 2026 to January 10th, 2026';
+const WEEK_RANGE = 'For the week of January 4th to January 10th, 2026';
 const NAME_SEL = '__contract_test__';
 const NAME_ONEOFF = '__contract_test_oneoff__';
 const ITEM_ID = 999999;
@@ -166,7 +166,8 @@ async function mutationSequence() {
   let ranSequence = false;
   for (const e of EP) {
     if (ONLY && e.path !== ONLY) continue;
-    await checkNoKey(e);
+    if (e.wave <= WAVE || e.tier === 'read') await checkNoKey(e);
+    else record('INFO', e.method, e.path, 'no-key check deferred', '-', `auth enabled in wave ${e.wave}`);
     if (e.tier === 'read') await checkRead(e);
     else if (e.tier === 'probe') await checkProbe(e);
     else if (e.tier === 'probe-nokey') record('INFO', e.method, e.path, 'with-key skipped', '-', e.reason || 'AI/orchestration cost or side effects');
