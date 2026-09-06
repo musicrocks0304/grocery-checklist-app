@@ -125,7 +125,7 @@ const EP = [
   { path: 'meal_creator_build', method: 'POST', wave: 1, tier: 'probe-nokey' },
   { path: 'add_grocery_items', method: 'POST', wave: 1, tier: 'probe-nokey', reason: '"Insert rows in a table" runs on an empty body' },
   ...['add_oneoff_item', 'selection_check', 'shopping_progress_check', 'shopping_progress_uncheck', 'selection_uncheck', 'add_weekly_selection', 'remove_weekly_selection', 'remove_weekly_item', 'create_session'].map((path) => ({ path, method: 'POST', wave: 2, tier: 'mutate' })),
-  { path: 'save_coupon_matches', method: 'POST', wave: 2, tier: 'probe' },
+  { path: 'save_coupon_matches', method: 'POST', wave: 2, tier: 'probe', softBeforeWave: true },
   { path: 'update_feedback_status', method: 'POST', wave: 2, tier: 'probe-nokey', reason: '"Update Feedback" runs on an empty body' },
   { path: 'submit_feedback', method: 'POST', wave: 2, tier: 'probe-nokey', reason: 'writes the bug list; no delete endpoint' },
   { path: 'create_grocery_list', method: 'POST', wave: 2, tier: 'probe-nokey', reason: '"Delete Old Staples" runs on an empty body' },
