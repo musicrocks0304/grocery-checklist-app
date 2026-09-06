@@ -32,6 +32,40 @@ rewrites live dates itself.
 `e2e/fixtures/n8n/smart_deals.json`, `e2e/fixtures/clip/health.*.json`,
 `e2e/fixtures/clip/session-status.*.json`.
 
+## Live specs (`e2e/live/`)
+Real n8n + clip backend, real API key, real data for the current week — no
+mocking. Run:
+```
+npm run test:e2e:live
+```
+or a single spec:
+```
+npx playwright test --project live e2e/live/plan.live.spec.js
+npx playwright test --project live e2e/live/shop.live.spec.js
+npx playwright test --project live e2e/live/feedback.live.spec.js
+```
+Requires `REACT_APP_API_KEY` (and optionally `REACT_APP_API_BASE_URL`,
+`REACT_APP_CLIP_SERVER_URL`) in repo-root `.env`; `e2e/support/live-env.js`
+refuses to run without a key. Three specs, serial, minimal mutations:
+- **Plan** — adds one-off item `__e2e_live__`, confirms it renders, removes
+  it via the UI, confirms it's gone after reload. The UI removal only takes
+  it off this week's list — the `oneoff_items` catalog row survives, so SQL
+  cleanup is required (see below).
+- **Shop** — picks a selected-but-unchecked item for the real current week
+  (derived from the app's own `shopping_progress` request, never computed
+  locally), checks it off in the UI, confirms the count drops and persists
+  across reload, then restores state by POSTing
+  `shopping_progress_uncheck` directly (via `X-API-Key` + the Netlify
+  `Origin`) in a `finally` block so the mutation is undone even if an
+  assertion fails. Skips if nothing is left to check this week, or if every
+  selected item is already checked.
+- **Feedback** — opens and closes the panel from the header/sidebar
+  trigger. Never clicks "Submit Feedback" — this suite must never create a
+  real feedback row.
+
+Deals is never visited by any live spec: a stale Smart Deals cache there
+triggers a real LLM run.
+
 ## Live-project residue
 ```
 DELETE FROM oneoff_items WHERE name='__e2e_live__';
