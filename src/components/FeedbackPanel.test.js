@@ -2,6 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppShell from './AppShell';
+import Sidebar from './Sidebar';
+import { ModeMenu } from './InStoreMode';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { HeaderProvider } from '../contexts/HeaderContext';
 import { FeedbackProvider, useFeedback } from '../contexts/FeedbackContext';
@@ -123,5 +125,24 @@ describe('FeedbackPanel + FeedbackProvider', () => {
     submit();
     await waitFor(() => expect(apiJson).toHaveBeenCalledTimes(3));
     expect(JSON.parse(apiJson.mock.calls[2][1].body).client_id).not.toBe(first.client_id);
+  });
+
+  test('Sidebar "Send feedback" link opens the panel', async () => {
+    render(
+      <ThemeProvider>
+        <FeedbackProvider currentScreen="home">
+          <Sidebar currentScreen="home" setCurrentScreen={() => {}} navigation={[]} />
+        </FeedbackProvider>
+      </ThemeProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    expect(await screen.findByText('Send Feedback')).toBeInTheDocument();
+  });
+
+  test('Shop menu "Send feedback" calls the handler', () => {
+    const onFeedback = jest.fn();
+    render(<ModeMenu onReorder={() => {}} onInvite={() => {}} onFeedback={onFeedback} onClose={() => {}} wakeLockActive={false} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    expect(onFeedback).toHaveBeenCalled();
   });
 });

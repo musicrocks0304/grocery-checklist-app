@@ -23,10 +23,5 @@ describe('ItemRow', () => {
     expect(onToggle).toHaveBeenCalledWith(42);
   });
 
-  test('renders a divider when divider prop is true', () => {
-    const { container } = render(
-      <ItemRow item={item} checked={false} onToggle={() => {}} divider />
-    );
-    expect(container.querySelector('.border-b')).toBeInTheDocument();
-  });
+  // divider is presentational; covered by e2e screenshots
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
 // Stub the heavier screens so the hash-routing tests assert on routing only
@@ -43,13 +43,21 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-test('renders without crashing', () => {
+test('renders without crashing', async () => {
   render(<App />);
-  expect(document.getElementById('root') || document.body).toBeTruthy();
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining('fetch_weekly_meals'),
+    expect.anything()
+  ));
+  expect(screen.getByRole('main')).toBeInTheDocument();
 });
 
-test('defaults to home screen', () => {
+test('defaults to home screen', async () => {
   render(<App />);
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining('fetch_weekly_meals'),
+    expect.anything()
+  ));
   expect(window.location.hash === '' || window.location.hash === '#home').toBe(true);
 });
 
