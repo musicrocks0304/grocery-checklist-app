@@ -24,7 +24,7 @@
     "eject": "react-scripts eject",
     "lint": "eslint src --max-warnings=0",
     "test:e2e": "playwright test --project mobile --project desktop",
-    "test:e2e:live": "playwright test --project live",
+    "test:e2e:live": "playwright test --project=live",
     "test:e2e:record": "node e2e/support/record-fixtures.mjs",
     "test:e2e:report": "playwright show-report"
   },

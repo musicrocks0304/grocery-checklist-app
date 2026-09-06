@@ -41,8 +41,8 @@ rewrites live dates itself.
 ## Live specs (`e2e/live/`)
 Real n8n + clip backend, real API key, real data for the current week — no
 mocking. `npm run test:e2e:live` is the **only** way the live project runs —
-`--project` must be `=live` (not a separate ` live` argument, which
-Playwright would otherwise swallow as a second, non-existent project) and a
+use the `--project=live` form (the config also accepts `--project live`,
+but the `=` form keeps `npm run test:e2e:live -- <spec>` working) and a
 bare `npx playwright test` never collects it: `playwright.config.js` derives
 the entire project set from the same flag that selects the live webServer,
 so the hermetic and live suites can never be collected together. Run:
