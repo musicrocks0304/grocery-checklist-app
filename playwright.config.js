@@ -22,16 +22,29 @@ const argvIsLive = argv.some((a, i) => a === '--project=live' || (a === '--proje
 // forks anything) survives into the worker's inherited env, so both
 // processes agree.
 if (argvIsLive) process.env.PW_LIVE_PROJECT = '1';
-const isLive = argvIsLive || process.env.PW_LIVE_PROJECT === '1';
+// The env-var fallback is honoured only inside a Playwright worker process
+// (guarded by TEST_WORKER_INDEX, which Playwright's WorkerMain constructor
+// sets before this file is ever re-required for that worker — see
+// node_modules/playwright/lib/worker/workerProcessEntry.js). Without that
+// guard, a shell that happens to export PW_LIVE_PROJECT=1 (e.g. left over
+// from a previous `--project=live` run) would make even a bare
+// `npx playwright test` in the CLI process compute isLive === true and
+// drive the production backend. Inside a worker the guard is a no-op: the
+// worker always carries TEST_WORKER_INDEX, so PW_LIVE_PROJECT set by the
+// stamp above (or inherited from the parent shell together with an
+// explicit `--project=live`) still reaches it.
+const isLive = argvIsLive || (process.env.PW_LIVE_PROJECT === '1' && process.env.TEST_WORKER_INDEX !== undefined);
 const liveEnv = isLive ? require('./e2e/support/live-env.js').readLiveEnv() : null;
 
 // The project set is derived from the same `isLive` flag that selects the
 // webServer, so the two can never disagree: a bare `npx playwright test`
-// (isLive === false) can only ever collect/run the hermetic projects, and
-// `--project=live` (or `--project live`) can only ever collect/run the live
-// project. testIgnore is set at the top level (not per-project) so that
-// e2e/live/support.js — which reads the real .env key at module scope — is
-// never even required unless the operator explicitly asked for `live`.
+// (isLive === false, even with PW_LIVE_PROJECT=1 exported in the shell —
+// the CLI process itself has no TEST_WORKER_INDEX) can only ever collect/run
+// the hermetic projects, and `--project=live` (or `--project live`) can only
+// ever collect/run the live project. testIgnore is set at the top level (not
+// per-project) so that e2e/live/support.js — which reads the real .env key
+// at module scope — is never even required unless the operator explicitly
+// asked for `live`.
 const mobileProject = { name: 'mobile', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, timezoneId: 'America/Chicago' } };
 const desktopProject = { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, timezoneId: 'America/Chicago' } };
 const liveProject = {
