@@ -15,7 +15,7 @@ Branch: `feat/webhook-contract` off `main` (at `44a8d11` or later). Deploy by fa
 ## Global Constraints
 
 - **Never call these n8n endpoints with a valid body from any test or script:** `submit_feedback`, `grocery_prep`, `transcribe_grocery_item`, `smart_deals`, `smart_match_grocery` (except an empty `items: []` body, which short-circuits before the AI), `match_coupons` (same: `items: []` only), `categorize_heb_product`, `call_grocery_agent`, `create_grocery_list`, `deactivate_grocery_item`, `meal_creator_propose`, `meal_creator_build`, `meal_creator_save`, `get_recipe_items`, `add_grocery_items`, `meal_ingredients`, `update_feedback_status`. The contract test's tiers (Task 7) define exactly what may be sent.
-- **Test data:** fixed past week only: `week_start_date` `2026-01-04`, `weekEndDate` `2026-01-10`, display string `For the week of January 4th, 2026 to January 10th, 2026`. Item names `__contract_test__` and `__contract_test_oneoff__`, `ItemID` `999999`, `recipeId` `1` (exists). Every row created by a test is removed by the matching remove endpoint or by the documented `docker exec` cleanup in the same task. Leave nothing behind.
+- **Test data:** fixed past week only: `week_start_date` `2026-01-04`, `weekEndDate` `2026-01-10`, display string `For the week of January 4th to January 10th, 2026`. Item names `__contract_test__` and `__contract_test_oneoff__`, `ItemID` `999999`, `recipeId` `1` (exists). Every row created by a test is removed by the matching remove endpoint or by the documented `docker exec` cleanup in the same task. Leave nothing behind.
 - **MySQL MCP is read-only.** Writes/DDL: `PW=$(grep '^DB_PASSWORD=' "/c/New Grocery App/heb-coupon-scraper/.env" | cut -d= -f2- | tr -d '\r'); docker exec -e MYSQL_PWD="$PW" hsa-mysql mysql -u hsa_user hsa -e "<SQL>"` (Bash tool). Never paste the password into a file or a commit.
 - **n8n edits** go through `scripts/n8n-wave.mjs` (Task 8), which does GET → mutate → PUT with `settings` filtered to `executionOrder, saveDataErrorExecution, saveDataSuccessExecution, saveManualExecutions, saveExecutionProgress, executionTimeout, errorWorkflow, timezone` → deactivate → activate. Never drop a Webhook node's `webhookId`. `n8n_update_partial_workflow` (MCP) does not work on this n8n version. Export a backup before every wave.
 - **API key:** `REACT_APP_API_KEY` in the app `.env` (gitignored; also in the Netlify build env). Curls to n8n need `-H "X-API-Key: $KEY"` and `-H "Origin: https://grocery-checklist-app.netlify.app"` (without `Origin`, a de-registered webhook 404s; with it, 500 text/html). Read the key with `KEY=$(grep '^REACT_APP_API_KEY=' .env | cut -d= -f2- | tr -d '\r')`.
@@ -936,7 +936,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Create: `scripts/webhook-contract.mjs`
 
 **Interfaces:**
-- CLI: `node scripts/webhook-contract.mjs [--wave 0|1|2|3] [--only <path>] [--base <url>]`. Exit 0 when every enforced check passes, 1 otherwise. `--wave N` enforces "no key → 403" only for endpoints whose declared wave ≤ N (wave 0 = report-only: prints the table, always exits 0). With-key checks are always enforced (they are valid against today's backend).
+- CLI: `node scripts/webhook-contract.mjs [--wave 0|1|2|3] [--only <path>] [--base <url>]`. Exit 0 when every enforced check passes, 1 otherwise. `--wave N` enforces "no key → 403" only for endpoints whose declared wave ≤ N (wave 0 = report-only: prints the table, always exits 0). **The no-key request is only sent for endpoints whose wave ≤ N or whose tier is `read`** — before its wave an unauthenticated POST endpoint would execute the workflow with the probe body (Ruling 6 in the ledger; this happened once during the baseline). With-key checks are always enforced (they are valid against today's backend).
 - Reads `REACT_APP_API_KEY` and `REACT_APP_API_BASE_URL` from `.env` (cwd = repo root). Every request sends `Origin: https://grocery-checklist-app.netlify.app`.
 - Prints one line per check: `PASS|FAIL|INFO  <method> /<path>  <check>  <status> <detail>`, a cleanup section, and a summary.
 
@@ -1025,7 +1025,7 @@ if (!KEY) { console.error('REACT_APP_API_KEY missing from .env'); process.exit(1
 const ORIGIN = 'https://grocery-checklist-app.netlify.app';
 const WEEK_START = '2026-01-04';
 const WEEK_END = '2026-01-10';
-const WEEK_RANGE = 'For the week of January 4th, 2026 to January 10th, 2026';
+const WEEK_RANGE = 'For the week of January 4th to January 10th, 2026';
 const NAME_SEL = '__contract_test__';
 const NAME_ONEOFF = '__contract_test_oneoff__';
 const ITEM_ID = 999999;
@@ -1418,7 +1418,7 @@ Wait for Netlify (poll `https://grocery-checklist-app.netlify.app` for the new b
 ```bash
 KEY=$(grep '^REACT_APP_API_KEY=' .env | cut -d= -f2- | tr -d '\r'); H=(-H "X-API-Key: $KEY" -H "Origin: https://grocery-checklist-app.netlify.app" -H "Content-Type: application/json")
 docker pause hsa-mysql
-time curl -s -o /dev/stdout -w '\nSTATUS %{http_code} TYPE %{content_type} TIME %{time_total}\n' "${H[@]}" -X POST -d '{"itemName":"__contract_test_oneoff__","weekDateRange":"For the week of January 4th, 2026 to January 10th, 2026"}' https://n8n-grocery.needexcelexpert.com/webhook/add_oneoff_item
+time curl -s -o /dev/stdout -w '\nSTATUS %{http_code} TYPE %{content_type} TIME %{time_total}\n' "${H[@]}" -X POST -d '{"itemName":"__contract_test_oneoff__","weekDateRange":"For the week of January 4th to January 10th, 2026"}' https://n8n-grocery.needexcelexpert.com/webhook/add_oneoff_item
 time curl -s -o /dev/stdout -w '\nSTATUS %{http_code} TYPE %{content_type} TIME %{time_total}\n' "${H[@]}" -X POST -d '{"week_start_date":"2026-01-04","item_id":999999}' https://n8n-grocery.needexcelexpert.com/webhook/shopping_progress_check
 docker unpause hsa-mysql
 docker exec hsa-mysql mysqladmin -u hsa_user ping 2>/dev/null || sleep 5
