@@ -210,8 +210,10 @@ async function faultMode() {
     try { docker('unpause'); console.log(`\n${sig}: unpaused ${MYSQL_CONTAINER}`); } catch (e) { console.error(`\n${sig}: UNPAUSE FAILED — run: docker unpause ${MYSQL_CONTAINER}`); }
     process.exit(130);
   };
-  process.once('SIGINT', () => onSignal('SIGINT'));
-  process.once('SIGTERM', () => onSignal('SIGTERM'));
+  const onInt = () => onSignal('SIGINT');
+  const onTerm = () => onSignal('SIGTERM');
+  process.once('SIGINT', onInt);
+  process.once('SIGTERM', onTerm);
   try {
     docker('pause');
     const cases = [
@@ -233,6 +235,9 @@ async function faultMode() {
     }
   } finally {
     docker('unpause');
+    // the handlers must not be able to fire (and unpause again) after this
+    process.off('SIGINT', onInt);
+    process.off('SIGTERM', onTerm);
     console.log(`\nunpaused ${MYSQL_CONTAINER}`);
   }
   printCleanupBlock();

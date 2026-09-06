@@ -115,7 +115,11 @@ function errorBranch(wf, names) {
 //   strict    — non-empty output that is not a passthrough of an upstream item.
 //   lenient   — anything except a passthrough (0 rows / `{}` are legitimate).
 // `passthrough` = the Webhook marker OR deep-equality with any upstream node's
-// output on the branch that feeds this node.
+// output on the branch that feeds this node. An empty `{}` is never a
+// passthrough: it is the `alwaysOutputData` placeholder of a healthy zero-row
+// SELECT, and a real outage forwards the failing node's INPUT item, which is
+// never empty (two chained zero-row SELECTs otherwise looked like an outage —
+// grab_instructions_fast with an unknown recipe_id, execution 26067).
 function ensureRespond503(wf, successRespond) {
   const canonicalParams = { respondWith: 'json', responseBody: RESPOND_503_BODY, options: { responseCode: 503, responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }] } } };
   let node = wf.nodes.find((n) => n.name === 'Respond 503');
@@ -134,7 +138,7 @@ function ensureRespond503(wf, successRespond) {
 // branch of an IF) and is skipped; `undefined` = it ran and produced nothing
 // (allowed for `lenient` only).
 const GUARD_MODES = ['mutation', 'require', 'strict', 'lenient'];
-const guardExpression = (specs) => `={{ (() => { const SPECS = ${JSON.stringify(specs)}; const get = (n, i) => { try { const it = $(n).first(i || 0); return it ? (it.json || {}) : undefined; } catch (e) { return null; } }; const pass = (s, j) => { if (!j || typeof j !== 'object') return false; if ('webhookUrl' in j) return true; const t = JSON.stringify(j); for (const u of s.upstream) { const p = get(u[0], u[1]); if (p && typeof p === 'object' && JSON.stringify(p) === t) return true; } return false; }; for (const s of SPECS) { const j = get(s.name, 0); if (j === null) continue; if (s.mode === 'mutation') { if (!(j && j.success === true)) return false; continue; } if (s.mode === 'require') { if (!(j && s.key in j)) return false; continue; } if (s.mode === 'strict') { if (!(j && Object.keys(j).length > 0 && !pass(s, j))) return false; continue; } if (j !== undefined && pass(s, j)) return false; } return true; })() }}`;
+const guardExpression = (specs) => `={{ (() => { const SPECS = ${JSON.stringify(specs)}; const get = (n, i) => { try { const it = $(n).first(i || 0); return it ? (it.json || {}) : undefined; } catch (e) { return null; } }; const pass = (s, j) => { if (!j || typeof j !== 'object') return false; if ('webhookUrl' in j) return true; if (Object.keys(j).length === 0) return false; const t = JSON.stringify(j); for (const u of s.upstream) { const p = get(u[0], u[1]); if (p && typeof p === 'object' && JSON.stringify(p) === t) return true; } return false; }; for (const s of SPECS) { const j = get(s.name, 0); if (j === null) continue; if (s.mode === 'mutation') { if (!(j && j.success === true)) return false; continue; } if (s.mode === 'require') { if (!(j && s.key in j)) return false; continue; } if (s.mode === 'strict') { if (!(j && Object.keys(j).length > 0 && !pass(s, j))) return false; continue; } if (j !== undefined && pass(s, j)) return false; } return true; })() }}`;
 
 // upstream = every connection in the FINAL wiring whose target is this node,
 // as [sourceNodeName, sourceOutputIndex].
