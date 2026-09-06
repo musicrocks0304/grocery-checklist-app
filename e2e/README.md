@@ -57,7 +57,7 @@ npx playwright test --project=live e2e/live/feedback.live.spec.js
 ```
 Requires `REACT_APP_API_KEY` (and optionally `REACT_APP_API_BASE_URL`,
 `REACT_APP_CLIP_SERVER_URL`) in repo-root `.env`; `e2e/support/live-env.js`
-refuses to run without a key. Three specs, serial, minimal mutations:
+refuses to run without a key. Four specs, serial, minimal mutations:
 - **Plan** — adds one-off item `__e2e_live__`, confirms it renders, removes
   it via the UI, confirms it's gone after reload. The UI removal only takes
   it off this week's list — the `oneoff_items` catalog row survives, so SQL
