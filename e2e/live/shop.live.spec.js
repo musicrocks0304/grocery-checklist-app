@@ -30,7 +30,11 @@ test('check an item, it persists, uncheck via the endpoint, it clears', async ({
   test.skip(!target, 'no unchecked item');
 
   // Restore state (uncheck via the endpoint) even if a mid-test assertion
-  // fails, so a broken run never leaves real shopping_progress mutated.
+  // fails, so a broken run never leaves real shopping_progress mutated —
+  // but a restore failure must never bury the original failure, so the
+  // primary assertions and the restore live in their own try/catch blocks
+  // and the primary error (if any) is what the test ultimately throws.
+  let testError;
   try {
     // Wait for the actual persistence POST to resolve before reloading —
     // the UI flips instantly on an optimistic local update, but a reload
@@ -46,7 +50,11 @@ test('check an item, it persists, uncheck via the endpoint, it clears', async ({
     await expect.poll(() => left(page)).toBe(before - 1);
     await open(page, 'shop');
     await expect.poll(() => left(page), { timeout: 10000 }).toBe(before - 1);
-  } finally {
+  } catch (err) {
+    testError = err;
+  }
+
+  try {
     const res = await api.post('shopping_progress_uncheck', {
       week_start_date: weekStart,
       item_id: String(target.ItemID),
@@ -56,5 +64,16 @@ test('check an item, it persists, uncheck via the endpoint, it clears', async ({
     expect(resBody.success).toBe(true);
     await open(page, 'shop');
     await expect.poll(() => left(page)).toBe(before);
+  } catch (restoreErr) {
+    if (testError) {
+      // The primary assertion already failed — surface the restore problem
+      // without letting it replace (mask) the original failure below.
+      // eslint-disable-next-line no-console
+      console.error('shop.live: restore (shopping_progress_uncheck) also failed after the primary assertion failed:', restoreErr);
+    } else {
+      throw restoreErr;
+    }
   }
+
+  if (testError) throw testError;
 });

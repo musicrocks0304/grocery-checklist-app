@@ -1,15 +1,12 @@
 const { test, expect, open } = require('./support.js');
 
 // Never clicks "Submit Feedback" — this suite must not create real feedback rows.
+// Opens `#plan`, not `#home` — Home's own mount effect fires a Smart Deals
+// POST in the background (LLM run when the cache is stale), independent of
+// this suite ever visiting the Deals screen. The "Send feedback" trigger is
+// global (AppShell), so Plan works just as well and avoids that call.
 test('feedback panel opens and closes; never submits', async ({ page }) => {
-  // Home's own mount effect fires a Smart Deals fetch in the background
-  // (independent of this suite ever visiting the Deals screen); apiFetch's
-  // hidden ~30s timeout means that request is often still in flight well
-  // past Playwright's default 30s test timeout, holding `networkidle` off.
-  // Give this one spec more room rather than touching the shared `open()`
-  // helper other live specs rely on.
-  test.setTimeout(90000);
-  await open(page, 'home');
+  await open(page, 'plan');
   await page.getByRole('button', { name: 'Send feedback' }).filter({ visible: true }).first().click();
   // "Send Feedback" (the panel heading) collides case-insensitively with the
   // "Send feedback" trigger under getByText's default matcher — use the

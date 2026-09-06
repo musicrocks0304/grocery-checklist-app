@@ -59,12 +59,14 @@ refuses to run without a key. Three specs, serial, minimal mutations:
   `Origin`) in a `finally` block so the mutation is undone even if an
   assertion fails. Skips if nothing is left to check this week, or if every
   selected item is already checked.
-- **Feedback** — opens and closes the panel from the header/sidebar
-  trigger. Never clicks "Submit Feedback" — this suite must never create a
-  real feedback row.
+- **Feedback** — opens `#plan` (not `#home`, see below), opens and closes
+  the panel from the header/sidebar trigger. Never clicks "Submit
+  Feedback" — this suite must never create a real feedback row.
 
-Deals is never visited by any live spec: a stale Smart Deals cache there
-triggers a real LLM run.
+No live spec ever visits Deals or Home: both fire a Smart Deals request
+on mount (Home does it in the background as part of its own dashboard
+fetch, Deals as its primary content), and with a stale cache that triggers
+a real LLM run.
 
 ## Live-project residue
 ```
