@@ -1,56 +1,449 @@
 {
+  "_note": "Exported from the live workflow CPnstolvOjSGOm3z after `error-branch --nodes \"Validate,Seen before?,Insert Error\"` and `db-guard --mutation \"Insert Error\" --require \"Seen before?:seen\" --respond \"Respond\"`. Recreate with `node scripts/n8n-wave.mjs create scripts/n8n-workflows/client-errors.json` — no further wave commands needed. Re-export after any live edit.",
   "name": "Client Error Telemetry",
-  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all", "saveManualExecutions": true },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "NVS9ZMdzpWSdSBn2"
+  },
   "nodes": [
     {
-      "id": "webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [0, 0],
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
       "webhookId": "c3d4e5f6-7890-abcd-ef01-clienterr0001",
-      "parameters": { "httpMethod": "POST", "path": "client_errors", "responseMode": "responseNode", "authentication": "headerAuth", "options": {} },
-      "credentials": { "httpHeaderAuth": { "id": "OzxeppJmnYuJpXbO", "name": "Grocery App API Key" } }
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client_errors",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OzxeppJmnYuJpXbO",
+          "name": "Grocery App API Key"
+        }
+      }
     },
     {
-      "id": "validate", "name": "Validate", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [220, 0],
-      "parameters": { "jsCode": "const b = ($input.first().json.body) || {};\nconst s = (v, n) => (v === undefined || v === null) ? null : String(v).slice(0, n);\nconst KINDS = ['onerror', 'unhandledrejection', 'boundary', 'api'];\nconst kind = KINDS.includes(b.kind) ? b.kind : 'onerror';\nconst stack_hash = (s(b.stack_hash, 8) || '').toLowerCase();\nconst session_id = (s(b.session_id, 36) || '').toLowerCase();\nconst message = (s(b.message, 500) || '').trim();\nconst V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;\nconst valid = /^[0-9a-f]{8}$/.test(stack_hash) && V4.test(session_id) && message.length > 0;\nconst status = (b.status === undefined || b.status === null || b.status === '' || !Number.isFinite(Number(b.status))) ? null : Math.trunc(Number(b.status));\nlet client_time = null;\nif (b.client_time) { const d = new Date(b.client_time); if (!isNaN(d.getTime())) client_time = d.toISOString().slice(0, 19).replace('T', ' '); }\nreturn [{ json: { valid, kind, stack_hash, session_id, screen: s(b.screen, 50), endpoint: s(b.endpoint, 80), status, message, stack: s(b.stack, 2048), user_agent: s(b.user_agent, 255), app_version: s(b.app_version, 40), week_date_range: s(b.week_date_range, 80), client_time } }];" }
+      "id": "validate",
+      "name": "Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const b = ($input.first().json.body) || {};\nconst s = (v, n) => (v === undefined || v === null) ? null : String(v).slice(0, n);\nconst KINDS = ['onerror', 'unhandledrejection', 'boundary', 'api'];\nconst kind = KINDS.includes(b.kind) ? b.kind : 'onerror';\nconst stack_hash = (s(b.stack_hash, 8) || '').toLowerCase();\nconst session_id = (s(b.session_id, 36) || '').toLowerCase();\nconst message = (s(b.message, 500) || '').trim();\nconst V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;\nconst valid = /^[0-9a-f]{8}$/.test(stack_hash) && V4.test(session_id) && message.length > 0;\nconst status = (b.status === undefined || b.status === null || b.status === '' || !Number.isFinite(Number(b.status))) ? null : Math.trunc(Number(b.status));\nlet client_time = null;\nif (b.client_time) { const d = new Date(b.client_time); if (!isNaN(d.getTime())) client_time = d.toISOString().slice(0, 19).replace('T', ' '); }\nreturn [{ json: { valid, kind, stack_hash, session_id, screen: s(b.screen, 50), endpoint: s(b.endpoint, 80), status, message, stack: s(b.stack, 2048), user_agent: s(b.user_agent, 255), app_version: s(b.app_version, 40), week_date_range: s(b.week_date_range, 80), client_time } }];"
+      },
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "valid", "name": "Valid?", "type": "n8n-nodes-base.if", "typeVersion": 2.2, "position": [440, 0],
-      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }, "conditions": [ { "id": "valid-cond", "leftValue": "={{ $json.valid === true }}", "rightValue": "", "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ], "combinator": "and" }, "options": {} }
+      "id": "valid",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "valid-cond",
+              "leftValue": "={{ $json.valid === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     },
     {
-      "id": "respond-400", "name": "Respond 400", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.4, "position": [660, 200],
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify({ success: false, error: \"invalid report\" }) }}", "options": { "responseCode": 400, "responseHeaders": { "entries": [ { "name": "Access-Control-Allow-Origin", "value": "*" } ] } } }
+      "id": "respond-400",
+      "name": "Respond 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        660,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: \"invalid report\" }) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
     },
     {
-      "id": "seen", "name": "Seen before?", "type": "n8n-nodes-base.mySql", "typeVersion": 2.4, "position": [660, -100],
-      "parameters": { "operation": "executeQuery", "query": "SELECT\n  (SELECT COUNT(*) FROM client_errors WHERE stack_hash = {{ JSON.stringify($('Validate').first().json.stack_hash) }}) AS seen,\n  (SELECT COUNT(*) FROM client_errors WHERE notified = 1 AND created_at > NOW() - INTERVAL 1 HOUR) AS recent", "options": {} },
-      "credentials": { "mySql": { "id": "lqIXlvVVqfE4v7DF", "name": "MySQL account" } }
+      "id": "seen",
+      "name": "Seen before?",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT COUNT(*) FROM client_errors WHERE stack_hash = {{ JSON.stringify($('Validate').first().json.stack_hash) }}) AS seen,\n  (SELECT COUNT(*) FROM client_errors WHERE notified = 1 AND created_at > NOW() - INTERVAL 1 HOUR) AS recent",
+        "options": {}
+      },
+      "credentials": {
+        "mySql": {
+          "id": "lqIXlvVVqfE4v7DF",
+          "name": "MySQL account"
+        }
+      },
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "insert", "name": "Insert Error", "type": "n8n-nodes-base.mySql", "typeVersion": 2.4, "position": [880, -100],
-      "parameters": { "operation": "executeQuery", "query": "INSERT IGNORE INTO client_errors (session_id, stack_hash, kind, screen, endpoint, status, message, stack, user_agent, app_version, week_date_range, client_time, notified)\nVALUES (\n  {{ JSON.stringify($('Validate').first().json.session_id) }},\n  {{ JSON.stringify($('Validate').first().json.stack_hash) }},\n  {{ JSON.stringify($('Validate').first().json.kind) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.screen) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.endpoint) }},\n  {{ (v => v == null ? 'NULL' : String(Number(v)))($('Validate').first().json.status) }},\n  {{ JSON.stringify($('Validate').first().json.message) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.stack) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.user_agent) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.app_version) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.week_date_range) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.client_time) }},\n  {{ (Number($json.seen) === 0 && Number($json.recent) < 10) ? 1 : 0 }}\n)", "options": {} },
-      "credentials": { "mySql": { "id": "lqIXlvVVqfE4v7DF", "name": "MySQL account" } }
+      "id": "insert",
+      "name": "Insert Error",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT IGNORE INTO client_errors (session_id, stack_hash, kind, screen, endpoint, status, message, stack, user_agent, app_version, week_date_range, client_time, notified)\nVALUES (\n  {{ JSON.stringify($('Validate').first().json.session_id) }},\n  {{ JSON.stringify($('Validate').first().json.stack_hash) }},\n  {{ JSON.stringify($('Validate').first().json.kind) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.screen) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.endpoint) }},\n  {{ (v => v == null ? 'NULL' : String(Number(v)))($('Validate').first().json.status) }},\n  {{ JSON.stringify($('Validate').first().json.message) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.stack) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.user_agent) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.app_version) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.week_date_range) }},\n  {{ (v => v == null ? 'NULL' : JSON.stringify(v))($('Validate').first().json.client_time) }},\n  {{ (Number($json.seen) === 0 && Number($json.recent) < 10) ? 1 : 0 }}\n)",
+        "options": {}
+      },
+      "credentials": {
+        "mySql": {
+          "id": "lqIXlvVVqfE4v7DF",
+          "name": "MySQL account"
+        }
+      },
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "notify", "name": "Notify?", "type": "n8n-nodes-base.if", "typeVersion": 2.2, "position": [1100, -100],
-      "parameters": { "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }, "conditions": [ { "id": "notify-cond", "leftValue": "={{ Number($('Seen before?').first().json.seen) === 0 && Number($('Seen before?').first().json.recent) < 10 }}", "rightValue": "", "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ], "combinator": "and" }, "options": {} }
+      "id": "notify",
+      "name": "Notify?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "notify-cond",
+              "leftValue": "={{ Number($('Seen before?').first().json.seen) === 0 && Number($('Seen before?').first().json.recent) < 10 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     },
     {
-      "id": "slack", "name": "Slack", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1320, -220],
+      "id": "slack",
+      "name": "Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        -220
+      ],
       "onError": "continueRegularOutput",
-      "parameters": { "method": "POST", "url": "={{ $env.SLACK_WEBHOOK_URL }}", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ text: (() => { const v = $('Validate').first().json; const api = v.kind === 'api' ? ', api ' + (v.endpoint || '?') + (v.status ? ' ' + v.status : '') : ''; return '[grocery-app] new client error on #' + (v.screen || '?') + ' (build ' + (v.app_version || '?') + api + '): ' + String(v.message).slice(0, 200) + ' · hash ' + v.stack_hash; })() }) }}", "options": {} }
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: (() => { const v = $('Validate').first().json; const api = v.kind === 'api' ? ', api ' + (v.endpoint || '?') + (v.status ? ' ' + v.status : '') : ''; return '[grocery-app] new client error on #' + (v.screen || '?') + ' (build ' + (v.app_version || '?') + api + '): ' + String(v.message).slice(0, 200) + ' · hash ' + v.stack_hash; })() }) }}",
+        "options": {}
+      }
     },
     {
-      "id": "respond", "name": "Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.4, "position": [1540, -100],
-      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify({ success: true, new: Number($('Seen before?').first().json.seen) === 0 }) }}", "options": { "responseHeaders": { "entries": [ { "name": "Access-Control-Allow-Origin", "value": "*" } ] } } }
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1540,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, new: Number($('Seen before?').first().json.seen) === 0 }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "respond-500",
+      "name": "Respond 500",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        660,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ (() => { const e = $json.error; const raw = typeof e === 'string' ? e : ((e && e.message) || 'Workflow error'); const safe = String(raw).split(/\\bnear\\b|\\bSELECT\\b|\\bINSERT\\b|\\bUPDATE\\b|\\bDELETE\\b/i)[0].replace(/host\\.docker\\.internal|hsa-[a-z0-9_-]+/gi, 'db').trim().slice(0, 200); return JSON.stringify({ success: false, error: safe || 'Workflow error' }); })() }}",
+        "options": {
+          "responseCode": 500,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "respond-503",
+      "name": "Respond 503",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1540,
+        420
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: \"Database unavailable — please try again\" }) }}",
+        "options": {
+          "responseCode": 503,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db-guard-respond",
+      "name": "DB ok? (Respond)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "db-guard-respond-cond",
+              "leftValue": "={{ (() => { const SPECS = [{\"name\":\"Insert Error\",\"mode\":\"mutation\",\"upstream\":[[\"Seen before?\",0]]},{\"name\":\"Seen before?\",\"mode\":\"require\",\"upstream\":[[\"Valid?\",0]],\"key\":\"seen\"}]; const get = (n, i) => { try { const it = $(n).first(i || 0); return it ? (it.json || {}) : undefined; } catch (e) { return null; } }; const pass = (s, j) => { if (!j || typeof j !== 'object') return false; if ('webhookUrl' in j) return true; if (Object.keys(j).length === 0) return false; const t = JSON.stringify(j); for (const u of s.upstream) { const p = get(u[0], u[1]); if (p && typeof p === 'object' && JSON.stringify(p) === t) return true; } return false; }; for (const s of SPECS) { const j = get(s.name, 0); if (j === null) continue; if (s.mode === 'mutation') { if (!(j && j.success === true)) return false; continue; } if (s.mode === 'require') { if (!(j && s.key in j)) return false; continue; } if (s.mode === 'strict') { if (!(j && Object.keys(j).length > 0 && !pass(s, j))) return false; continue; } if (j !== undefined && pass(s, j)) return false; } return true; })() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     }
   ],
   "connections": {
-    "Webhook": { "main": [ [ { "node": "Validate", "type": "main", "index": 0 } ] ] },
-    "Validate": { "main": [ [ { "node": "Valid?", "type": "main", "index": 0 } ] ] },
-    "Valid?": { "main": [ [ { "node": "Seen before?", "type": "main", "index": 0 } ], [ { "node": "Respond 400", "type": "main", "index": 0 } ] ] },
-    "Seen before?": { "main": [ [ { "node": "Insert Error", "type": "main", "index": 0 } ] ] },
-    "Insert Error": { "main": [ [ { "node": "Notify?", "type": "main", "index": 0 } ] ] },
-    "Notify?": { "main": [ [ { "node": "Slack", "type": "main", "index": 0 } ], [ { "node": "Respond", "type": "main", "index": 0 } ] ] },
-    "Slack": { "main": [ [ { "node": "Respond", "type": "main", "index": 0 } ] ] }
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Seen before?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seen before?": {
+      "main": [
+        [
+          {
+            "node": "Insert Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Error": {
+      "main": [
+        [
+          {
+            "node": "Notify?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify?": {
+      "main": [
+        [
+          {
+            "node": "Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DB ok? (Respond)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack": {
+      "main": [
+        [
+          {
+            "node": "DB ok? (Respond)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB ok? (Respond)": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 503",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }
