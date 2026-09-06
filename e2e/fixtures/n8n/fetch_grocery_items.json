@@ -532,44 +532,31 @@
   "store_location": "In Produce"
  },
  {
-  "ItemID": 34,
-  "ItemName": "Bananas",
-  "Category": "Fruit & vegetables",
-  "Store": "HEB",
-  "GroceryStoreSection": "Fruit & vegetables",
-  "Type": "Basic",
-  "IsActive": 1,
-  "DataSource": "Staples",
-  "QuantitySelected": 1,
-  "IsSelected": 1,
-  "Unit": null,
-  "store_location": "In Produce"
- },
- {
-  "ItemID": 30,
-  "ItemName": "Blueberries",
-  "Category": "Fruit & vegetables",
-  "Store": "HEB",
-  "GroceryStoreSection": "Fruit & vegetables",
-  "Type": "Basic",
-  "IsActive": 1,
-  "DataSource": "Staples",
-  "QuantitySelected": 1,
-  "IsSelected": 0,
-  "Unit": null,
-  "store_location": "In Produce on the Front Wall"
- },
- {
-  "ItemID": 100001,
+  "ItemID": 100053,
   "ItemName": "Candles",
-  "Category": "Household & other",
+  "Category": "One-off items",
   "Store": "HEB",
-  "GroceryStoreSection": null,
-  "Type": "OneOff",
+  "GroceryStoreSection": "One-off items",
+  "Type": "Basic",
   "IsActive": 1,
   "DataSource": "OneOff",
   "QuantitySelected": 1,
   "IsSelected": 1,
+  "Unit": null,
+  "store_location": null
+ },
+ {
+  "ItemID": 100048,
+  "ItemName": "Eggs",
+  "Category": "One-off items",
+  "Store": "HEB",
+  "GroceryStoreSection": "One-off items",
+  "Type": "Basic",
+  "IsActive": 1,
+  "DataSource": "OneOff",
+  "QuantitySelected": 1,
+  "IsSelected": 1,
+  "Unit": null,
   "store_location": null
  }
 ]

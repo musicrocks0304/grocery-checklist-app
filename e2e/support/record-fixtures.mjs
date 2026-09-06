@@ -33,10 +33,24 @@ async function get(base, path, query = {}, key = true) {
 }
 
 const DROP = new Set(['screenshots', 'metadata', 'user_agent', 'host_user_id']);
-function sanitise(value) {
-  if (Array.isArray(value)) return value.slice(0, 40).map(sanitise);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([k]) => !DROP.has(k)).map(([k, v]) => [k, sanitise(v)]));
-  if (typeof value === 'string') return value.split(LIVE.displayRange).join(WEEK.displayRange).split(LIVE.startDate).join(WEEK.startDate).split(LIVE.endDate).join(WEEK.endDate);
+const isOneOff = (r) => r && typeof r === 'object' && r.DataSource === 'OneOff';
+// Plain 40-cap, except every OneOff row is kept regardless of position (the
+// live fetch_grocery_items catalog sorts them past the cap). For arrays with
+// no OneOff-tagged rows this is identical to a plain arr.slice(0, 40).
+function capArray(arr) {
+  const keep = arr.filter(isOneOff);
+  const rest = arr.filter((r) => !isOneOff(r)).slice(0, Math.max(0, 40 - keep.length));
+  return [...rest, ...keep];
+}
+// key is the property name this value was read from (undefined at the top
+// level, or the parent array's key for array items) — the week-string
+// rewrite only fires on fields whose name mentions "week", so an unrelated
+// string that happens to equal a week boundary (e.g. a coupon
+// expiration_date) is left untouched.
+function sanitise(value, key) {
+  if (Array.isArray(value)) return capArray(value).map((v) => sanitise(v, key));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([k]) => !DROP.has(k)).map(([k, v]) => [k, sanitise(v, k)]));
+  if (typeof value === 'string' && key && /week/i.test(key)) return value.split(LIVE.displayRange).join(WEEK.displayRange).split(LIVE.startDate).join(WEEK.startDate).split(LIVE.endDate).join(WEEK.endDate);
   return value;
 }
 
@@ -60,7 +74,16 @@ const READS = [
 ];
 
 (async () => {
-  for (const [p, q] of READS) write(`n8n/${p}.json`, sanitise(await get(N8N, p, q)), p);
+  for (const [p, q] of READS) {
+    let sanitised = sanitise(await get(N8N, p, q));
+    // The live Respond node answers {"error":"not_found"} for an unknown
+    // jobId; an empty capture means the sanitiser saw nothing to keep (no
+    // fields survived, or the endpoint returned {}), so restore that body.
+    if (p === 'grocery_prep_status' && sanitised && typeof sanitised === 'object' && !Array.isArray(sanitised) && Object.keys(sanitised).length === 0) {
+      sanitised = { error: 'not_found' };
+    }
+    write(`n8n/${p}.json`, sanitised, p);
+  }
   write('n8n/fetch_feedback.json', [], 'fetch_feedback');
   const meals = JSON.parse(readFileSync('e2e/fixtures/n8n/fetch_weekly_meals.json', 'utf8'));
   if (Array.isArray(meals) && meals.length) write('n8n/grab_instructions_fast.json', sanitise(await get(N8N, 'grab_instructions_fast', { weekDateRange: LIVE.displayRange, recipe_id: String(meals[0].recipe_id) })), 'grab_instructions_fast');
