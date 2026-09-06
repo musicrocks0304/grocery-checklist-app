@@ -12,11 +12,13 @@ describe('useCategories', () => {
     delete global.fetch;
   });
 
-  test('returns null categories while loading', () => {
+  test('returns null categories while loading', async () => {
     global.fetch.mockResolvedValueOnce({ ok: true, status: 200, text: async () => '[]', json: async () => [] });
     const { result } = renderHook(() => useCategories());
     expect(result.current.categories).toBeNull();
     expect(result.current.loading).toBe(true);
+    // Let the mocked fetch's pending state updates settle before the test ends.
+    await waitFor(() => expect(result.current.loading).toBe(false));
   });
 
   test('returns fetched categories on success', async () => {
