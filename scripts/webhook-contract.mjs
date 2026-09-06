@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 // Contract test for the n8n webhooks the grocery app calls.
 // Usage: node scripts/webhook-contract.mjs [--wave 0|1|2|3] [--only <path>] [--base <url>]
+//        node scripts/webhook-contract.mjs --fault      (pauses hsa-mysql; expects 503 JSON)
 // See docs/superpowers/specs/2026-09-05-webhook-contract-design.md §4.
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 
-const USAGE = 'Usage: node scripts/webhook-contract.mjs [--wave 0|1|2|3] [--only <path>] [--base <url>]';
+const USAGE = 'Usage: node scripts/webhook-contract.mjs [--wave 0|1|2|3] [--only <path>] [--base <url>] | --fault';
 const args = process.argv.slice(2);
 const flagIndex = (name) => args.indexOf(name);
 const flag = (name, def) => { const i = flagIndex(name); return i >= 0 ? args[i + 1] : def; };
 const usageExit = (msg) => { console.error(msg); console.error(USAGE); process.exit(2); };
 
+const FAULT = args.includes('--fault');
 const waveIdx = flagIndex('--wave');
 if (waveIdx >= 0 && (args[waveIdx + 1] === undefined || !/^[0-3]$/.test(args[waveIdx + 1]))) usageExit(`--wave must be one of 0,1,2,3, got: ${args[waveIdx + 1]}`);
 const WAVE = Number(flag('--wave', '0'));
@@ -194,6 +197,37 @@ function printCleanupBlock() {
   console.log(`\nCLEANUP (run via docker exec, these rows have no delete endpoint):\n  DELETE FROM shopping_sessions WHERE week_start_date = '${WEEK_START}';\n  DELETE FROM oneoff_items WHERE name = '${NAME_ONEOFF}';`);
 }
 
+// --fault: prove the wave-2b `DB ok?` guards answer 503 JSON instead of a
+// phantom 200 when the database is unreachable. Each MySQL node burns ~10 s on
+// its connect timeout, so the early guards keep the pause well under a minute.
+const MYSQL_CONTAINER = 'hsa-mysql';
+async function faultMode() {
+  const docker = (verb) => execSync(`docker ${verb} ${MYSQL_CONTAINER}`, { stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
+  console.log(`webhook contract — FAULT MODE — base ${BASE}`);
+  console.log(`PAUSING ${MYSQL_CONTAINER} — other clients will fail for ~30 s\n`);
+  docker('pause');
+  try {
+    const cases = [
+      { path: 'add_oneoff_item', method: 'POST', run: () => request('add_oneoff_item', { method: 'POST', body: { itemName: NAME_ONEOFF, weekDateRange: WEEK_RANGE }, timeout: 25000 }) },
+      { path: 'fetch_weekly_meals', method: 'GET', run: () => request('fetch_weekly_meals', { query: { weekDateRange: WEEK_RANGE }, timeout: 25000 }) },
+    ];
+    for (const c of cases) {
+      try {
+        const r = await c.run();
+        const ok = r.status === 503 && r.isJson && r.json && r.json.success === false;
+        const detail = ok ? r.text.slice(0, 80) : (r.text.trim() ? `expected 503 {success:false}, got: ${r.text.slice(0, 80)}` : 'EMPTY BODY');
+        record(ok ? 'PASS' : 'FAIL', c.method, c.path, 'db down → 503 JSON', r.status, detail);
+      } catch (err) {
+        record('FAIL', c.method, c.path, 'db down → 503 JSON', '-', String(err.message).slice(0, 80));
+      }
+    }
+  } finally {
+    docker('unpause');
+    console.log(`\nunpaused ${MYSQL_CONTAINER}`);
+  }
+  printCleanupBlock();
+}
+
 async function main() {
   console.log(`webhook contract — base ${BASE} — enforcing 403 for waves ≤ ${WAVE}\n`);
   if (WAVE >= 1) {
@@ -222,10 +256,10 @@ async function main() {
   if (ranSequence || sentKeylessNonRead) printCleanupBlock();
 }
 
-main().catch((err) => {
+(FAULT ? faultMode() : main()).catch((err) => {
   record('FAIL', '-', '-', 'exception', '-', String(err.message).slice(0, 80));
 }).finally(() => {
   const fails = results.filter((r) => r.level === 'FAIL');
   console.log(`\n${results.filter((r) => r.level === 'PASS').length} passed, ${fails.length} failed, ${results.filter((r) => r.level === 'INFO').length} info`);
-  process.exit(WAVE === 0 ? 0 : (fails.length ? 1 : 0));
+  process.exit(!FAULT && WAVE === 0 ? 0 : (fails.length ? 1 : 0));
 });
