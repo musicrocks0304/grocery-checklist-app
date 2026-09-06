@@ -4,7 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
 import { pageTransition } from "../utils/animations";
-import { ENDPOINTS, apiFetch, normalizeDbMeals } from "../config/api";
+import { ENDPOINTS, apiJson, normalizeDbMeals } from "../config/api";
 import { ensureStorageVersion, gcWeekScopedKeys } from "../utils/storageVersion";
 import { resolveScreenFromHash, LEGACY_REDIRECT, VALID_SCREENS } from "../utils/screenRoute";
 import { ThemeProvider } from "../contexts/ThemeContext";
@@ -105,20 +105,17 @@ const App = () => {
       const weekData = getWeekDates();
       const url = new URL(ENDPOINTS.fetchWeeklyMeals);
       url.searchParams.append("weekDateRange", weekData.displayRange);
-      const response = await apiFetch(url.toString(), {
+      const data = await apiJson(url.toString(), {
         method: "GET",
         headers: { Accept: "application/json" },
       });
-      if (response.ok) {
-        const data = await response.json();
-        const normalized = normalizeDbMeals(data);
-        setSelectedMeals(normalized);
-        const weekKey = `selectedMeals_${weekData.startDate}`;
-        if (normalized.length > 0) {
-          localStorage.setItem(weekKey, JSON.stringify(normalized));
-        } else {
-          localStorage.removeItem(weekKey);
-        }
+      const normalized = normalizeDbMeals(data);
+      setSelectedMeals(normalized);
+      const weekKey = `selectedMeals_${weekData.startDate}`;
+      if (normalized.length > 0) {
+        localStorage.setItem(weekKey, JSON.stringify(normalized));
+      } else {
+        localStorage.removeItem(weekKey);
       }
     } catch {
       // Keep stale localStorage data on network failure
@@ -168,14 +165,12 @@ const App = () => {
       try {
         const url = new URL(ENDPOINTS.joinSession);
         url.searchParams.append("code", code);
-        const res = await apiFetch(url.toString(), {
+        const data = await apiJson(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
           timeout: 8000,
           retries: 1,
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
         if (cancelled) return;
         if (data.found && data.week_start_date) {
           sessionStorage.setItem(

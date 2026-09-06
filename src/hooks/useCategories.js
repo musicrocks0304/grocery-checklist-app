@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiJson } from '../config/api';
 
 export const CATEGORIES_CACHE_KEY = 'cachedCategories';
 
@@ -11,10 +11,8 @@ export function useCategories() {
     let cancelled = false;
     (async () => {
       try {
-        const fetchFn = typeof apiFetch === 'function' ? apiFetch : fetch;
-        const res = await fetchFn(ENDPOINTS.categories, { method: 'GET', retries: 0 });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const fetchFn = typeof apiJson === 'function' ? apiJson : async (u, o) => { const r = await fetch(u, o); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); };
+        const data = await fetchFn(ENDPOINTS.categories, { method: 'GET', retries: 0 });
         if (cancelled) return;
         setCategories(data);
         try { localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }

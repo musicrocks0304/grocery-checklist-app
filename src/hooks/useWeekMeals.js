@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ENDPOINTS, apiFetch, showApiError } from '../config/api';
+import { ENDPOINTS, apiJson, showApiError } from '../config/api';
 import { getWeekDates } from '../utils/weekDates';
 
 const useWeekMeals = () => {
@@ -14,9 +14,7 @@ const useWeekMeals = () => {
       try {
         const url = new URL(ENDPOINTS.fetchWeeklyMealIngredients);
         url.searchParams.append('weekDateRange', weekData.displayRange);
-        const res = await apiFetch(url.toString(), { method: 'GET', headers: { Accept: 'application/json' } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await apiJson(url.toString(), { method: 'GET', headers: { Accept: 'application/json' } });
         if (cancelled) return;
         setMeals(Array.isArray(data) ? data : []);
       } catch (err) {

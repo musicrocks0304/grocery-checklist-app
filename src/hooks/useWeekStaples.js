@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ENDPOINTS, apiFetch, showApiError } from '../config/api';
+import { ENDPOINTS, apiJson, showApiError } from '../config/api';
 import { getWeekDates } from '../utils/weekDates';
 
 const useWeekStaples = () => {
@@ -21,13 +21,12 @@ const useWeekStaples = () => {
         url.searchParams.append('weekStartDate', weekData.startDate);
         url.searchParams.append('weekEndDate', weekData.endDate);
         url.searchParams.append('weekDateRange', weekData.displayRange);
-        const res = await apiFetch(url.toString(), { method: 'GET', headers: { Accept: 'application/json' } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const data = await apiJson(url.toString(), { method: 'GET', headers: { Accept: 'application/json' } });
         if (cancelled) return;
-        setItems(data);
+        const safeData = Array.isArray(data) ? data : [];
+        setItems(safeData);
         const sel = new Set();
-        data.forEach((it) => { if (it.IsSelected === 1) sel.add(it.ItemID); });
+        safeData.forEach((it) => { if (it.IsSelected === 1) sel.add(it.ItemID); });
         setSelected(sel);
       } catch (err) {
         if (cancelled) return;
@@ -72,12 +71,11 @@ const useWeekStaples = () => {
           category: item.Category,
         };
     try {
-      const res = await apiFetch(endpoint, {
+      await apiJson(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (err) {
       // roll back both ref and state
       const rolled = new Set(selectedRef.current);
@@ -92,13 +90,11 @@ const useWeekStaples = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
     try {
-      const res = await apiFetch(ENDPOINTS.addOneOffItem, {
+      const data = await apiJson(ENDPOINTS.addOneOffItem, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ itemName: trimmed, weekDateRange: weekData.displayRange }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
       const newId = data.itemId || `oneoff_${Date.now()}`;
       const newItem = {
         ItemID: newId,
@@ -120,7 +116,7 @@ const useWeekStaples = () => {
     const target = itemsRef.current.find((i) => i.ItemID === itemId);
     if (!target) return;
     try {
-      const res = await apiFetch(ENDPOINTS.removeWeeklyItem, {
+      await apiJson(ENDPOINTS.removeWeeklyItem, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
@@ -129,7 +125,6 @@ const useWeekStaples = () => {
           weekStartDate: weekData.startDate,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setItems((prev) => prev.filter((i) => i.ItemID !== itemId));
       setSelected((prev) => { const n = new Set(prev); n.delete(itemId); return n; });
     } catch (err) {

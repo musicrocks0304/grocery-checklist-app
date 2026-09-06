@@ -1,26 +1,27 @@
 import React from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import useWeekStaples from './useWeekStaples';
+import { ENDPOINTS } from '../config/api';
 
-// Mock the API module
-jest.mock('../config/api', () => {
-  const actual = jest.requireActual('../config/api');
-  return {
-    ...actual,
-    apiFetch: jest.fn(),
-  };
+// apiJson calls apiFetch's own local reference internally (a same-module
+// function call, not a re-export lookup), so jest.mock('../config/api',
+// { apiFetch: jest.fn() }) does NOT intercept it — verified empirically:
+// with that pattern the mocked apiFetch saw zero calls while apiJson made a
+// real network request. Mock at the actual network boundary (global.fetch)
+// instead, matching the pattern already used in useCategories.test.js.
+beforeEach(() => {
+  global.fetch = jest.fn();
 });
-const { apiFetch, ENDPOINTS } = require('../config/api');
+
+afterEach(() => {
+  delete global.fetch;
+});
 
 const mockItems = [
   { ItemID: 1, ItemName: 'Milk',  Category: 'Dairy & eggs', DataSource: 'Staples',         IsSelected: 1, QuantitySelected: 1 },
   { ItemID: 2, ItemName: 'Bread', Category: 'Bakery & bread', DataSource: 'Staples',       IsSelected: 0, QuantitySelected: 1 },
   { ItemID: 9, ItemName: 'Balloons', Category: 'Household & other', DataSource: 'OneOff',  IsSelected: 1, QuantitySelected: 1 },
 ];
-
-beforeEach(() => {
-  apiFetch.mockReset();
-});
 
 const mockOk = (body) =>
   Promise.resolve({
@@ -32,7 +33,7 @@ const mockOk = (body) =>
 
 describe('useWeekStaples', () => {
   test('loads items and seeds selected from IsSelected', async () => {
-    apiFetch.mockImplementationOnce(() => mockOk(mockItems));
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems));
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toHaveLength(3);
@@ -42,13 +43,13 @@ describe('useWeekStaples', () => {
   });
 
   test('toggle adds id to selected and POSTs selection_check with full row payload', async () => {
-    apiFetch.mockImplementationOnce(() => mockOk(mockItems)); // initial fetch
-    apiFetch.mockImplementationOnce(() => mockOk({ success: true })); // toggle
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems)); // initial fetch
+    global.fetch.mockImplementationOnce(() => mockOk({ success: true })); // toggle
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.toggle(2); });
     expect(result.current.selected.has(2)).toBe(true);
-    const [callUrl, callOpts] = apiFetch.mock.calls[1];
+    const [callUrl, callOpts] = global.fetch.mock.calls[1];
     expect(callUrl).toBe(ENDPOINTS.selectionCheck);
     const body = JSON.parse(callOpts.body);
     expect(body).toMatchObject({
@@ -64,13 +65,13 @@ describe('useWeekStaples', () => {
   });
 
   test('toggle removes id from selected and POSTs selection_uncheck with itemName payload', async () => {
-    apiFetch.mockImplementationOnce(() => mockOk(mockItems));
-    apiFetch.mockImplementationOnce(() => mockOk({ success: true }));
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems));
+    global.fetch.mockImplementationOnce(() => mockOk({ success: true }));
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.toggle(1); });
     expect(result.current.selected.has(1)).toBe(false);
-    const [callUrl, callOpts] = apiFetch.mock.calls[1];
+    const [callUrl, callOpts] = global.fetch.mock.calls[1];
     expect(callUrl).toBe(ENDPOINTS.selectionUncheck);
     // Backend DELETE matches by itemName + weekDateRange (no itemId needed)
     const body = JSON.parse(callOpts.body);
@@ -81,19 +82,28 @@ describe('useWeekStaples', () => {
   });
 
   test('removeOneOff payload includes weekStartDate for shopping_progress cascade', async () => {
-    apiFetch.mockImplementationOnce(() => mockOk(mockItems));
-    apiFetch.mockImplementationOnce(() => mockOk({ success: true }));
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems));
+    global.fetch.mockImplementationOnce(() => mockOk({ success: true }));
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.removeOneOff(9); });
-    const [, callOpts] = apiFetch.mock.calls[1];
+    const [, callOpts] = global.fetch.mock.calls[1];
     const body = JSON.parse(callOpts.body);
     expect(body.weekStartDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   test('toggle rolls back on API failure', async () => {
-    apiFetch.mockImplementationOnce(() => mockOk(mockItems));
-    apiFetch.mockImplementationOnce(() => Promise.resolve({ ok: false, status: 500 }));
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems));
+    global.fetch.mockImplementationOnce(() => Promise.resolve({ ok: false, status: 500, statusText: 'Internal Server Error', text: () => Promise.resolve('') }));
+    const { result } = renderHook(() => useWeekStaples());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => { await result.current.toggle(2); });
+    expect(result.current.selected.has(2)).toBe(false);
+  });
+
+  test('toggle rolls back on an empty 200 (apiJson treats it as an error)', async () => {
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems));
+    global.fetch.mockImplementationOnce(() => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(''), json: () => Promise.reject(new Error('empty')) }));
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.toggle(2); });
@@ -101,8 +111,8 @@ describe('useWeekStaples', () => {
   });
 
   test('quickAdd appends a one-off and marks it selected', async () => {
-    apiFetch.mockImplementationOnce(() => mockOk(mockItems));
-    apiFetch.mockImplementationOnce(() =>
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems));
+    global.fetch.mockImplementationOnce(() =>
       mockOk({ success: true, itemId: 7777, itemName: 'Candles' })
     );
     const { result } = renderHook(() => useWeekStaples());
@@ -115,19 +125,19 @@ describe('useWeekStaples', () => {
   });
 
   test('removeOneOff deletes from items and selected, POSTs remove_weekly_item', async () => {
-    apiFetch.mockImplementationOnce(() => mockOk(mockItems));
-    apiFetch.mockImplementationOnce(() => mockOk({ success: true }));
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems));
+    global.fetch.mockImplementationOnce(() => mockOk({ success: true }));
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.removeOneOff(9); });
     expect(result.current.items.find((i) => i.ItemID === 9)).toBeUndefined();
     expect(result.current.selected.has(9)).toBe(false);
-    expect(apiFetch.mock.calls[1][0]).toBe(ENDPOINTS.removeWeeklyItem);
+    expect(global.fetch.mock.calls[1][0]).toBe(ENDPOINTS.removeWeeklyItem);
   });
 
   test('rapid double-tap on same item dispatches check then uncheck', async () => {
-    apiFetch.mockImplementationOnce(() => mockOk(mockItems)); // initial fetch
-    apiFetch.mockImplementation(() => mockOk({ success: true })); // any subsequent POST
+    global.fetch.mockImplementationOnce(() => mockOk(mockItems)); // initial fetch
+    global.fetch.mockImplementation(() => mockOk({ success: true })); // any subsequent POST
     const { result } = renderHook(() => useWeekStaples());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -143,7 +153,7 @@ describe('useWeekStaples', () => {
     expect(result.current.selected.has(2)).toBe(false);
 
     // The two POSTs should be selectionCheck then selectionUncheck (not check twice)
-    const postCalls = apiFetch.mock.calls.slice(1); // skip initial fetch
+    const postCalls = global.fetch.mock.calls.slice(1); // skip initial fetch
     expect(postCalls).toHaveLength(2);
     expect(postCalls[0][0]).toBe(ENDPOINTS.selectionCheck);
     expect(postCalls[1][0]).toBe(ENDPOINTS.selectionUncheck);

@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import { getWeekDates, parseLocalDay } from "../utils/weekDates";
 import { TOKENS, THEMES } from "../styles/tokens";
 import { staggerContainer, staggerItem } from "../utils/animations";
-import { ENDPOINTS, apiFetch } from "../config/api";
+import { ENDPOINTS, apiJson } from "../config/api";
 import { decodeHtmlEntities } from "../utils/text";
 
 const t = THEMES.green;
@@ -96,16 +96,13 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
         url.searchParams.append("weekStartDate", weekData.startDate);
         url.searchParams.append("weekEndDate", weekData.endDate);
         url.searchParams.append("weekDateRange", weekData.displayRange);
-        const response = await apiFetch(url.toString(), {
+        const data = await apiJson(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
         });
-        if (response.ok) {
-          const data = await response.json();
-          const items = Array.isArray(data) ? data : [];
-          setListItems(items.length);
-          setSelectedCount(items.filter(i => i.IsSelected === 1).length);
-        }
+        const items = Array.isArray(data) ? data : [];
+        setListItems(items.length);
+        setSelectedCount(items.filter(i => i.IsSelected === 1).length);
       } catch {
         setFetchError(true);
         setListItems(0);
@@ -115,26 +112,24 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
     // Fetch top smart deals
     const fetchDeals = async () => {
       try {
-        const response = await apiFetch(ENDPOINTS.smartDeals, {
+        const data = await apiJson(ENDPOINTS.smartDeals, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
           timeout: 15000,
+          retries: 0,
         });
-        if (response.ok) {
-          const data = await response.json();
-          const result = Array.isArray(data) ? data[0] : data;
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const allDeals = (result.deals || []).filter(d => {
-            if (d.coupon?.clippedStatus === 1) return false; // already clipped
-            if (!d.coupon?.expirationDate) return true;
-            return parseLocalDay(d.coupon.expirationDate) >= today;
-          });
-          const deals = allDeals.slice(0, 3);
-          const totalSavings = allDeals.reduce((s, d) => s + (d.coupon?.savingsAmount || 0), 0);
-          setTopDeals({ deals, totalSavings: Math.round(totalSavings * 100) / 100, totalCount: allDeals.length });
-        }
+        const result = Array.isArray(data) ? data[0] : data;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const allDeals = (result.deals || []).filter(d => {
+          if (d.coupon?.clippedStatus === 1) return false; // already clipped
+          if (!d.coupon?.expirationDate) return true;
+          return parseLocalDay(d.coupon.expirationDate) >= today;
+        });
+        const deals = allDeals.slice(0, 3);
+        const totalSavings = allDeals.reduce((s, d) => s + (d.coupon?.savingsAmount || 0), 0);
+        setTopDeals({ deals, totalSavings: Math.round(totalSavings * 100) / 100, totalCount: allDeals.length });
       } catch { /* silent */ }
     };
 
@@ -146,14 +141,11 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
         url.searchParams.append("weekStartDate", weekData.startDate);
         url.searchParams.append("weekEndDate", weekData.endDate);
         url.searchParams.append("weekDateRange", weekData.displayRange);
-        const response = await apiFetch(url.toString(), {
+        const data = await apiJson(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
         });
-        if (response.ok) {
-          const data = await response.json();
-          setMealsCount(Array.isArray(data) ? data.length : 0);
-        }
+        setMealsCount(Array.isArray(data) ? data.length : 0);
       } catch {
         // Fall back to selectedMeals prop count
         setMealsCount(null);
@@ -170,16 +162,13 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
         // Backend JOINs shopping_progress with WeeklyGroceryList on
         // WeekDateRange, so this param is now required.
         url.searchParams.append("week_date_range", weekData.displayRange);
-        const response = await apiFetch(url.toString(), {
+        const data = await apiJson(url.toString(), {
           method: "GET",
           headers: { Accept: "application/json" },
           timeout: 8000,
           retries: 1,
         });
-        if (response.ok) {
-          const data = await response.json();
-          setShoppedCount(Array.isArray(data) ? data.length : 0);
-        }
+        setShoppedCount(Array.isArray(data) ? data.length : 0);
       } catch {
         /* silent — stat just won't show */
       }
@@ -195,8 +184,8 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
   const startPrep = async () => {
     try {
       setPrepJob({ status: 'starting' });
-      const res = await apiFetch(ENDPOINTS.groceryPrep, { method: 'POST' });
-      const data = await res.json();
+      const data = await apiJson(ENDPOINTS.groceryPrep, { method: 'POST', retries: 0, timeout: 30000 });
+      if (!data?.jobId) throw new Error('Prep did not return a job id');
       setPrepJob({ jobId: data.jobId, status: 'running', currentStep: 'docker-check' });
     } catch (err) {
       setPrepJob({ status: 'error', error: err.message });
@@ -224,8 +213,7 @@ const Home = ({ onNavigate, selectedMeals = [] }) => {
       try {
         const url = new URL(ENDPOINTS.groceryPrepStatus);
         url.searchParams.append('jobId', prepJob.jobId);
-        const res = await apiFetch(url.toString());
-        const data = await res.json();
+        const data = await apiJson(url.toString());
 
         if (data.status === 'completed') {
           setPrepJob(prev => ({ ...prev, status: 'completed', summary: data.summary, currentStep: 'done' }));
