@@ -15,6 +15,12 @@ const unselected = items.find(
 );
 const oneoff = items.find((i) => i.DataSource === 'OneOff');
 
+if (!selected || !unselected || !oneoff) {
+  throw new Error(
+    'plan.spec fixture assumption broken after re-record: need a selected staple, an unselected staple in the same category, and a one-off row in e2e/fixtures/n8n/fetch_grocery_items.json'
+  );
+}
+
 test.describe('Plan', () => {
   test('renders staples from the fixture grouped by category', async ({ page, backend }) => {
     await open(page, 'plan');
