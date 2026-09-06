@@ -33,15 +33,18 @@ Deferred from A (assign to E/F or fix opportunistically):
 - Client: `Coupons.js`, `Deals.js`, `RecipeInstructions.js`, `Home.js` still render raw `err.message` (use `userMessage()`); `useCategories` shim is dead code; `useWeekMeals` failure test exercises real backoff.
 
 
-## B. Test infrastructure — `[ ]`
+## B. Test infrastructure — `[x]` shipped 2026-09-06
 
-- [ ] Checked-in Playwright e2e (`e2e/`) built from the 2026-09-05 review scripts: navigation/hash routing, Plan add/remove one-off, Deals add-to-list round trip, Shop check/undo/invite, Cart expired state, feedback entry points; runs against `npm start` on port 3000; test data cleaned via the app's own remove endpoints
-- [ ] Component/render tests for the four untested screens: `Deals.js`, `InStoreMode.js` (ModeMenu, InviteModal, PartnerBadge), `HebCart.js` flows, `ChatBot.js` toolbar
-- [ ] Clear the 4 pre-existing ESLint problems in test files (`App.test.js` no-node-access, `staples/ItemRow.test.js` ×2, `useWeekStaples.test.js` unused React) so `npx eslint src --max-warnings=0` is a clean gate
-- [ ] Remove the dead `html2canvas` mock in `FeedbackPanel.test.js`; add tests for the Sidebar and ModeMenu feedback entry points
-- [ ] Quiet the 2 pre-existing `act()` warnings from App.js mount-time fetches
+- [x] Checked-in Playwright e2e (`e2e/`): hermetic suite (70 tests × mobile 390×844 / desktop 1280×800) against a production build served on port 3000 with every n8n/clip request mocked from recorded, sanitised fixtures (`e2e/fixtures/`, `npm run test:e2e:record`), clock frozen at 2026-09-09 (week of Sept 6–12, 2026), third-party hosts aborted; plus a 3-spec live smoke set (`npm run test:e2e:live`, Plan/Shop/Feedback) that cleans its own rows
+- [x] Component/render tests for the four untested screens: `Deals.js`, `InStoreMode.js` (ModeMenu, InviteModal, PartnerBadge), `HebCart.js` flows, `ChatBot.js` toolbar (`src/test-utils/{mockFetch,render}.js` helpers)
+- [x] `npm run lint` (`eslint src --max-warnings=0`) is a clean gate
+- [x] Dead `html2canvas` mock removed; Sidebar and ModeMenu feedback entry-point tests added
+- [x] Zero `act()` warnings across 34 suites / 234 tests
+- [x] GitHub Actions `.github/workflows/ci.yml` on push/PR: lint → Jest → hermetic Playwright (Chromium); Netlify deploy unchanged
 
 Why: two regressions in the 2026-09-05 fix run were only caught by reviewers; ad-hoc Playwright scripts are not repeatable.
+
+Shipped state (2026-09-06): spec `docs/superpowers/specs/2026-09-06-test-infrastructure-design.md`, plan `docs/superpowers/plans/2026-09-06-test-infrastructure.md`, branch `feat/test-infrastructure` fast-forwarded into `main` at 9cc0322. Two production bugs fixed along the way: desktop feedback panel Submit button off-screen (`FeedbackPanel.js`), bottom-tab active indicator ~10px off centre (`BottomTabBar.js`). Deferred from B: Deals `deal.id` undefined on add (fixture-derived), spec extras not in the plan (Cook timer fast-forward, Cart build SSE), `#meals` routing assertion bound to the ChatBot greeting copy, popup windows escape the hermetic catch-all (no spec opens one), `App.test.js` one-off flake under CPU load, StrictMode double-POST smell on the dev server (hermetic suite uses a production build for that reason).
 
 ## E. Client error telemetry — `[ ]`
 
