@@ -4,7 +4,7 @@ import {
   Scissors, CheckCircle, XCircle, ShoppingCart, RefreshCw,
   ChevronDown, ChevronUp, Plus, Filter, Ticket, Percent, Gift, WifiOff, AlertTriangle,
 } from 'lucide-react';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiJson } from '../config/api';
 import { getWeekDates, parseLocalDay } from '../utils/weekDates';
 import { decodeHtmlEntities } from '../utils/text';
 import { useClipCoupons } from '../hooks/useClipCoupons';
@@ -351,14 +351,13 @@ const Deals = ({ onNavigate }) => {
     if (!silent) setSmartLoading(true);
     setSmartError(null);
     try {
-      const response = await apiFetch(ENDPOINTS.smartDeals, {
+      const data = await apiJson(ENDPOINTS.smartDeals, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({}),
         mode: 'cors',
+        retries: 0,
       });
-      if (!response.ok) throw new Error(`Server returned ${response.status}`);
-      const data = await response.json();
       const result = Array.isArray(data) ? data[0] : data;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -381,13 +380,11 @@ const Deals = ({ onNavigate }) => {
     if (!silent) setCouponsLoading(true);
     setCouponsError(null);
     try {
-      const response = await apiFetch(ENDPOINTS.fetchHebCoupons, {
+      const data = await apiJson(ENDPOINTS.fetchHebCoupons, {
         method: 'GET',
         headers: { Accept: 'application/json' },
         mode: 'cors',
       });
-      if (!response.ok) throw new Error(`Server returned ${response.status}`);
-      const data = await response.json();
       setCouponsData(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('[deals] Coupons fetch error:', err.message);
@@ -577,26 +574,21 @@ const Deals = ({ onNavigate }) => {
       fetchUrl.searchParams.append('weekStartDate', weekData.startDate);
       fetchUrl.searchParams.append('weekEndDate', weekData.endDate);
       fetchUrl.searchParams.append('weekDateRange', weekData.displayRange);
-      const existingRes = await apiFetch(fetchUrl.toString(), { method: 'GET', headers: { Accept: 'application/json' } });
-      if (!existingRes.ok) throw new Error(`HTTP ${existingRes.status}`);
-      const existingItems = await existingRes.json();
+      const existingItems = await apiJson(fetchUrl.toString(), { method: 'GET', headers: { Accept: 'application/json' } });
       if (isAlreadyOnList(existingItems, itemName)) {
         setAddingToList(prev => new Map(prev).set(dealId, 'exists'));
         return;
       }
 
-      const addRes = await apiFetch(ENDPOINTS.addOneOffItem, {
+      const addBody = await apiJson(ENDPOINTS.addOneOffItem, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ itemName, weekDateRange: weekData.displayRange }),
       });
-      if (!addRes.ok) throw new Error(`HTTP ${addRes.status}`);
-      // n8n answers 200 with an empty body when MySQL is unreachable — a bare
-      // 200 is not proof the item was saved, so require a real payload.
-      const addBody = await addRes.json().catch(() => null);
+      // apiJson already rejects an empty 200; still require the success payload shape.
       const addData = Array.isArray(addBody) ? addBody[0] : addBody;
       if (!addData || (addData.itemId === undefined && addData.success !== true)) {
-        throw new Error('Empty response from add-item endpoint');
+        throw new Error('Unexpected response from add-item endpoint');
       }
       setAddingToList(prev => new Map(prev).set(dealId, 'added'));
     } catch (err) {

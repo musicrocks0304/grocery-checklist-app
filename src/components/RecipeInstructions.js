@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertCircle, 
 import { getWeekDates } from '../utils/weekDates';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiJson } from '../config/api';
 import { RECIPE_INSTRUCTIONS_SAMPLE_DATA } from '../utils/fallbackData';
 
 const CHOOSE_RECIPE_WEBHOOK_URL = ENDPOINTS.chooseRecipeInstructions;
@@ -136,22 +136,13 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
         const webhookURL = `${CHOOSE_RECIPE_WEBHOOK_URL}?${queryParams.toString()}`;
         addDebugLog('Choose recipes webhook URL:', webhookURL);
 
-        const response = await apiFetch(webhookURL, {
+        const data = await apiJson(webhookURL, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
           mode: 'cors'
         });
 
-        addDebugLog('Choose recipes response received:', {
-          status: response.status,
-          statusText: response.statusText,
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        addDebugLog('Choose recipes response received:', { ok: true });
         addDebugLog('Available recipes data received:', data);
 
         if (data && Array.isArray(data) && data.length > 0) {
@@ -244,28 +235,14 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
         const webhookURL = `${GRAB_INSTRUCTIONS_WEBHOOK_URL}?${queryParams.toString()}`;
         addDebugLog('Grab instructions webhook URL:', webhookURL);
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-        const response = await apiFetch(webhookURL, {
+        const data = await apiJson(webhookURL, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
           mode: 'cors',
-          signal: controller.signal
+          timeout: 30000
         });
 
-        clearTimeout(timeoutId);
-
-        addDebugLog('Response received:', {
-          status: response.status,
-          statusText: response.statusText,
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        addDebugLog('Response received:', { ok: true });
         addDebugLog('Recipe instructions data received:', data);
         addDebugLog('Data structure analysis:', {
           isArray: Array.isArray(data),

@@ -4,7 +4,7 @@ import {
   Scissors, CheckCircle, XCircle, ShoppingCart, RefreshCw,
   ChevronDown, ChevronUp, Plus, Filter,
 } from 'lucide-react';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiJson } from '../config/api';
 import { getWeekDates } from '../utils/weekDates';
 import { useClipCoupons } from '../hooks/useClipCoupons';
 
@@ -43,18 +43,13 @@ const SmartDeals = ({ onNavigate }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiFetch(ENDPOINTS.smartDeals, {
+      const data = await apiJson(ENDPOINTS.smartDeals, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({}),
         mode: 'cors',
+        retries: 0,
       });
-
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-
-      const data = await response.json();
       // n8n respondToWebhook wraps in array
       const result = Array.isArray(data) ? data[0] : data;
       // Filter out deals with expired coupons (can come from cache)

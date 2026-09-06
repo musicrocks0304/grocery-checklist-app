@@ -13,7 +13,7 @@ import {
   Layers,
   ArrowLeft
 } from 'lucide-react';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiJson } from '../config/api';
 import toast from 'react-hot-toast';
 import { getWeekDateRange, getWeekDates } from '../utils/weekDates';
 import { mapToCanonicalCategory } from '../utils/categoryMap';
@@ -98,7 +98,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
       addDebugLog('🌐 Calling webhook with POST data...');
       addDebugLog('📋 Payload items:', selectedIngredients.length);
 
-      const response = await apiFetch(webhookUrl, {
+      await apiJson(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,15 +112,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
       // Skip state updates if component unmounted during fetch
       if (!isMountedRef.current) return;
 
-      addDebugLog('📡 Webhook response status:', response.status);
-
-      if (response.ok) {
-        addDebugLog('✅ Successfully added ingredients to main grocery list');
-        toast.success("Recipe ingredients have been added to your main grocery list!");
-        onNavigate('grocery');
-      } else {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      addDebugLog('✅ Successfully added ingredients to main grocery list');
+      toast.success("Recipe ingredients have been added to your main grocery list!");
+      onNavigate('grocery');
     } catch (error) {
       // Silently ignore aborted requests (user navigated away)
       if (error.name === 'AbortError') return;

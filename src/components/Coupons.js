@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Ticket, Search, AlertCircle, ChevronDown, ChevronUp, Calendar, DollarSign, Percent, Gift, Tag } from 'lucide-react';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiJson } from '../config/api';
 import { parseLocalDay } from '../utils/weekDates';
 
 const WEBHOOK_URL = ENDPOINTS.fetchHebCoupons;
@@ -100,17 +100,11 @@ const Coupons = ({ onNavigate, onToggleSidebar }) => {
     const fetchCoupons = async () => {
       try {
         setError(null);
-        const response = await apiFetch(WEBHOOK_URL, {
+        const data = await apiJson(WEBHOOK_URL, {
           method: 'GET',
           headers: { Accept: 'application/json' },
           mode: 'cors',
         });
-
-        if (!response.ok) {
-          throw new Error(`Server returned ${response.status}`);
-        }
-
-        const data = await response.json();
         setCouponsData(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('[coupons] Fetch error:', err.message);

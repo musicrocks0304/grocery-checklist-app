@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowLeft, ShoppingBag, X, Utensils, Package, Tag, Sparkles, Loader } from 'lucide-react';
 import { GROCERY_CATEGORIES } from '../../constants/categories';
 import { getWeekDates } from '../../utils/weekDates';
-import { ENDPOINTS, apiFetch } from '../../config/api';
+import { ENDPOINTS, apiJson } from '../../config/api';
 import CouponMatchPanel from '../CouponMatchPanel';
 
 const formatMonthDay = (iso) => {
@@ -124,15 +124,13 @@ const ReviewScreen = ({
 
       // AI agent run: long timeout, never retry (each run costs 30-60s of LLM
       // tool-calling — the old auto-retry burned 3 runs per timeout, bug #28)
-      const res = await apiFetch(ENDPOINTS.matchCoupons, {
+      const data = await apiJson(ENDPOINTS.matchCoupons, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ items: selectedItems }),
         timeout: 120000,
         retries: 0,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
       const payload = Array.isArray(data) ? data[0] : data;
       const matches = payload?.matches || [];
       setCouponMatches(matches);
@@ -141,8 +139,9 @@ const ReviewScreen = ({
       // Persist matches so In-Store Mode coupon chips and the cart builder
       // can use them (fire-and-forget; the panel works without it).
       if (matches.length > 0) {
-        apiFetch(ENDPOINTS.saveCouponMatches, {
+        apiJson(ENDPOINTS.saveCouponMatches, {
           method: 'POST',
+          retries: 0,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             weekDateRange: weekData.displayRange,
