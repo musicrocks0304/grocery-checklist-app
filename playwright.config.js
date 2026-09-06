@@ -10,7 +10,8 @@ const MOCK_ENV = {
   REACT_APP_API_KEY: 'e2e-key',
 };
 
-const isLive = process.argv.some((a) => a === 'live' || a === '--project=live');
+const argv = process.argv;
+const isLive = argv.some((a, i) => a === '--project=live' || (a === '--project' && argv[i + 1] === 'live'));
 const liveEnv = isLive ? require('./e2e/support/live-env.js').readLiveEnv() : null;
 
 module.exports = defineConfig({
@@ -28,7 +29,7 @@ module.exports = defineConfig({
     env: liveEnv ? { ...MOCK_ENV, ...liveEnv } : MOCK_ENV,
   },
   projects: [
-    { name: 'mobile', testIgnore: /live\//, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, defaultBrowserType: 'chromium' } },
+    { name: 'mobile', testIgnore: /live\//, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
     { name: 'desktop', testIgnore: /live\//, use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
     { name: 'live', testMatch: /live\/.*\.spec\.js/, retries: 0, workers: 1, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
   ],

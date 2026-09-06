@@ -17,29 +17,6 @@ function readFixture(rel) {
   return json;
 }
 
-let oneoffCounter = 900000;
-
-// Mutations the app performs; bodies mirror the real Respond nodes.
-function mutationBody(p, body) {
-  switch (p) {
-    case 'add_oneoff_item':
-      oneoffCounter += 1;
-      return { success: true, itemId: oneoffCounter, message: `${body.itemName} added as one-off item` };
-    case 'selection_check': case 'selection_uncheck':
-    case 'shopping_progress_check': case 'shopping_progress_uncheck':
-    case 'submit_feedback': case 'save_coupon_matches':
-      return { success: true };
-    case 'remove_weekly_item':
-      return { success: true, message: 'Item removed from this week' };
-    case 'create_session':
-      return { code: 'E2E1', week_start_date: WEEK.startDate, expires_at: '2026-09-09 14:00:00' };
-    case 'add_weekly_selection': case 'remove_weekly_selection':
-      return readFixture('n8n/fetch_weekly_meals.json') || [];
-    default:
-      return undefined;
-  }
-}
-
 class MockBackend {
   constructor(page) {
     this.page = page;
@@ -48,6 +25,28 @@ class MockBackend {
     this.unmocked = [];
     this.clipState = 'expired';
     this.keyErrors = [];
+    this.oneoffCounter = 900000; // per-test state; a module-level counter would leak across tests
+  }
+
+  // Mutations the app performs; bodies mirror the real Respond nodes.
+  mutationBody(p, body) {
+    switch (p) {
+      case 'add_oneoff_item':
+        this.oneoffCounter += 1;
+        return { success: true, itemId: this.oneoffCounter, message: `${body.itemName} added as one-off item` };
+      case 'selection_check': case 'selection_uncheck':
+      case 'shopping_progress_check': case 'shopping_progress_uncheck':
+      case 'submit_feedback': case 'save_coupon_matches':
+        return { success: true };
+      case 'remove_weekly_item':
+        return { success: true, message: 'Item removed from this week' };
+      case 'create_session':
+        return { code: 'E2E1', week_start_date: WEEK.startDate, expires_at: '2026-09-09 14:00:00' };
+      case 'add_weekly_selection': case 'remove_weekly_selection':
+        return readFixture('n8n/fetch_weekly_meals.json') || [];
+      default:
+        return undefined;
+    }
   }
 
   async install() {
@@ -100,7 +99,8 @@ class MockBackend {
       const fx = readFixture(`n8n/${p}.json`);
       if (fx !== undefined) return this.fulfil(route, 200, fx);
     } else {
-      const body = mutationBody(p, request.postDataJSON ? (() => { try { return request.postDataJSON(); } catch { return {}; } })() : {});
+      const parsedBody = (() => { try { return request.postDataJSON(); } catch { return {}; } })();
+      const body = this.mutationBody(p, parsedBody);
       if (body !== undefined) return this.fulfil(route, 200, body);
       // Some n8n endpoints (e.g. smart_deals) are read-only queries the app
       // calls via POST with an empty body — not a "mutation" with a synthetic
