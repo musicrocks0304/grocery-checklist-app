@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppShell from './AppShell';
 import { ThemeProvider } from '../contexts/ThemeContext';
@@ -11,6 +11,11 @@ import { FeedbackProvider, useFeedback } from '../contexts/FeedbackContext';
 jest.mock('../utils/screenshot', () => ({
   captureScreen: jest.fn(() => Promise.resolve('data:image/jpeg;base64,shot')),
   compressImage: jest.fn(() => Promise.resolve('data:image/jpeg;base64,shot')),
+}));
+
+jest.mock('../config/api', () => ({
+  ...jest.requireActual('../config/api'),
+  apiJson: jest.fn(),
 }));
 
 const { captureScreen } = require('../utils/screenshot');
@@ -50,6 +55,15 @@ const renderWithProviders = (ui, { currentScreen = 'home' } = {}) =>
     </ThemeProvider>
   );
 
+const V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+async function openAndFill() {
+  fireEvent.click(screen.getByText('open from context'));
+  await screen.findByText('Send Feedback');
+  fireEvent.click(screen.getByRole('button', { name: /bug/i }));
+  fireEvent.change(screen.getByPlaceholderText('What happened? What would make it better?'), { target: { value: 'it broke' } });
+}
+
 describe('FeedbackPanel + FeedbackProvider', () => {
   beforeEach(() => {
     captureScreen.mockClear();
@@ -88,5 +102,26 @@ describe('FeedbackPanel + FeedbackProvider', () => {
     screen.getAllByLabelText('Send feedback').forEach((el) => {
       expect(el.className).not.toMatch(/(^|\s)fixed(\s|$)/);
     });
+  });
+
+  test('submit sends a client_id and reuses it on retry; a new report gets a new id', async () => {
+    const { apiJson } = require('../config/api');
+    apiJson.mockRejectedValueOnce(new Error('boom')).mockResolvedValue({ success: true });
+    renderWithProviders(<Opener />);
+    await openAndFill();
+    const submit = () => fireEvent.click(screen.getByRole('button', { name: /submit feedback/i }));
+    submit();
+    await waitFor(() => expect(apiJson).toHaveBeenCalledTimes(1));
+    const first = JSON.parse(apiJson.mock.calls[0][1].body);
+    expect(first.client_id).toMatch(V4);
+    expect(apiJson.mock.calls[0][1].retries).toBe(0);
+    submit();
+    await waitFor(() => expect(apiJson).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(apiJson.mock.calls[1][1].body).client_id).toBe(first.client_id);
+    await waitFor(() => expect(screen.queryByText('Send Feedback')).not.toBeInTheDocument());
+    await openAndFill();
+    submit();
+    await waitFor(() => expect(apiJson).toHaveBeenCalledTimes(3));
+    expect(JSON.parse(apiJson.mock.calls[2][1].body).client_id).not.toBe(first.client_id);
   });
 });

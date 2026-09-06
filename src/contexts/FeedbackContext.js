@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { ENDPOINTS, apiFetch } from '../config/api';
+import { ENDPOINTS, apiJson, ApiError } from '../config/api';
 import { captureScreen, compressImage } from '../utils/screenshot';
 import { useTheme } from './ThemeContext';
 import { getWeekDates } from '../utils/weekDates';
+import { randomUUID } from '../utils/uuid';
 import FeedbackPanel from '../components/FeedbackPanel';
 
 const FeedbackContext = createContext();
@@ -23,6 +24,7 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
+  const clientIdRef = useRef(null);
   const { isDark } = useTheme();
 
   const reset = useCallback(() => {
@@ -31,9 +33,11 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
     setScreenshots([]);
     setIsCapturing(false);
     setIsSubmitting(false);
+    clientIdRef.current = null;
   }, []);
 
   const openFeedback = useCallback(async () => {
+    clientIdRef.current = randomUUID();
     setIsCapturing(true);
     setIsOpen(true);
     // Auto-capture screenshot of current screen
@@ -108,10 +112,13 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
         timestamp: new Date().toISOString(),
       };
 
-      const response = await apiFetch(ENDPOINTS.submitFeedback, {
+      if (!clientIdRef.current) clientIdRef.current = randomUUID();
+      const data = await apiJson(ENDPOINTS.submitFeedback, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        retries: 0,
         body: JSON.stringify({
+          client_id: clientIdRef.current,
           category,
           description: description.trim(),
           screen: currentScreen || 'unknown',
@@ -120,14 +127,17 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
         }),
       });
 
-      if (response.ok) {
+      if (data && data.success === false) {
+        toast.error('Failed to send feedback. Try again?');
+      } else {
         toast.success('Feedback sent! Thanks!');
         handleClose();
-      } else {
-        toast.error('Failed to send feedback. Try again?');
       }
-    } catch {
-      toast.error('Network error. Try again?');
+    } catch (err) {
+      const message = err instanceof ApiError && ['forbidden', 'timeout', 'network'].includes(err.code)
+        ? err.message
+        : 'Failed to send feedback. Try again?';
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
