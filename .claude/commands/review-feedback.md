@@ -4,13 +4,19 @@ Review user-submitted app feedback with screenshots. Fetches new feedback from t
 
 ## Steps
 
+All n8n webhooks require the X-API-Key header. Run these commands from the repo root so .env resolves. When marking items via update_feedback_status with curl, add -H "X-API-Key: $KEY".
+
 ### 1. Fetch Feedback
 Fetch all new feedback entries from the n8n webhook:
 
 ```bash
 node -e "
 const https = require('https');
-https.get('https://n8n-grocery.needexcelexpert.com/webhook/fetch_feedback?status=new', res => {
+const fs = require('fs');
+const key = ((fs.readFileSync('.env', 'utf8').match(/^REACT_APP_API_KEY=(.*)$/m) || [])[1] || '').trim();
+if (!key) { console.error('REACT_APP_API_KEY not found in .env'); process.exit(1); }
+const opts = { headers: { 'X-API-Key': key } };
+https.get('https://n8n-grocery.needexcelexpert.com/webhook/fetch_feedback?status=new', opts, res => {
   let data = '';
   res.on('data', c => data += c);
   res.on('end', () => {
@@ -34,7 +40,11 @@ Run this for each entry, substituting the entry's `id`:
 ```bash
 node -e "
 const https = require('https');
-https.get('https://n8n-grocery.needexcelexpert.com/webhook/fetch_feedback?status=new', res => {
+const fs = require('fs');
+const key = ((fs.readFileSync('.env', 'utf8').match(/^REACT_APP_API_KEY=(.*)$/m) || [])[1] || '').trim();
+if (!key) { console.error('REACT_APP_API_KEY not found in .env'); process.exit(1); }
+const opts = { headers: { 'X-API-Key': key } };
+https.get('https://n8n-grocery.needexcelexpert.com/webhook/fetch_feedback?status=new', opts, res => {
   let data = '';
   res.on('data', c => data += c);
   res.on('end', () => {
