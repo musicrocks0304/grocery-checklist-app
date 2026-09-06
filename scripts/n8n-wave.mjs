@@ -253,7 +253,7 @@ function dropAod(wf, names) {
   return wf;
 }
 
-const USAGE = 'usage: n8n-wave.mjs export | show <path> | auth <path…> | error-branch <path> --nodes "A,B" | unswallow <path> --nodes "A,B" | db-guard <path> [--mutation "A,B"] [--require "N:key"] [--strict "C"] [--lenient "D"] [--respond "Respond X"] [--first "A"] | drop-aod <path> --nodes "A,B" | apply <path> <file.mjs> | cycle <path>';
+const USAGE = 'usage: n8n-wave.mjs export | show <path> | auth <path…> | error-branch <path> --nodes "A,B" | unswallow <path> --nodes "A,B" | db-guard <path> [--mutation "A,B"] [--require "N:key"] [--strict "C"] [--lenient "D"] [--respond "Respond X"] [--first "A"] | drop-aod <path> --nodes "A,B" | apply <path> <file.mjs> | cycle <path> | create <file.json> [--inactive] | apply-id <id> <file.mjs> | error-workflow <id>';
 const [cmd, ...rest] = process.argv.slice(2);
 const opt = (name) => { const i = rest.indexOf(name); return i >= 0 ? rest[i + 1] : null; };
 const VALUE_FLAGS = ['--nodes', '--nodes-json', ...GUARD_MODES.flatMap((m) => [`--${m}`, `--${m}-json`]), '--respond', '--first'];
@@ -337,6 +337,21 @@ function guardEntries() {
     case 'drop-aod': { const wf = await byPath(paths[0]); dropAod(wf, nodeList()); await save(wf); break; }
     case 'apply': { const wf = await byPath(paths[0]); const mod = await import(pathToFileURL(paths[1]).href); const edited = await mod.default(wf, { ensureRespond500, errorBranch, RESPOND_500_BODY, ensureRespond503, dbGuard, dropAod, RESPOND_503_BODY }); await save(edited || wf); break; }
     case 'cycle': { const wf = await byPath(paths[0]); await cycle(wf.id, wf.name); break; }
+    case 'create': {
+      const def = JSON.parse(readFileSync(paths[0], 'utf8'));
+      const wh = def.nodes.find((n) => n.type === 'n8n-nodes-base.webhook');
+      if (wh && !wh.webhookId) throw new Error('refusing to create: Webhook node has no webhookId');
+      if (wh) {
+        const clash = (await listActive()).find((w) => webhookNode(w)?.parameters?.path === wh.parameters.path);
+        if (clash) throw new Error(`an active workflow already serves /${wh.parameters.path}: ${clash.name} (${clash.id})`);
+      }
+      const settings = Object.fromEntries(Object.entries(def.settings || {}).filter(([k]) => SETTINGS_KEYS.includes(k)));
+      const created = await api('POST', '/workflows', { name: def.name, nodes: def.nodes, connections: def.connections, settings });
+      const inactive = rest.includes('--inactive');
+      if (!inactive) await api('POST', `/workflows/${created.id}/activate`);
+      console.log(`created ${created.name} (${created.id})${inactive ? ' (inactive)' : ' and activated'}`);
+      break;
+    }
     default: console.log(USAGE); process.exit(1);
   }
 })().catch((e) => { console.error(e.message); process.exit(1); });

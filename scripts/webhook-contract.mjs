@@ -142,6 +142,7 @@ const EP = [
   { path: 'smart_deals', method: 'POST', wave: 3, tier: 'probe-nokey' },
   { path: 'grocery_prep', method: 'POST', wave: 3, tier: 'probe-nokey' },
   { path: 'categorize_heb_product', method: 'POST', wave: 3, tier: 'probe-nokey' },
+  { path: 'client_errors', method: 'POST', wave: 3, tier: 'probe' },
 ];
 
 if (ONLY && !EP.some((e) => e.path === ONLY)) { console.error(`no endpoint named ${ONLY}`); process.exit(2); }
