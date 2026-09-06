@@ -1,4 +1,4 @@
-import { apiFetch, ENDPOINTS } from './api';
+import { apiFetch, ApiError, apiJson, showApiError, ENDPOINTS } from './api';
 
 // Save originals
 const originalFetch = global.fetch;
@@ -11,6 +11,15 @@ beforeEach(() => {
 afterEach(() => {
   global.fetch = originalFetch;
   global.setTimeout = originalSetTimeout;
+});
+
+const instant = () => { global.setTimeout = (fn, _delay) => originalSetTimeout(fn, 0); };
+const res = (status, text, extra = {}) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  statusText: extra.statusText || '',
+  text: () => Promise.resolve(text),
+  json: () => Promise.resolve(JSON.parse(text)),
 });
 
 describe('apiFetch', () => {
@@ -134,6 +143,122 @@ describe('apiFetch', () => {
     await expect(
       apiFetch('https://example.com/api', { timeout: 50, retries: 0 })
     ).rejects.toThrow();
+  });
+});
+
+describe('apiJson', () => {
+  test('returns the parsed body on 2xx JSON', async () => {
+    global.fetch = jest.fn().mockResolvedValue(res(200, '[{"id":1}]'));
+    await expect(apiJson('https://example.com/x')).resolves.toEqual([{ id: 1 }]);
+  });
+
+  test('POST defaults to retries: 0 — a 500 is thrown after one attempt', async () => {
+    instant();
+    global.fetch = jest.fn().mockResolvedValue(res(500, '{"message":"Error in workflow"}'));
+    const err = await apiJson('https://example.com/x', { method: 'POST', body: '{}' }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.code).toBe('http');
+    expect(err.status).toBe(500);
+    expect(err.message).toBe('Error in workflow');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('GET defaults to retries: 2 — recovers from two 500s', async () => {
+    instant();
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce(res(500, ''))
+      .mockResolvedValueOnce(res(500, ''))
+      .mockResolvedValueOnce(res(200, '{"ok":true}'));
+    await expect(apiJson('https://example.com/x')).resolves.toEqual({ ok: true });
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  test('explicit retries on a POST is honoured', async () => {
+    instant();
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce(res(500, ''))
+      .mockResolvedValueOnce(res(200, '{"ok":true}'));
+    await expect(apiJson('https://example.com/x', { method: 'POST', retries: 1 })).resolves.toEqual({ ok: true });
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test('403 with a plain-text body → code forbidden', async () => {
+    global.fetch = jest.fn().mockResolvedValue(res(403, 'Authorization data is wrong!'));
+    const err = await apiJson('https://example.com/x').catch((e) => e);
+    expect(err.code).toBe('forbidden');
+    expect(err.status).toBe(403);
+    expect(err.message).toBe("This app version can't reach the server. Reload and try again.");
+  });
+
+  test('non-2xx with JSON error field uses it as the message', async () => {
+    global.fetch = jest.fn().mockResolvedValue(res(400, '{"success":false,"error":"weekDateRange and matches[] required"}'));
+    const err = await apiJson('https://example.com/x').catch((e) => e);
+    expect(err.code).toBe('http');
+    expect(err.message).toBe('weekDateRange and matches[] required');
+    expect(err.body).toEqual({ success: false, error: 'weekDateRange and matches[] required' });
+  });
+
+  test('non-2xx with an unparsable body falls back to the status', async () => {
+    global.fetch = jest.fn().mockResolvedValue(res(502, '<html>bad gateway</html>', { statusText: 'Bad Gateway' }));
+    const err = await apiJson('https://example.com/x', { retries: 0 }).catch((e) => e);
+    expect(err.code).toBe('http');
+    expect(err.message).toBe('HTTP 502 Bad Gateway');
+  });
+
+  test('2xx with an empty body → code empty', async () => {
+    global.fetch = jest.fn().mockResolvedValue(res(200, ''));
+    const err = await apiJson('https://example.com/x').catch((e) => e);
+    expect(err.code).toBe('empty');
+  });
+
+  test('2xx with an unparsable body → code invalid_json', async () => {
+    global.fetch = jest.fn().mockResolvedValue(res(200, 'Workflow was started'));
+    const err = await apiJson('https://example.com/x').catch((e) => e);
+    expect(err.code).toBe('invalid_json');
+    expect(err.body).toBe('Workflow was started');
+  });
+
+  test('2xx with success:false is returned, not thrown', async () => {
+    global.fetch = jest.fn().mockResolvedValue(res(200, '{"success":false,"error":"no_audio"}'));
+    await expect(apiJson('https://example.com/x', { method: 'POST' })).resolves.toEqual({ success: false, error: 'no_audio' });
+  });
+
+  test('network failure after retries → code network', async () => {
+    instant();
+    global.fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    const err = await apiJson('https://example.com/x', { retries: 1 }).catch((e) => e);
+    expect(err.code).toBe('network');
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  test('timeout → code timeout', async () => {
+    global.fetch = jest.fn().mockImplementation((_url, opts) => new Promise((_resolve, reject) => {
+      opts.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    const err = await apiJson('https://example.com/x', { timeout: 20, retries: 0 }).catch((e) => e);
+    expect(err.code).toBe('timeout');
+  });
+
+  test('caller abort rethrows the AbortError untouched', async () => {
+    const controller = new AbortController();
+    global.fetch = jest.fn().mockImplementation((_url, opts) => new Promise((_resolve, reject) => {
+      opts.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    const p = apiJson('https://example.com/x', { signal: controller.signal, retries: 0 });
+    controller.abort();
+    const err = await p.catch((e) => e);
+    expect(err.name).toBe('AbortError');
+    expect(err).not.toBeInstanceOf(ApiError);
+  });
+});
+
+// showApiError renders a toast; keep it untested here (react-hot-toast needs a
+// DOM host) — the FeedbackContext test in Task 5 covers the user-facing branch.
+// This smoke test just confirms it doesn't throw when called directly.
+describe('showApiError', () => {
+  test('does not throw for an ApiError or a generic error', () => {
+    expect(() => showApiError(new ApiError('http', 'boom'))).not.toThrow();
+    expect(() => showApiError(new Error('generic failure'))).not.toThrow();
   });
 });
 

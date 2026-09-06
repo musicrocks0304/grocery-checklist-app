@@ -132,7 +132,7 @@ export const ENDPOINTS = {
  * 4xx responses are NOT retried (client errors).
  * Timeouts and aborts are NOT retried — retrying a timed-out call to a
  * slow AI-agent webhook triples its cost and never helps (bug FB#28).
- * AI-agent callers should pass an explicit long timeout and retries: 0.
+ * AI-agent callers should use apiJson (retries default to 0 on POST) with an explicit long timeout.
  */
 export async function apiFetch(url, options = {}) {
   const { retries = 2, timeout = 30000, signal: callerSignal, ...fetchOptions } = options;
@@ -203,6 +203,76 @@ export async function apiFetch(url, options = {}) {
 }
 
 /**
+ * Error thrown by apiJson. `code` is one of:
+ *   http         non-2xx response (message from the JSON error/message field when present)
+ *   forbidden    403 — the key was rejected (stale bundle)
+ *   empty        2xx with no body — n8n finished without a Respond node firing
+ *   invalid_json 2xx with a body that is not JSON
+ *   network      fetch threw (DNS, offline, CORS-blocked 500 text/html)
+ *   timeout      the apiFetch timeout fired
+ */
+export class ApiError extends Error {
+  constructor(code, message, { status = 0, body = null } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+    this.body = body;
+  }
+}
+
+const MUTATING_METHODS = ['POST', 'PUT', 'DELETE'];
+const FORBIDDEN_MESSAGE = "This app version can't reach the server. Reload and try again.";
+
+/**
+ * apiFetch + JSON contract. Returns the parsed body on 2xx; throws ApiError
+ * otherwise. Mutations (POST/PUT/DELETE) default to retries: 0 — retrying a
+ * mutation duplicates data or multiplies AI cost; reads keep retries: 2.
+ * A caller-aborted request rethrows the original AbortError.
+ */
+export async function apiJson(url, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  const retries = options.retries ?? (MUTATING_METHODS.includes(method) ? 0 : 2);
+
+  let response;
+  try {
+    response = await apiFetch(url, { ...options, retries });
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      if (options.signal?.aborted) throw err;
+      throw new ApiError('timeout', 'Request timed out');
+    }
+    throw new ApiError('network', 'Network error — check your connection');
+  }
+
+  const text = await response.text();
+  const trimmed = text.trim();
+  let body = null;
+  let parsed = false;
+  if (trimmed !== '') {
+    try { body = JSON.parse(text); parsed = true; } catch { /* not JSON */ }
+  }
+
+  if (response.status === 403) {
+    throw new ApiError('forbidden', FORBIDDEN_MESSAGE, { status: 403, body: parsed ? body : text });
+  }
+  if (!response.ok) {
+    const field = parsed && body && typeof body === 'object' ? (body.error ?? body.message) : undefined;
+    const message = typeof field === 'string' && field.trim()
+      ? field
+      : `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+    throw new ApiError('http', message, { status: response.status, body: parsed ? body : text });
+  }
+  if (trimmed === '') {
+    throw new ApiError('empty', 'The server sent an empty response', { status: response.status });
+  }
+  if (!parsed) {
+    throw new ApiError('invalid_json', 'The server sent an unreadable response', { status: response.status, body: text });
+  }
+  return body;
+}
+
+/**
  * Show an error toast with optional retry. Call from components after apiFetch fails.
  *
  * Usage:
@@ -210,12 +280,14 @@ export async function apiFetch(url, options = {}) {
  *   catch (err) { showApiError(err, () => loadData()); }
  */
 export function showApiError(error, onRetry) {
-  const isTimeout = error.name === 'AbortError';
-  const isNetwork = error.message === 'Failed to fetch';
-
   let message = 'Something went wrong';
-  if (isTimeout) message = 'Request timed out';
-  else if (isNetwork) message = 'Network error — check your connection';
+  if (error instanceof ApiError) {
+    message = error.message;
+  } else if (error?.name === 'AbortError') {
+    message = 'Request timed out';
+  } else if (error?.message === 'Failed to fetch') {
+    message = 'Network error — check your connection';
+  }
 
   if (onRetry) {
     toast.error(
