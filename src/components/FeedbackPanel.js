@@ -25,6 +25,8 @@ const FeedbackPanel = ({
   isSubmitting,
   textareaRef,
   fileInputRef,
+  dialogRef,
+  dialogProps,
   onSelectCategory,
   onDescriptionChange,
   onAddImage,
@@ -37,6 +39,7 @@ const FeedbackPanel = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          aria-hidden="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -64,20 +67,23 @@ const FeedbackPanel = ({
       {isOpen && (
         <div className="fixed inset-0 z-50 pointer-events-none lg:flex lg:items-center lg:justify-center">
           <motion.div
+            ref={dialogRef}
             data-feedback-panel
             initial={{ y: '100%', opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            {...dialogProps}
+            aria-labelledby="feedback-title"
             className="pointer-events-auto fixed bottom-0 left-0 right-0 lg:static lg:w-full lg:max-w-lg lg:rounded-2xl bg-surface rounded-t-2xl shadow-warm-xl border border-default max-h-[85vh] flex flex-col"
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-default bg-surface rounded-t-2xl shrink-0">
-              <h2 className="text-lg font-bold font-display text-heading">Send Feedback</h2>
+              <h2 id="feedback-title" className="text-lg font-bold font-display text-heading">Send Feedback</h2>
               <button
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-background transition-colors"
+                className="w-11 h-11 -my-0.5 flex items-center justify-center rounded-full hover:bg-background transition-colors"
                 aria-label="Close feedback"
               >
                 <X size={20} className="text-secondary" />

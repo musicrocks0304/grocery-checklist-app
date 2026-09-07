@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import AppShell from './AppShell';
 import Sidebar from './Sidebar';
@@ -7,17 +8,13 @@ import { ModeMenu } from './InStoreMode';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { HeaderProvider } from '../contexts/HeaderContext';
 import { FeedbackProvider, useFeedback } from '../contexts/FeedbackContext';
+import { installMockFetch, restoreFetch } from '../test-utils/mockFetch';
 
 // Mock the screenshot helpers — jsdom canvases can't rasterize, and the panel
 // auto-captures the screen the moment it opens.
 jest.mock('../utils/screenshot', () => ({
   captureScreen: jest.fn(() => Promise.resolve('data:image/jpeg;base64,shot')),
   compressImage: jest.fn(() => Promise.resolve('data:image/jpeg;base64,shot')),
-}));
-
-jest.mock('../config/api', () => ({
-  ...jest.requireActual('../config/api'),
-  apiJson: jest.fn(),
 }));
 
 const { captureScreen } = require('../utils/screenshot');
@@ -67,9 +64,16 @@ async function openAndFill() {
 }
 
 describe('FeedbackPanel + FeedbackProvider', () => {
+  let fetchMock;
+
   beforeEach(() => {
-    captureScreen.mockClear();
+    captureScreen.mockResolvedValue('data:image/jpeg;base64,shot');
+    fetchMock = installMockFetch({
+      submit_feedback: { body: { success: true } },
+    });
   });
+
+  afterEach(() => restoreFetch());
 
   test('panel is closed until openFeedback is called', () => {
     renderWithProviders(<Opener />);
@@ -107,24 +111,27 @@ describe('FeedbackPanel + FeedbackProvider', () => {
   });
 
   test('submit sends a client_id and reuses it on retry; a new report gets a new id', async () => {
-    const { apiJson } = require('../config/api');
-    apiJson.mockRejectedValueOnce(new Error('boom')).mockResolvedValue({ success: true });
+    let attempts = 0;
+    fetchMock = installMockFetch({
+      submit_feedback: () => (++attempts === 1
+        ? { status: 500, body: { error: 'boom' } }
+        : { body: { success: true } }),
+    });
     renderWithProviders(<Opener />);
     await openAndFill();
     const submit = () => fireEvent.click(screen.getByRole('button', { name: /submit feedback/i }));
     submit();
-    await waitFor(() => expect(apiJson).toHaveBeenCalledTimes(1));
-    const first = JSON.parse(apiJson.mock.calls[0][1].body);
+    await waitFor(() => expect(fetchMock.for('submit_feedback')).toHaveLength(1));
+    const first = fetchMock.for('submit_feedback')[0].body;
     expect(first.client_id).toMatch(V4);
-    expect(apiJson.mock.calls[0][1].retries).toBe(0);
     submit();
-    await waitFor(() => expect(apiJson).toHaveBeenCalledTimes(2));
-    expect(JSON.parse(apiJson.mock.calls[1][1].body).client_id).toBe(first.client_id);
+    await waitFor(() => expect(fetchMock.for('submit_feedback')).toHaveLength(2));
+    expect(fetchMock.for('submit_feedback')[1].body.client_id).toBe(first.client_id);
     await waitFor(() => expect(screen.queryByText('Send Feedback')).not.toBeInTheDocument());
     await openAndFill();
     submit();
-    await waitFor(() => expect(apiJson).toHaveBeenCalledTimes(3));
-    expect(JSON.parse(apiJson.mock.calls[2][1].body).client_id).not.toBe(first.client_id);
+    await waitFor(() => expect(fetchMock.for('submit_feedback')).toHaveLength(3));
+    expect(fetchMock.for('submit_feedback')[2].body.client_id).not.toBe(first.client_id);
   });
 
   test('Sidebar "Send feedback" link opens the panel', async () => {
@@ -144,5 +151,57 @@ describe('FeedbackPanel + FeedbackProvider', () => {
     render(<ModeMenu onReorder={() => {}} onInvite={() => {}} onFeedback={onFeedback} onClose={() => {}} wakeLockActive={false} />);
     fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
     expect(onFeedback).toHaveBeenCalled();
+  });
+
+  test('the panel is a labelled modal dialog with a 44px close button', async () => {
+    renderWithProviders(<Opener />);
+    fireEvent.click(screen.getByText('open from context'));
+    const dialog = await screen.findByRole('dialog', { name: 'Send Feedback' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByRole('button', { name: 'Close feedback' }).className).toMatch(/\bw-11\b/);
+    expect(screen.getByRole('button', { name: 'Close feedback' }).className).toMatch(/\bh-11\b/);
+    expect(screen.getByRole('button', { name: 'Close feedback' }).className).toMatch(/(?:^|\s)-my-0\.5(?:\s|$)/);
+  });
+
+  test('the textarea is focused on open and Escape closes the panel, returning focus to the opener', async () => {
+    renderWithProviders(<Opener />);
+    const opener = screen.getByText('open from context');
+    opener.focus();
+    fireEvent.click(opener);
+    const textarea = await screen.findByPlaceholderText('What happened? What would make it better?');
+    await waitFor(() => expect(textarea).toHaveFocus());
+    userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(opener).toHaveFocus();
+  });
+
+  test('openFeedback while open preserves capture state and client identity', async () => {
+    let attempts = 0;
+    fetchMock = installMockFetch({
+      submit_feedback: () => (++attempts === 1
+        ? { status: 500, body: { error: 'boom' } }
+        : { body: { success: true } }),
+    });
+    renderWithProviders(<Opener />);
+    await openAndFill();
+    const submit = () => fireEvent.click(screen.getByRole('button', { name: /submit feedback/i }));
+    submit();
+    await waitFor(() => expect(fetchMock.for('submit_feedback')).toHaveLength(1));
+    const beforeReentry = fetchMock.for('submit_feedback')[0].body;
+
+    fireEvent.click(screen.getByText('open from context'));
+    await waitFor(() => expect(captureScreen).toHaveBeenCalledTimes(1));
+    expect(screen.getByPlaceholderText('What happened? What would make it better?')).toHaveValue('it broke');
+    submit();
+    await waitFor(() => expect(fetchMock.for('submit_feedback')).toHaveLength(2));
+    const afterReentry = fetchMock.for('submit_feedback')[1].body;
+    expect(afterReentry.client_id).toBe(beforeReentry.client_id);
+    expect(afterReentry.screenshots).toBe(beforeReentry.screenshots);
+  });
+
+  test('a React event passed to openFeedback is ignored as options', async () => {
+    renderWithProviders(<Opener />);
+    fireEvent.click(screen.getByText('open from context'));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 });

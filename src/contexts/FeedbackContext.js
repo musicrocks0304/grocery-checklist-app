@@ -6,6 +6,7 @@ import { useTheme } from './ThemeContext';
 import { getWeekDates } from '../utils/weekDates';
 import { randomUUID } from '../utils/uuid';
 import FeedbackPanel from '../components/FeedbackPanel';
+import useDialog from '../hooks/useDialog';
 
 const FeedbackContext = createContext();
 
@@ -26,6 +27,15 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
   const textareaRef = useRef(null);
   const clientIdRef = useRef(null);
   const submittingRef = useRef(false);
+  const handleCloseRef = useRef(() => {});
+  const isOpenRef = useRef(false);
+  const returnFocusRef = useRef(null);
+  const { ref: dialogRef, dialogProps } = useDialog({
+    open: isOpen,
+    onClose: () => handleCloseRef.current(),
+    initialFocusRef: textareaRef,
+    returnFocusRef,
+  });
   const { isDark } = useTheme();
 
   const reset = useCallback(() => {
@@ -37,7 +47,20 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
     clientIdRef.current = null;
   }, []);
 
-  const openFeedback = useCallback(async () => {
+  const openFeedback = useCallback(async (options) => {
+    // Re-entry guard: a second trigger must not re-capture the screen or
+    // reset the client id for the report already in progress.
+    if (isOpenRef.current) {
+      textareaRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const returnFocusTo = options
+      && typeof options === 'object'
+      && options.returnFocusTo instanceof Element
+      ? options.returnFocusTo
+      : null;
+    returnFocusRef.current = returnFocusTo;
+    isOpenRef.current = true;
     clientIdRef.current = randomUUID();
     setIsCapturing(true);
     setIsOpen(true);
@@ -47,15 +70,15 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
       setScreenshots([img]);
     }
     setIsCapturing(false);
-    // Focus textarea after panel opens
-    setTimeout(() => textareaRef.current?.focus(), 300);
   }, []);
 
   const handleClose = useCallback(() => {
+    isOpenRef.current = false;
     setIsOpen(false);
     // Delay reset so exit animation plays
     setTimeout(reset, 300);
   }, [reset]);
+  handleCloseRef.current = handleClose;
 
   const handleAddImage = useCallback(async (e) => {
     const files = Array.from(e.target.files || []);
@@ -161,6 +184,8 @@ export const FeedbackProvider = ({ currentScreen, children }) => {
         isSubmitting={isSubmitting}
         textareaRef={textareaRef}
         fileInputRef={fileInputRef}
+        dialogRef={dialogRef}
+        dialogProps={dialogProps}
         onSelectCategory={setCategory}
         onDescriptionChange={setDescription}
         onAddImage={handleAddImage}
