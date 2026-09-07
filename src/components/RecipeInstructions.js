@@ -771,8 +771,11 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
               </div>
               {debugMode ? (
                 <button
+                  type="button"
                   onClick={() => setShowDebug(!showDebug)}
-                  className="flex items-center gap-1 text-sm text-body hover:text-heading transition-colors"
+                  aria-label="Toggle debug log"
+                  aria-expanded={showDebug}
+                  className="flex items-center gap-1 text-sm text-body hover:text-heading transition-colors min-h-[44px] min-w-[44px] justify-center"
                 >
                   <Wifi size={16} />
                   <span className="hidden sm:inline">Debug</span>
@@ -979,8 +982,11 @@ const RecipeInstructions = ({ onNavigate, recipeId, selectedMeals = [], debugMod
           {/* Debug toggle */}
           {debugMode && (
             <button
+              type="button"
               onClick={() => setShowDebug(!showDebug)}
-              className="flex items-center gap-1 text-sm text-muted hover:text-body"
+              aria-label="Toggle debug log"
+              aria-expanded={showDebug}
+              className="flex items-center gap-1 text-sm text-muted hover:text-body min-h-[44px] min-w-[44px] justify-center"
             >
               <Wifi size={16} />
               {showDebug ? <ChevronUp size={14} /> : <ChevronDown size={14} />}

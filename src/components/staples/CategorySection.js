@@ -36,7 +36,7 @@ const CategorySection = ({ group, selected, onToggle, onToggleAll }) => {
         <button
           type="button"
           onClick={onToggleAll}
-          className="text-xs font-medium text-muted hover:text-body px-2 py-1 ml-1 rounded"
+          className="text-xs font-medium text-muted hover:text-body px-3 min-h-[44px] min-w-[44px] -my-2 ml-1 rounded inline-flex items-center justify-center"
         >
           {allSelected ? 'Clear' : 'All'}
         </button>

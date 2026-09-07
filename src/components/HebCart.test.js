@@ -47,3 +47,21 @@ test('smart match continues after one failed batch', async () => {
   await waitFor(() => expect(mock.for('/smart_match_grocery').length).toBeGreaterThanOrEqual(2), { timeout: 10000 });
   expect(mock.unmocked()).toEqual([]);
 });
+
+test('the sign-in panel disclosure names the block it reveals', async () => {
+  installMockFetch({ '/api/heb/session/status': expired, '/api/heb/weekly-items': weekly, '/api/heb/matches/all': { matches: [] } });
+  renderWithProviders(<HebCart onNavigate={() => {}} />);
+  expect(await screen.findByText('HEB sign-in needed')).toBeInTheDocument();
+  const disclosure = screen.getByRole('button', { name: 'Show technical details' });
+  expect(disclosure.className).toMatch(/min-h-\[44px\]/);
+  expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  const id = disclosure.getAttribute('aria-controls');
+  expect(id).toBe('heb-login-details');
+  // eslint-disable-next-line testing-library/no-node-access
+  expect(document.getElementById(id)).toBeNull();
+  fireEvent.click(disclosure);
+  expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  // eslint-disable-next-line testing-library/no-node-access
+  expect(document.getElementById(id)).toHaveTextContent('npm run scrape:login');
+  expect(screen.getByTestId('heb-signin-panel')).toContainElement(disclosure);
+});

@@ -88,7 +88,7 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, co
   };
 
   return (
-    <div className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
+    <div data-testid="heb-signin-panel" className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
       <div className="flex items-center gap-3 mb-4">
         <div className={`p-2 rounded-xl ${isActive ? 'bg-primary-light text-primary' : 'bg-background text-muted'}`}>
           {isActive ? <Wifi size={24} /> : <WifiOff size={24} />}
@@ -132,13 +132,14 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, co
               type="button"
               onClick={() => setShowDetails(v => !v)}
               aria-expanded={showDetails}
-              className="inline-flex items-center gap-1 text-xs text-muted hover:text-body transition-colors"
+              aria-controls="heb-login-details"
+              className="inline-flex items-center gap-1 text-xs text-muted hover:text-body transition-colors min-h-[44px] -my-2"
             >
               {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               Show technical details
             </button>
             {showDetails && (
-              <div className="mt-2 text-xs text-muted space-y-1">
+              <div id="heb-login-details" className="mt-2 text-xs text-muted space-y-1">
                 <code className="block bg-background border border-default px-2 py-1 rounded text-body">npm run scrape:login</code>
                 <p>Run this on the server, then re-check.</p>
               </div>

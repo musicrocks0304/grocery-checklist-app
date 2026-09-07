@@ -87,4 +87,11 @@ describe('CategorySection', () => {
     fireEvent.click(screen.getByText('Dairy & eggs'));
     expect(screen.getByText('Whole milk')).toBeInTheDocument();
   });
+
+  test('the All/Clear control is at least 44px', () => {
+    render(<CategorySection group={group} selected={new Set()} onToggle={() => {}} onToggleAll={() => {}} />);
+    const btn = screen.getByRole('button', { name: 'All' });
+    expect(btn.className).toMatch(/min-h-\[44px\]/);
+    expect(btn.className).toMatch(/min-w-\[44px\]/);
+  });
 });
