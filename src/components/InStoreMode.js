@@ -23,7 +23,7 @@ import {
   Users,
 } from "lucide-react";
 import { toast as hotToast } from "react-hot-toast";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useIsPresent } from "framer-motion";
 import { modalSpring, staggerContainer, staggerItem, fadeIn } from "../utils/animations";
 import { EmptyState } from "./ui";
 import confetti from "canvas-confetti";
@@ -32,6 +32,7 @@ import { ENDPOINTS, apiJson } from "../config/api";
 import { DEFAULT_CATEGORY } from "../constants/categories";
 import { useCategories } from "../hooks/useCategories";
 import { useFeedback } from "../contexts/FeedbackContext";
+import useDialog from "../hooks/useDialog";
 
 const WALK_ORDER_STORAGE_KEY = "inStoreWalkOrder";
 const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
@@ -792,7 +793,7 @@ const ReorderDrawer = ({ sections, onMoveUp, onClose }) => (
   </div>
 );
 
-export const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockActive }) => {
+export const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockActive, triggerRef }) => {
   const menuRef = useRef(null);
   useEffect(() => {
     const handle = (e) => {
@@ -805,9 +806,37 @@ export const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockAct
       document.removeEventListener("touchstart", handle);
     };
   }, [onClose]);
+  useEffect(() => {
+    const first = menuRef.current?.querySelector('[role="menuitem"]');
+    if (first) {
+      try { first.focus({ preventScroll: true }); } catch { first.focus(); }
+    }
+  }, []);
+  const handleKeyDown = (e) => {
+    const items = Array.from(menuRef.current?.querySelectorAll('[role="menuitem"]') || []);
+    const index = items.indexOf(document.activeElement);
+    const go = (next) => {
+      e.preventDefault();
+      items[(next + items.length) % items.length]?.focus();
+    };
+    if (e.key === "ArrowDown") go(index + 1);
+    else if (e.key === "ArrowUp") go(index - 1);
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(items.length - 1);
+    else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+      triggerRef?.current?.focus();
+    } else if (e.key === "Tab") onClose();
+  };
   return (
     <motion.div
       ref={menuRef}
+      role="menu"
+      id="shop-mode-menu"
+      aria-label="Shopping options"
+      onKeyDown={handleKeyDown}
       initial={{ opacity: 0, y: -6, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.98 }}
@@ -816,6 +845,8 @@ export const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockAct
     >
       <button
         type="button"
+        role="menuitem"
+        tabIndex={-1}
         onClick={onReorder}
         className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-left text-[14px] text-heading hover:bg-background transition-colors"
       >
@@ -824,6 +855,8 @@ export const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockAct
       </button>
       <button
         type="button"
+        role="menuitem"
+        tabIndex={-1}
         onClick={onInvite}
         className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-left text-[14px] text-heading hover:bg-background transition-colors"
       >
@@ -832,6 +865,8 @@ export const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockAct
       </button>
       <button
         type="button"
+        role="menuitem"
+        tabIndex={-1}
         onClick={onFeedback}
         aria-label="Send feedback"
         className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[10px] text-left text-[14px] text-heading hover:bg-background transition-colors"
@@ -857,12 +892,14 @@ export const ModeMenu = ({ onReorder, onInvite, onFeedback, onClose, wakeLockAct
 // Cancel / X / backdrop must leave no local trace, even though the
 // short-lived server-side row from create_session already exists (harmless,
 // 4h TTL) by the time this decision is made.
-export const InviteModal = ({ weekStartDate, onClose }) => {
+export const InviteModal = ({ weekStartDate, onClose, returnFocusRef }) => {
   const [code, setCode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const sessionDataRef = useRef(null);
+  const isPresent = useIsPresent();
+  const { ref: dialogRef, dialogProps } = useDialog({ open: isPresent, onClose, returnFocusRef });
 
   useEffect(() => {
     let cancelled = false;
@@ -927,19 +964,22 @@ export const InviteModal = ({ weekStartDate, onClose }) => {
       onClick={onClose}
     >
       <motion.div
+        ref={dialogRef}
+        {...dialogProps}
+        aria-labelledby="invite-title"
         {...modalSpring}
         onClick={(e) => e.stopPropagation()}
         className="bg-surface rounded-[18px] shadow-warm-xl p-5 w-full max-w-[340px]"
       >
         <div className="flex items-start mb-1">
-          <div className="flex-1 text-[18px] font-bold text-heading">
+          <div id="invite-title" className="flex-1 text-[18px] font-bold text-heading">
             Invite a partner
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mt-1 -mr-1 p-1 text-muted hover:text-heading"
+            className="w-11 h-11 -mt-2 -mr-2 flex items-center justify-center text-muted hover:text-heading"
           >
             <X size={18} />
           </button>
@@ -1150,6 +1190,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const celebratedRef = useRef(false);
   const startTimeRef = useRef(Date.now());
   const toastTimerRef = useRef(null);
+  const menuTriggerRef = useRef(null);
   // Tracks the timestamp of the last local check/uncheck. The polling sync
   // ignores remote updates that land within ~2s of a local mutation so the
   // in-flight POST has time to land server-side (avoids brief flip-back).
@@ -1753,7 +1794,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   const itemsLeft = totalItems - totalChecked;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col relative">
+    <div data-testid="shop-screen" className="min-h-screen bg-background flex flex-col relative">
       {/* Header + (reorder drawer when editing walk order) */}
       <div className="sticky top-0 z-20 bg-surface">
         {/* Top row */}
@@ -1813,10 +1854,13 @@ const InStoreMode = ({ inStoreData, onExit }) => {
             )}
           </button>
           <button
+            ref={menuTriggerRef}
             type="button"
             onClick={() => setShowMenu((v) => !v)}
             aria-label="More"
             aria-expanded={showMenu}
+            aria-haspopup="menu"
+            aria-controls="shop-mode-menu"
             className="w-10 h-10 rounded-xl flex items-center justify-center text-body hover:text-heading hover:bg-background transition-colors"
           >
             <MoreHorizontal size={20} />
@@ -1835,10 +1879,11 @@ const InStoreMode = ({ inStoreData, onExit }) => {
                 }}
                 onFeedback={() => {
                   setShowMenu(false);
-                  openFeedback();
+                  openFeedback({ returnFocusTo: menuTriggerRef.current });
                 }}
                 onClose={() => setShowMenu(false)}
                 wakeLockActive={wakeLockActive}
+                triggerRef={menuTriggerRef}
               />
             )}
           </AnimatePresence>
@@ -1890,6 +1935,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
         {showInvite && (
           <InviteModal
             weekStartDate={shoppingList?.weekStartDate}
+            returnFocusRef={menuTriggerRef}
             onClose={() => {
               setShowInvite(false);
               // Surface the presence badge as soon as the host has copied a link.

@@ -5,9 +5,9 @@ import { ModeMenu } from './InStoreMode';
 test('renders the three actions and calls their handlers', () => {
   const onReorder = jest.fn(), onInvite = jest.fn(), onFeedback = jest.fn(), onClose = jest.fn();
   render(<ModeMenu onReorder={onReorder} onInvite={onInvite} onFeedback={onFeedback} onClose={onClose} wakeLockActive={false} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Reorder aisles' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Invite partner' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Reorder aisles' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Invite partner' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Send feedback' }));
   expect(onReorder).toHaveBeenCalledTimes(1);
   expect(onInvite).toHaveBeenCalledTimes(1);
   expect(onFeedback).toHaveBeenCalledTimes(1);

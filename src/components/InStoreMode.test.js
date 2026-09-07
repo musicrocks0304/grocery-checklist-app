@@ -1,4 +1,10 @@
-import { formatAisleBadge } from './InStoreMode';
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
+import { AnimatePresence } from 'framer-motion';
+import { formatAisleBadge, ModeMenu, InviteModal } from './InStoreMode';
+import { installMockFetch, restoreFetch } from '../test-utils/mockFetch';
 
 // Pure-function unit test for the allDone calculation logic.
 // Verifies that a numeric size match doesn't trigger allDone if the actual
@@ -53,5 +59,87 @@ describe('formatAisleBadge', () => {
 
   test('shortens a verbose wall location to "Section, Wall"', () => {
     expect(formatAisleBadge('In Produce on the Front Wall')).toBe('Produce, Front');
+  });
+});
+
+describe('ModeMenu keyboard', () => {
+  function Host({ onClose = () => {}, onInvite = () => {} }) {
+    const triggerRef = React.useRef(null);
+    return (
+      <div>
+        <button type="button" ref={triggerRef} aria-label="More">more</button>
+        <ModeMenu onReorder={() => {}} onInvite={onInvite} onFeedback={() => {}} onClose={onClose} wakeLockActive={false} triggerRef={triggerRef} />
+        <button type="button">after menu</button>
+      </div>
+    );
+  }
+
+  test('is a menu of menuitems and focuses the first item on mount', () => {
+    render(<Host />);
+    expect(screen.getByRole('menu', { name: 'Shopping options' })).toHaveAttribute('id', 'shop-mode-menu');
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent.trim())).toEqual(['Reorder aisles', 'Invite partner', 'Send feedback']);
+    expect(items[0]).toHaveFocus();
+  });
+
+  test('ArrowDown and ArrowUp wrap while Home and End jump', () => {
+    render(<Host />);
+    const items = screen.getAllByRole('menuitem');
+    userEvent.keyboard('{ArrowDown}');
+    expect(items[1]).toHaveFocus();
+    userEvent.keyboard('{ArrowDown}{ArrowDown}');
+    expect(items[0]).toHaveFocus();
+    userEvent.keyboard('{ArrowUp}');
+    expect(items[2]).toHaveFocus();
+    userEvent.keyboard('{Home}');
+    expect(items[0]).toHaveFocus();
+    userEvent.keyboard('{End}');
+    expect(items[2]).toHaveFocus();
+  });
+
+  test('Escape closes and restores the trigger while Tab closes and continues natively', () => {
+    const onClose = jest.fn();
+    const { rerender } = render(<Host onClose={onClose} />);
+    userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'More' })).toHaveFocus();
+
+    rerender(<Host onClose={onClose} />);
+    screen.getAllByRole('menuitem')[0].focus();
+    userEvent.tab();
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: 'after menu' })).toHaveFocus();
+  });
+});
+
+describe('InviteModal dialog accessibility', () => {
+  afterEach(restoreFetch);
+
+  test('is labelled, keeps the dialog exposed, focuses a 44px close button, and Escape closes', async () => {
+    installMockFetch({ '/create_session': { code: 'AB12', week_start_date: '2026-09-06', expires_at: '2026-09-06 23:59:59' } });
+    const onClose = jest.fn();
+    render(<InviteModal weekStartDate="2026-09-06" onClose={onClose} />);
+    const dialog = screen.getByRole('dialog', { name: 'Invite a partner' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    const close = screen.getByRole('button', { name: 'Close' });
+    expect(close.className).toMatch(/\bw-11\b/);
+    expect(close.className).toMatch(/\bh-11\b/);
+    expect(close).toHaveFocus();
+    expect(await screen.findByText(/AB12/)).toBeInTheDocument();
+    userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('restores the fallback synchronously when an AnimatePresence exit starts', async () => {
+    installMockFetch({ '/create_session': { code: 'AB12', week_start_date: '2026-09-06', expires_at: '' } });
+    function Host() {
+      const fallbackRef = React.useRef(null);
+      const [open, setOpen] = React.useState(true);
+      return <><button ref={fallbackRef}>opener</button><AnimatePresence>{open && <InviteModal onClose={() => setOpen(false)} returnFocusRef={fallbackRef} />}</AnimatePresence></>;
+    }
+    render(<Host />);
+    await screen.findByText(/AB12/);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('button', { name: 'opener' })).toHaveFocus();
   });
 });

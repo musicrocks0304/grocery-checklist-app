@@ -103,7 +103,7 @@ test.describe('Shop (In-Store Mode)', () => {
   test('the ⋯ menu opens Feedback', async ({ page, backend }) => {
     await open(page, 'shop');
     await page.getByRole('button', { name: 'More' }).click();
-    await page.getByRole('button', { name: 'Send feedback' }).click();
+    await page.getByRole('menuitem', { name: 'Send feedback' }).click();
     // The menu's own trigger button is also named "Send feedback"
     // (case-insensitively identical to the panel's "Send Feedback" heading
     // to getByText's default matcher), so target the heading role instead of
@@ -114,7 +114,7 @@ test.describe('Shop (In-Store Mode)', () => {
   test('Invite posts create_session exactly once and shows the code', async ({ page, backend }) => {
     await open(page, 'shop');
     await page.getByRole('button', { name: 'More' }).click();
-    await page.getByRole('button', { name: 'Invite partner' }).click();
+    await page.getByRole('menuitem', { name: 'Invite partner' }).click();
     await expect(page.getByText('E2E1')).toBeVisible();
     expect(backend.calls('create_session')).toHaveLength(1);
     expect(backend.calls('create_session')[0].body).toEqual({ week_start_date: WEEK.startDate });

@@ -149,7 +149,7 @@ describe('FeedbackPanel + FeedbackProvider', () => {
   test('Shop menu "Send feedback" calls the handler', () => {
     const onFeedback = jest.fn();
     render(<ModeMenu onReorder={() => {}} onInvite={() => {}} onFeedback={onFeedback} onClose={() => {}} wakeLockActive={false} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Send feedback' }));
     expect(onFeedback).toHaveBeenCalled();
   });
 
