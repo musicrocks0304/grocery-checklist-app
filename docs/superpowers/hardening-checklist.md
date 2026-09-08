@@ -61,15 +61,30 @@ Shipped state (2026-09-06): reporter `src/telemetry/errorReporter.js` catches `o
 
 Deviation found during live verification: `SLACK_WEBHOOK_URL` in `C:\hsa-automation\.env` is empty today, so every Slack post from both the Client Error Telemetry workflow and the Error Workflow fails silently — rows are still stored (`notified=1`), but the Error Workflow's own execution ends in error at its Slack node. Verified on the probe: `Format` produced `[grocery-n8n] ZZ Error Probe (delete after use) failed at Boom: [TEST] error workflow probe — safe to ignore [line 1] — http://localhost:5679/workflow/…/executions/26491`. The follow-up item above is unticked until `SLACK_WEBHOOK_URL` is filled in and re-verified.
 
-## G. Accessibility pass — `[ ]`
+## G. Accessibility pass — `[x]` shipped 2026-09-08
 
-- [ ] Focus trap + `aria-modal` on the feedback panel and invite modal; return focus on close
-- [ ] `aria-controls` on the Cart "Show technical details" disclosure
-- [ ] Guard `openFeedback` against re-entry while the panel is open (keyboard users can Tab to the header button and clobber screenshots)
-- [ ] Secondary controls below 44px: Cook debug toggle, Deals "Retry" during add, Plan category "Select all/Clear" text buttons
-- [ ] Keyboard path through Shop check-offs and the ⋯ menu (Escape closes)
+Spec: `docs/superpowers/specs/2026-09-06-accessibility-pass-design.md`. Plan: `docs/superpowers/plans/2026-09-06-accessibility-pass.md`.
 
-Why: flagged by task reviewers during the 2026-09-05 fixes; none blocked shipping but all are cheap.
+- [x] Focus trap + `aria-modal` on the feedback panel and invite modal; return focus on close
+- [x] `aria-controls` on the Cart "Show technical details" disclosure
+- [x] Guard `openFeedback` against re-entry while the panel is open, preserving screenshots and client identity
+- [x] Seven 44px control variants: Cook debug toggles in selection and step views, Plan All and Clear, Cart disclosure, Invite close, and Feedback close; Deals Retry already meets the target (spec Decision 3)
+- [x] Keyboard path through Shop check-offs and the ⋯ menu; arrows/Home/End, Escape, Tab and Shift+Tab, and focus restoration
+
+Why: flagged by task reviewers during the 2026-09-05 fixes; none blocked shipping, but all are cheap.
+
+Shipped state (2026-09-08): `useDialog` manages initial focus, Tab wrapping, Escape, and connected opener/fallback restoration. Feedback and Invite expose named modal semantics; Invite restoration follows presence state at exit start. Shop menus provide the specified keyboard contract, and opening either dialog stabilizes the More trigger before the menu exits. All seven targets reach 44px while measured row heights remain unchanged.
+
+`e2e/a11y.spec.js` adds 24 browser cases across mobile and desktop; the existing Shop mutation test now uses keyboard Space. Exact-pinned `@axe-core/playwright` 4.13.0 audits only open Feedback, open Invite, the Shop screen with its menu open, and the Cart sign-in panel. All rules run and print. Serious/critical findings block except for the documented existing `color-contrast` findings below, preserving the explicit no-color-change scope.
+
+Validation: lint 0 warnings; Jest 38 suites / 282 tests with zero act warnings; hermetic 102/102; single live suite 3 passed / 1 initial-navigation timeout, followed by a passing read-only Feedback diagnostic (see deferred note); implementation `0df4c77`; live `main.546b58f5.js`. Post-deploy #plan/#shop: zero client_errors requests and zero page errors on both routes; Shop menu attributes verified; client_errors count 1 (permanent sentinel). No backend changes.
+
+Deferred from G:
+
+- Existing text contrast in the audited light-theme scopes: Feedback textarea 3.77:1 and enabled Submit 3.94:1; Shop muted labels, quantities, checked names, and locations approximately 2.42–3.77:1; Invite Copy link approximately 3.85–3.94:1; Cart Check again 3.94:1 and disclosure/technical text 2.53:1. These are visible audit findings, not a zero-serious-violations claim. A later color/contrast pass should address them and remove the gate exception.
+- Live-test navigation follow-up: the single 2026-09-08 live suite had 3 passes and a Feedback timeout in initial `page.goto` while waiting for `load`, before dialog assertions. A separate read-only Feedback open/close check passed in 2.210s with zero page errors, failed requests, submissions, or telemetry. The original transient load timeout did not recur; its cause remains unconfirmed. Preserve the failed run rather than claiming 4/4 suite passes. Full details are in the retained G ledger's `live-verification-report.md`.
+
+Release report: `docs/superpowers/reports/2026-09-08-accessibility-pass-release.md` (review, verification, rulings, and backlog snapshot).
 
 ## D. Decompose the large components — `[ ]` (after B, so refactors are guarded)
 
