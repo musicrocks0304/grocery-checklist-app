@@ -133,7 +133,7 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, co
               onClick={() => setShowDetails(v => !v)}
               aria-expanded={showDetails}
               aria-controls="heb-login-details"
-              className="inline-flex items-center gap-1 text-xs text-muted hover:text-body transition-colors min-h-[44px] -my-2"
+              className="inline-flex items-center gap-1 text-xs text-muted hover:text-body transition-colors min-h-[44px] -my-2.5 align-top"
             >
               {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               Show technical details

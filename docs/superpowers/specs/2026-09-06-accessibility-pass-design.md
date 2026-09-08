@@ -112,6 +112,13 @@ Branch `feat/accessibility-pass` off `main` (`490ea8d` or later); fast-forward i
 
 ## Risks
 
+### Execution note (2026-09-07)
+
+The scoped audit executes every axe rule and prints every finding. In keeping
+with the approved colour-contrast and font-size non-goals, `color-contrast`
+findings are recorded for follow-up but excluded from this pass's blocking
+set; every other `serious` or `critical` scoped finding still fails the gate.
+
 - **framer-motion and focus.** The panel animates from `y: 100%`; focusing the textarea during the spring is fine (focus does not depend on layout) but `preventScroll: true` avoids a jump. The exit animation keeps the dialog mounted for ~300 ms after `onClose`; the hook restores focus at close time, before that, so the opener never fights the unmount.
 - **Two "Send feedback" triggers in the DOM** (mobile header icon, desktop sidebar; one hidden by Tailwind). The trap's `.hidden` ancestor filter is for elements inside the dialog only; the openers are outside. Return focus goes to whichever element was `activeElement`, which is the visible one.
 - **`role="menu"` semantics** require the items to be `menuitem`s and the trigger to declare `aria-haspopup`; screen readers then announce "menu". Tab closing the menu matches the WAI-ARIA menu button pattern.

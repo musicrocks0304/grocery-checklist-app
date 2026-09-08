@@ -979,7 +979,7 @@ export const InviteModal = ({ weekStartDate, onClose, returnFocusRef }) => {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-11 h-11 -mt-2 -mr-2 flex items-center justify-center text-muted hover:text-heading"
+            className="w-11 h-11 shrink-0 -mt-2 -mb-2.5 -mr-2 flex items-center justify-center text-muted hover:text-heading"
           >
             <X size={18} />
           </button>
@@ -1874,11 +1874,13 @@ const InStoreMode = ({ inStoreData, onExit }) => {
                   setShowMenu(false);
                 }}
                 onInvite={() => {
-                  setShowInvite(true);
                   setShowMenu(false);
+                  menuTriggerRef.current?.focus({ preventScroll: true });
+                  setShowInvite(true);
                 }}
                 onFeedback={() => {
                   setShowMenu(false);
+                  menuTriggerRef.current?.focus({ preventScroll: true });
                   openFeedback({ returnFocusTo: menuTriggerRef.current });
                 }}
                 onClose={() => setShowMenu(false)}

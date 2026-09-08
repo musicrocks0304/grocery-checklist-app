@@ -50,10 +50,12 @@ test.describe('Shop (In-Store Mode)', () => {
     expect(backend.calls('shopping_progress')[0].query.week_start_date).toBe(WEEK.startDate);
   });
 
-  test('tapping an item posts shopping_progress_check and the count drops', async ({ page, backend }) => {
+  test('keyboard Space on an item posts shopping_progress_check and the count drops', async ({ page, backend }) => {
     await seedIfNeeded(backend);
     await open(page, 'shop');
-    await page.getByRole('checkbox', { name: nameRe(firstItem.ItemName) }).click();
+    const item = page.getByRole('checkbox', { name: nameRe(firstItem.ItemName) });
+    await item.focus();
+    await page.keyboard.press('Space');
     await expect.poll(() => backend.calls('shopping_progress_check').length).toBe(1);
     // handleToggleItem (InStoreMode.js ~line 1436) posts item_id as the
     // string form of ItemID (`item.ItemID.toString()`), not a number.

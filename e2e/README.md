@@ -7,6 +7,13 @@ Playwright specs for the grocery-checklist-app. Three projects
   `REACT_APP_API_KEY` in repo-root `.env`; specs under `e2e/live/`).
 
 ## Scripts
+- `e2e/a11y.spec.js` — keyboard-only flows for the feedback dialog, the Shop
+  ⋯ menu + invite dialog and the Cart sign-in disclosure, 44px target
+  measurements, and a scoped `@axe-core/playwright` audit (fails only on
+  serious/critical violations inside those regions except `color-contrast`,
+  which is printed and deferred because colour and font changes are explicit
+  non-goals of this pass). Other findings are printed. Whole-page axe is
+  deliberately not enforced.
 - `npm run test:e2e` — mobile + desktop against `e2e/fixtures/**` via
   `e2e/support/mock-backend.js`. A request with no fixture or mutation body
   fails the test (404, recorded `unmocked`) — an unhandled endpoint cannot
