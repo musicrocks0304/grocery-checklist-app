@@ -232,6 +232,7 @@ test.describe('Accessibility', () => {
     const more = page.getByRole('button', { name: 'More' });
     await more.focus();
     await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu', { name: 'Shopping options' });
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog', { name: 'Invite a partner' });
@@ -239,7 +240,9 @@ test.describe('Accessibility', () => {
     await page.keyboard.press('Escape');
     await expect(more).toBeFocused();
     await settleMotion(page);
+    await expect(menu).toHaveCount(0);
     await expect(dialog).toHaveCount(0);
+    await expect(more).toBeFocused();
     expect(backend.calls('create_session')).toHaveLength(1);
   });
 
@@ -248,6 +251,7 @@ test.describe('Accessibility', () => {
     const more = page.getByRole('button', { name: 'More' });
     await more.focus();
     await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu', { name: 'Shopping options' });
     await page.keyboard.press('End');
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog', { name: 'Send Feedback' });
@@ -255,7 +259,9 @@ test.describe('Accessibility', () => {
     await page.keyboard.press('Escape');
     await expect(more).toBeFocused();
     await settleMotion(page);
+    await expect(menu).toHaveCount(0);
     await expect(dialog).toHaveCount(0);
+    await expect(more).toBeFocused();
     expect(backend.calls('submit_feedback')).toHaveLength(0);
   });
 
@@ -293,6 +299,14 @@ test.describe('Accessibility', () => {
     const main = page.locator('main');
     const all = main.getByRole('button', { name: 'All', exact: true }).filter({ visible: true }).first();
     const row = all.locator('..');
+    const categoryToggle = row.getByRole('button').first();
+    if (await categoryToggle.getAttribute('aria-expanded') === 'false') {
+      await categoryToggle.click();
+    }
+    await expect(categoryToggle).toHaveAttribute('aria-expanded', 'true');
+    const categoryContent = row.locator('xpath=following-sibling::*[1]');
+    await expect(categoryContent).toBeVisible();
+    await expect(categoryContent.getByRole('checkbox').first()).toBeVisible();
     const currentRowBox = await row.boundingBox();
     const currentClass = await all.getAttribute('class');
     await all.evaluate((el) => {
