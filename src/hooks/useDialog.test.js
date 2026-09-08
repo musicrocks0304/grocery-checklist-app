@@ -149,4 +149,44 @@ describe('useDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(byName('opener')).toHaveFocus();
   });
+
+  test('restores an external opener when an already-open StrictMode dialog closes', () => {
+    const controls = (
+      <>
+        <button type="button">external opener</button>
+        <button type="button">external fallback</button>
+      </>
+    );
+    const { rerender } = render(<div><div data-testid="external-controls">{controls}</div></div>);
+    byName('external opener').focus();
+    const opener = byName('external opener');
+
+    rerender(<div><div data-testid="external-controls">{controls}</div><StrictMode><Page initialOpen /></StrictMode></div>);
+    expect(byName('external opener')).toBe(opener);
+    expect(opener.isConnected).toBe(true);
+    expect(byName('first')).toHaveFocus();
+    userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(byName('external opener')).toHaveFocus();
+  });
+
+  test('restores a connected fallback when an already-open StrictMode owner unmounts', () => {
+    const fallbackRef = React.createRef();
+    const controls = (withOpener) => (
+      <>
+        {withOpener && <button type="button">external opener</button>}
+        <button type="button" ref={fallbackRef}>external fallback</button>
+      </>
+    );
+    const { rerender } = render(<div><div data-testid="external-controls">{controls(true)}</div></div>);
+    byName('external opener').focus();
+
+    rerender(<div><div data-testid="external-controls">{controls(true)}</div><StrictMode><Page initialOpen returnFocusRef={fallbackRef} /></StrictMode></div>);
+    expect(byName('first')).toHaveFocus();
+    rerender(<div><div data-testid="external-controls">{controls(false)}</div></div>);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(byName('external fallback')).toHaveFocus();
+  });
 });
