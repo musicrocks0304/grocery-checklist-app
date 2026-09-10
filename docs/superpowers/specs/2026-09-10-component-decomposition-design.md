@@ -20,7 +20,7 @@ Use the first approach on one isolated branch, with sequential tasks and a singl
 
 | Area | Extract | Retain in the current owner |
 | --- | --- | --- |
-| App | `useHashRoute` for current screen, navigation, join handling, URL normalization and history listeners; `useWeeklyMeals` for App's cached selected meals, load, setter and refresh | Provider tree, screen composition, main scroll ref, unsaved-change ref, storage initialization and week-rollover lifecycle |
+| App | `useHashRoute` for current screen, navigation, join handling, URL normalization and history listeners; `useWeeklyMeals` for App's cached selected meals, load, setter and refresh | Provider tree, screen composition, main scroll behavior, unsaved-change ref, storage initialization and week-rollover lifecycle |
 | Shop | `useShoppingProgress` for checks, initial progress hydration, pending operations, retry/poll reconciliation, local persistence and undo toast; `usePartnerSession` for joined/host session lookup and refresh; existing voice hook and pure helpers into dedicated modules; existing views into `components/instore/` | Grocery-list resolution, category ordering/collapse, coupons, wake lock, elapsed time, completion/summary and voice-to-item wiring |
 | Cart | `useClipSession` for status, poll, connect/disconnect/recheck and ensure-session; `useCartBuild` for build request, progress, summary and EventSource; existing panels/cards/search modal into `components/cart/` | Current step, weekly groceries, matches, two-phase matching, review mutations and totals |
 | Cook | Recipe selection and cooking views into `components/cook/`; `useCookingTimer` for countdown state, interval and start/pause/cancel operations | Recipe loading, selected recipe/step, completion, saved cooking state, navigation, wake lock and the timer hook's screen lifetime |
@@ -28,11 +28,13 @@ Use the first approach on one isolated branch, with sequential tasks and a singl
 
 Hooks are called unconditionally from their current screen owner. Opening a panel, changing a cart step, or entering cooking mode must not start a new screen session or dispose of an existing one. Conditional views retain their current local state lifetimes. Chat hooks remain inside each chat screen; they are not lifted into the parent Meals tabs.
 
+Implementation detail established during planning: when grouping effects into a hook would reorder them relative to effects that stay in the screen, the hook returns named memoized effect callbacks and the screen registers them at the original positions. The hook owns the state and effect body; registration order and equivalent dependencies remain explicit in the screen.
+
 Move existing declarations with their DOM, props, keys, memoization and animation boundaries intact. Keep named exports used by current tests available from the original Shop and Cart modules as compatibility re-exports. Extracted modules must not import their original facade back and form cycles.
 
 ### App data flow
 
-App retains the unsaved-change ref and gives the route hook access to it and the main scroll ref. The hook returns the current screen, navigation and join status/recovery values used by the existing renderer. Preserve push versus replace, confirmation text, scroll reset, join request/storage payload, cancellation and manual-join reload behavior.
+App retains the unsaved-change ref and gives the route hook access to it. The hook returns the current screen, navigation and join status/recovery values used by the existing renderer. Preserve push versus replace, confirmation text, scroll reset, join request/storage payload, cancellation and manual-join reload behavior. Source clarification during planning: the existing scroll operation uses `document.querySelector('main')`, rather than an App-owned main ref; retain that lookup.
 
 Reuse `resolveScreenFromHash` in the history-state branch only after the existing screen whitelist validation. A malformed history state such as `'#plan'` must continue to fall back to home. Preserve storage initialization and week-rollover setup before the meal-load effect, and meal loading before the join/route effects.
 
