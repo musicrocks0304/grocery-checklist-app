@@ -166,6 +166,7 @@ test('unsaved navigation cancellation keeps the route and acceptance clears the 
 
 test.each([['grocery', 'Plan screen'], ['#plan', 'Home screen'], ['bogus', 'Home screen']])(
   'history state %s retains its whitelist semantics', async (stateScreen, expected) => {
+    route('#deals');
     render(<App />);
     await settle();
     act(() => window.dispatchEvent(new PopStateEvent('popstate', { state: { screen: stateScreen } })));
@@ -177,6 +178,7 @@ test('join blocks regular screens, stores the returned session and replaces the 
   route('#join/abcd');
   const pending = holdEndpoint('join_session');
   render(<App />);
+  const pendingHistoryLength = window.history.length;
   expect(screen.getByText(/Joining shopping session/)).toBeInTheDocument();
   expect(screen.queryByText('Home screen')).not.toBeInTheDocument();
   const joined = { code: 'ABCD', week_start_date: '2026-09-06', expires_at: '2026-09-13T00:00:00Z' };
@@ -186,6 +188,7 @@ test('join blocks regular screens, stores the returned session and replaces the 
   expect(JSON.parse(sessionStorage.getItem('joinedShoppingSession'))).toEqual(joined);
   expect(window.location.hash).toBe('#shop');
   expect(window.history.state).toEqual({ screen: 'shop' });
+  expect(window.history.length).toBe(pendingHistoryLength);
   const joinCall = global.fetch.mock.calls.find(([url]) => String(url).includes('join_session'));
   expect(new URL(joinCall[0]).searchParams.get('code')).toBe('ABCD');
 });
