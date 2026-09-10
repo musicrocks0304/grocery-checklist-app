@@ -2720,153 +2720,6 @@ git diff --cached --stat
 git commit -m "refactor: extract planner chat transport with explicit adapter" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
 
-### Task 9: Integrate Creator's distinct proposal adapter
-
-**Files:**
-
-- Create `src/components/chat/creatorChatAdapter.js`.
-- Create `src/components/MealCreator.transport.test.js`.
-- Modify `src/components/MealCreator.js`.
-- Reuse the Task 8 hook and test helper unchanged unless baseline evidence exposes a missing contract; a shared-hook change requires rerunning both screens' characterization.
-
-- [ ] **Step 1: Add Creator's baseline component tests before touching MealCreator.** The Task 8 helper is now available but the production Creator is still original. Build/save coverage below is a single hermetic boundary flow, protecting proposal cards' connection to the existing screen-owned phases; it authorizes no domain extraction or live writes.
-
-```jsx
-import { fireEvent, screen } from '@testing-library/react';
-import MealCreator from './MealCreator';
-import { installMockFetch } from '../test-utils/mockFetch';
-import { chatProps, chatTransportContract, openChat, sendChat } from '../test-utils/chatTransportContract';
-
-const endpoint = '/meal_creator_propose';
-const inputLabel = "Describe what you're craving";
-const errorText = 'Something went wrong generating proposals. Please try again!';
-chatTransportContract({
-  Component: MealCreator, endpoint, inputLabel, context: 'meal_creation', sessionPrefix: 'creator',
-  retryName: 'Retry', okReply: { output: { message: 'Creator reply' } }, okText: 'Creator reply',
-  errorText, timeoutText: 'That took too long — please try again with a simpler description.', planner: false,
-});
-
-test('Creator 500 remains retryable', async () => {
-  const { mock, container } = await openChat(MealCreator, endpoint, { status: 500, body: 'workflow failed' });
-  sendChat(inputLabel, 'idea');
-  await screen.findByText(errorText);
-  expect(screen.getByRole('button', { name: 'Retry', exact: true })).toBeInTheDocument();
-  expect(container.querySelector('.animate-bounce')).toBeNull();
-  expect(mock.for(endpoint)).toHaveLength(1);
-});
-
-const proposal = { name: 'Lemon rice', description: 'Bright rice', cuisineStyle: 'Mediterranean', protein: 'Beans', kidVehicle: 'Bowl', adultTwist: 'Chili', estimatedTotalTime: 20 };
-const output = { responseType: 'recipe_proposals', message: 'Pick an idea', proposals: [proposal] };
-test.each([
-  ['direct object', output], ['array', [output]], ['object output', { output }],
-  ['JSON string output', { output: JSON.stringify(output) }],
-])('Creator retains %s proposal parsing', async (_name, reply) => {
-  await openChat(MealCreator, endpoint, reply);
-  sendChat(inputLabel, 'invent dinner');
-  await screen.findByText('Pick an idea');
-  expect(screen.getByRole('heading', { name: 'Lemon rice' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Build This Recipe' })).toBeInTheDocument();
-});
-
-test.each([
-  ['plain output string', { output: 'plain output' }],
-  ['planner body wrapper', { response: { body: [{ output }] } }],
-])('Creator keeps %s as its existing JSON fallback', async (_name, reply) => {
-  await openChat(MealCreator, endpoint, reply);
-  sendChat(inputLabel, 'invent dinner');
-  await screen.findByText(JSON.stringify(reply));
-  expect(screen.queryByRole('button', { name: 'Build This Recipe' })).not.toBeInTheDocument();
-});
-
-test('Creator history keeps message content and ignores planner raw_content', async () => {
-  await openChat(MealCreator, endpoint, [], chatProps(), [{
-    id: 1, message: { type: 'ai', content: JSON.stringify(output) }, raw_content: 'ignored creator history',
-  }]);
-  expect(await screen.findByRole('heading', { name: 'Lemon rice' })).toBeInTheDocument();
-  expect(screen.queryByText('ignored creator history')).not.toBeInTheDocument();
-});
-
-test('proposal cards still feed screen-owned build, preview and save phases', async () => {
-  await openChat(MealCreator, endpoint, output);
-  const recipe = { recipe_name: 'Lemon rice', recipe_description: 'Built rice', ingredients: [], instructions: [], tags: [] };
-  const mock = installMockFetch({
-    [endpoint]: output,
-    '/meal_creator_build': { output: { responseType: 'full_recipe', recipe } },
-    '/meal_creator_save': { success: true, recipeName: 'Lemon rice', recipeId: 23, ingredientsProcessed: 0, instructionsProcessed: 0, tagsProcessed: 0 },
-  });
-  sendChat(inputLabel, 'invent dinner');
-  fireEvent.click(await screen.findByRole('button', { name: 'Build This Recipe' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Save to Recipe Book' }));
-  expect(await screen.findByRole('heading', { name: 'Recipe Saved!' })).toBeInTheDocument();
-  expect(mock.calls().map(call => new URL(call.url).pathname.split('/').pop())).toEqual(['meal_creator_propose', 'meal_creator_build', 'meal_creator_save']);
-  expect(mock.for('/meal_creator_build')[0].body).toEqual(expect.objectContaining({ proposalName: proposal.name, proposalDescription: proposal.description }));
-  expect(mock.for('/meal_creator_save')[0].body).toEqual({ recipe });
-  expect(mock.unmocked()).toEqual([]);
-});
-
-test('failed build returns to the existing proposal conversation', async () => {
-  await openChat(MealCreator, endpoint, output);
-  const mock = installMockFetch({ [endpoint]: output, '/meal_creator_build': { status: 500, body: 'failed' } });
-  sendChat(inputLabel, 'invent dinner');
-  fireEvent.click(await screen.findByRole('button', { name: 'Build This Recipe' }));
-  expect(await screen.findByLabelText(inputLabel)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Build This Recipe' })).toBeEnabled();
-  expect(screen.queryByRole('button', { name: 'Save to Recipe Book' })).not.toBeInTheDocument();
-  expect(mock.for('/meal_creator_build')).toHaveLength(1);
-});
-```
-
-- [ ] **Step 2: Verify Creator's characterization on the original Creator source.**
-
-```powershell
-$env:CI = 'true'
-npm.cmd test -- --watchAll=false --runInBand --runTestsByPath src/components/MealCreator.transport.test.js
-```
-
-Expected: PASS before extraction. Inspect any failing baseline assertion; do not change Creator history, copy, parser, or build/save behavior to make a proposed test pass.
-
-- [ ] **Step 3: Create `creatorChatAdapter.js` using the complete Appendix C code and these exact move boundaries.**
-
-- The original creator user-message append is shared; its typing object retains random ID and empty timestamp through `createTypingMessage`.
-- `onSend`: original `Sending proposal request...` log before try.
-- `buildPayload`: the original `const weekData = getWeekDates();` through the payload literal's closing `};`, ending before `lastProposeRef.current = payload;`; return the payload. Do not add Planner start/end fields or reorder payload fields.
-- `handleResponse`: from `if (!response.ok) throw new Error(...)` through the success/fallback message append `if/else`, ending immediately before `} catch (error)`. Move unchanged apart from replacing the inline typing filter at its current point with `removeTypingIndicator(typingId)`.
-- `handleError`: the catch body through its final `setMessages` append; replace only its inline typing filter with the same shared removal action. Preserve Date.now-only success/error IDs, every timestamp, AbortError wording, proposal state setter and debug log.
-- `retryText`: `payload.message || payload.description || ''`, distinct from Planner's `payload.message`.
-
-- [ ] **Step 4: Integrate only the proposal send/retry seam.** Import the shared hook and `{ createCreatorChatAdapter }`. Remove `PROPOSE_WEBHOOK_URL`, `lastProposeRef`, the old PHASE 1 send declaration, and the `retryLastPropose` declaration. Keep `apiFetch` for build/history and `apiJson` for save/domain writes. Replace the PHASE 1 send declaration with:
-
-```js
-const { sendMessage, retryLastMessage: retryLastPropose } = useChatTransport({
-  inputMessage, setInputMessage, setMessages, setIsLoading,
-  adapter: createCreatorChatAdapter({ sessionId, setMessages, setProposals, addDebugLog }),
-});
-```
-
-Retain Creator's history parser/effect, session getter, messages, phase and domain state, `buildRecipe`, `saveRecipe`, `addToThisWeek`, removal, Start Over, keyboard handler, all JSX, and desktop AnimatePresence placement unchanged. No shared phase framework or history hook is introduced.
-
-- [ ] **Step 5: Rerun both contracts, complete required lint/Jest, review and commit exact paths.**
-
-```powershell
-$env:CI = 'true'
-npm.cmd test -- --watchAll=false --runInBand --runTestsByPath src/components/ChatBot.test.js src/components/ChatBot.transport.test.js src/components/MealCreator.transport.test.js
-npm.cmd run lint
-npm.cmd test -- --watchAll=false --runInBand
-git diff --check
-```
-
-Expected: all pass. After committing, send the Astra reviewer baseline/final evidence, the base-to-head review package including new files, and the report. Review must compare Planner versus Creator 500 behavior, payload keys, wrapper/string parsing, typing timestamps, ID formulas, latest-payload manual retry, and unchanged history/phase ownership. Rerun affected tests and full lint/Jest after review fixes. Commit the initial task with:
-
-```powershell
-git add -- src/components/chat/creatorChatAdapter.js src/components/MealCreator.transport.test.js src/components/MealCreator.js
-git diff --cached --check
-git diff --cached --stat
-git commit -m "refactor: use shared send lifecycle for recipe creator" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
-```
-
-Whole-branch foreground hermetic Playwright and the single release-gate live suite remain in the parent plan's final verification task. These tasks make no live AI calls, real cart builds, backend changes, push, or deployment.
-
-
 #### Appendix P: Complete Planner adapter for Task 8
 
 ```js
@@ -3217,6 +3070,154 @@ export function createPlannerChatAdapter({ sessionId, selectedMeals, setSelected
   };
 }
 ```
+
+
+### Task 9: Integrate Creator's distinct proposal adapter
+
+**Files:**
+
+- Create `src/components/chat/creatorChatAdapter.js`.
+- Create `src/components/MealCreator.transport.test.js`.
+- Modify `src/components/MealCreator.js`.
+- Reuse the Task 8 hook and test helper unchanged unless baseline evidence exposes a missing contract; a shared-hook change requires rerunning both screens' characterization.
+
+- [ ] **Step 1: Add Creator's baseline component tests before touching MealCreator.** The Task 8 helper is now available but the production Creator is still original. Build/save coverage below is a single hermetic boundary flow, protecting proposal cards' connection to the existing screen-owned phases; it authorizes no domain extraction or live writes.
+
+```jsx
+import { fireEvent, screen } from '@testing-library/react';
+import MealCreator from './MealCreator';
+import { installMockFetch } from '../test-utils/mockFetch';
+import { chatProps, chatTransportContract, openChat, sendChat } from '../test-utils/chatTransportContract';
+
+const endpoint = '/meal_creator_propose';
+const inputLabel = "Describe what you're craving";
+const errorText = 'Something went wrong generating proposals. Please try again!';
+chatTransportContract({
+  Component: MealCreator, endpoint, inputLabel, context: 'meal_creation', sessionPrefix: 'creator',
+  retryName: 'Retry', okReply: { output: { message: 'Creator reply' } }, okText: 'Creator reply',
+  errorText, timeoutText: 'That took too long — please try again with a simpler description.', planner: false,
+});
+
+test('Creator 500 remains retryable', async () => {
+  const { mock, container } = await openChat(MealCreator, endpoint, { status: 500, body: 'workflow failed' });
+  sendChat(inputLabel, 'idea');
+  await screen.findByText(errorText);
+  expect(screen.getByRole('button', { name: 'Retry', exact: true })).toBeInTheDocument();
+  expect(container.querySelector('.animate-bounce')).toBeNull();
+  expect(mock.for(endpoint)).toHaveLength(1);
+});
+
+const proposal = { name: 'Lemon rice', description: 'Bright rice', cuisineStyle: 'Mediterranean', protein: 'Beans', kidVehicle: 'Bowl', adultTwist: 'Chili', estimatedTotalTime: 20 };
+const output = { responseType: 'recipe_proposals', message: 'Pick an idea', proposals: [proposal] };
+test.each([
+  ['direct object', output], ['array', [output]], ['object output', { output }],
+  ['JSON string output', { output: JSON.stringify(output) }],
+])('Creator retains %s proposal parsing', async (_name, reply) => {
+  await openChat(MealCreator, endpoint, reply);
+  sendChat(inputLabel, 'invent dinner');
+  await screen.findByText('Pick an idea');
+  expect(screen.getByRole('heading', { name: 'Lemon rice' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Build This Recipe' })).toBeInTheDocument();
+});
+
+test.each([
+  ['plain output string', { output: 'plain output' }],
+  ['planner body wrapper', { response: { body: [{ output }] } }],
+])('Creator keeps %s as its existing JSON fallback', async (_name, reply) => {
+  await openChat(MealCreator, endpoint, reply);
+  sendChat(inputLabel, 'invent dinner');
+  await screen.findByText(JSON.stringify(reply));
+  expect(screen.queryByRole('button', { name: 'Build This Recipe' })).not.toBeInTheDocument();
+});
+
+test('Creator history keeps message content and ignores planner raw_content', async () => {
+  await openChat(MealCreator, endpoint, [], chatProps(), [{
+    id: 1, message: { type: 'ai', content: JSON.stringify(output) }, raw_content: 'ignored creator history',
+  }]);
+  expect(await screen.findByRole('heading', { name: 'Lemon rice' })).toBeInTheDocument();
+  expect(screen.queryByText('ignored creator history')).not.toBeInTheDocument();
+});
+
+test('proposal cards still feed screen-owned build, preview and save phases', async () => {
+  await openChat(MealCreator, endpoint, output);
+  const recipe = { recipe_name: 'Lemon rice', recipe_description: 'Built rice', ingredients: [], instructions: [], tags: [] };
+  const mock = installMockFetch({
+    [endpoint]: output,
+    '/meal_creator_build': { output: { responseType: 'full_recipe', recipe } },
+    '/meal_creator_save': { success: true, recipeName: 'Lemon rice', recipeId: 23, ingredientsProcessed: 0, instructionsProcessed: 0, tagsProcessed: 0 },
+  });
+  sendChat(inputLabel, 'invent dinner');
+  fireEvent.click(await screen.findByRole('button', { name: 'Build This Recipe' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Save to Recipe Book' }));
+  expect(await screen.findByRole('heading', { name: 'Recipe Saved!' })).toBeInTheDocument();
+  expect(mock.calls().map(call => new URL(call.url).pathname.split('/').pop())).toEqual(['meal_creator_propose', 'meal_creator_build', 'meal_creator_save']);
+  expect(mock.for('/meal_creator_build')[0].body).toEqual(expect.objectContaining({ proposalName: proposal.name, proposalDescription: proposal.description }));
+  expect(mock.for('/meal_creator_save')[0].body).toEqual({ recipe });
+  expect(mock.unmocked()).toEqual([]);
+});
+
+test('failed build returns to the existing proposal conversation', async () => {
+  await openChat(MealCreator, endpoint, output);
+  const mock = installMockFetch({ [endpoint]: output, '/meal_creator_build': { status: 500, body: 'failed' } });
+  sendChat(inputLabel, 'invent dinner');
+  fireEvent.click(await screen.findByRole('button', { name: 'Build This Recipe' }));
+  expect(await screen.findByLabelText(inputLabel)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Build This Recipe' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: 'Save to Recipe Book' })).not.toBeInTheDocument();
+  expect(mock.for('/meal_creator_build')).toHaveLength(1);
+});
+```
+
+- [ ] **Step 2: Verify Creator's characterization on the original Creator source.**
+
+```powershell
+$env:CI = 'true'
+npm.cmd test -- --watchAll=false --runInBand --runTestsByPath src/components/MealCreator.transport.test.js
+```
+
+Expected: PASS before extraction. Inspect any failing baseline assertion; do not change Creator history, copy, parser, or build/save behavior to make a proposed test pass.
+
+- [ ] **Step 3: Create `creatorChatAdapter.js` using the complete Appendix C code and these exact move boundaries.**
+
+- The original creator user-message append is shared; its typing object retains random ID and empty timestamp through `createTypingMessage`.
+- `onSend`: original `Sending proposal request...` log before try.
+- `buildPayload`: the original `const weekData = getWeekDates();` through the payload literal's closing `};`, ending before `lastProposeRef.current = payload;`; return the payload. Do not add Planner start/end fields or reorder payload fields.
+- `handleResponse`: from `if (!response.ok) throw new Error(...)` through the success/fallback message append `if/else`, ending immediately before `} catch (error)`. Move unchanged apart from replacing the inline typing filter at its current point with `removeTypingIndicator(typingId)`.
+- `handleError`: the catch body through its final `setMessages` append; replace only its inline typing filter with the same shared removal action. Preserve Date.now-only success/error IDs, every timestamp, AbortError wording, proposal state setter and debug log.
+- `retryText`: `payload.message || payload.description || ''`, distinct from Planner's `payload.message`.
+
+- [ ] **Step 4: Integrate only the proposal send/retry seam.** Import the shared hook and `{ createCreatorChatAdapter }`. Remove `PROPOSE_WEBHOOK_URL`, `lastProposeRef`, the old PHASE 1 send declaration, and the `retryLastPropose` declaration. Keep `apiFetch` for build/history and `apiJson` for save/domain writes. Replace the PHASE 1 send declaration with:
+
+```js
+const { sendMessage, retryLastMessage: retryLastPropose } = useChatTransport({
+  inputMessage, setInputMessage, setMessages, setIsLoading,
+  adapter: createCreatorChatAdapter({ sessionId, setMessages, setProposals, addDebugLog }),
+});
+```
+
+Retain Creator's history parser/effect, session getter, messages, phase and domain state, `buildRecipe`, `saveRecipe`, `addToThisWeek`, removal, Start Over, keyboard handler, all JSX, and desktop AnimatePresence placement unchanged. No shared phase framework or history hook is introduced.
+
+- [ ] **Step 5: Rerun both contracts, complete required lint/Jest, review and commit exact paths.**
+
+```powershell
+$env:CI = 'true'
+npm.cmd test -- --watchAll=false --runInBand --runTestsByPath src/components/ChatBot.test.js src/components/ChatBot.transport.test.js src/components/MealCreator.transport.test.js
+npm.cmd run lint
+npm.cmd test -- --watchAll=false --runInBand
+git diff --check
+```
+
+Expected: all pass. After committing, send the Astra reviewer baseline/final evidence, the base-to-head review package including new files, and the report. Review must compare Planner versus Creator 500 behavior, payload keys, wrapper/string parsing, typing timestamps, ID formulas, latest-payload manual retry, and unchanged history/phase ownership. Rerun affected tests and full lint/Jest after review fixes. Commit the initial task with:
+
+```powershell
+git add -- src/components/chat/creatorChatAdapter.js src/components/MealCreator.transport.test.js src/components/MealCreator.js
+git diff --cached --check
+git diff --cached --stat
+git commit -m "refactor: use shared send lifecycle for recipe creator" -m "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+```
+
+Whole-branch foreground hermetic Playwright and the single release-gate live suite remain in the parent plan's final verification task. These tasks make no live AI calls, real cart builds, backend changes, push, or deployment.
+
 
 #### Appendix C: Complete Creator adapter for Task 9
 
