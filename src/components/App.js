@@ -4,9 +4,9 @@ import { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { getWeekDates } from "../utils/weekDates";
 import { pageTransition } from "../utils/animations";
-import { ENDPOINTS, apiJson, normalizeDbMeals } from "../config/api";
 import { ensureStorageVersion, gcWeekScopedKeys } from "../utils/storageVersion";
-import { resolveScreenFromHash, LEGACY_REDIRECT, VALID_SCREENS } from "../utils/screenRoute";
+import useHashRoute from "../hooks/useHashRoute";
+import useWeeklyMeals from "../hooks/useWeeklyMeals";
 import { ThemeProvider } from "../contexts/ThemeContext";
 import { HeaderProvider } from "../contexts/HeaderContext";
 import { FeedbackProvider } from "../contexts/FeedbackContext";
@@ -43,34 +43,16 @@ const navigation = [
   { id: "cook", name: "Cook Recipes", icon: ChefHat },
 ];
 
-// Partner invite: when a URL is opened with hash `#join/CODE`, extract the
-// code so App can call the join webhook before any regular screen renders.
-const extractJoinCode = () => resolveScreenFromHash(window.location.hash).join || null;
-
-const JOINED_SESSION_STORAGE_KEY = "joinedShoppingSession";
-
 const App = () => {
   const [debugMode] = useState(isDebugMode);
-  const [joinState, setJoinState] = useState(() => (extractJoinCode() ? "joining" : "idle"));
-  const [joinError, setJoinError] = useState(null);
-  const [currentScreen, setCurrentScreen] = useState(() => {
-    // `#join/CODE` has no screen — home is a placeholder while the join effect
-    // resolves the invite and redirects to #shop.
-    return resolveScreenFromHash(window.location.hash).screen || "home";
-  });
-  const [selectedMeals, setSelectedMeals] = useState(() => {
-    try {
-      const weekKey = `selectedMeals_${getWeekDates().startDate}`;
-      const stored = localStorage.getItem(weekKey);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [mealsLoading, setMealsLoading] = useState(true); // eslint-disable-line no-unused-vars
+  const hasUnsavedChangesRef = useRef(false);
+  const {
+    currentScreen, joinState, joinError, navigateToScreen, goHomeFromJoin,
+    resolveJoin, listenForRoutes,
+  } = useHashRoute({ hasUnsavedChangesRef });
+  const { selectedMeals, setSelectedMeals, loadMealsFromDb, refreshMeals } = useWeeklyMeals();
   const [groceryListData, setGroceryListData] = useState(null);
   const [inStoreData, setInStoreData] = useState(null);
-  const hasUnsavedChangesRef = useRef(false);
 
   const setHasUnsavedChanges = useCallback((value) => {
     hasUnsavedChangesRef.current = value;
@@ -98,54 +80,8 @@ const App = () => {
     return () => clearInterval(checkWeekBoundary);
   }, []);
 
-  // Shared helper: fetch meals from DB, normalize, and cache to localStorage
-  const loadMealsFromDb = useCallback(async ({ showLoading = false } = {}) => {
-    if (showLoading) setMealsLoading(true);
-    try {
-      const weekData = getWeekDates();
-      const url = new URL(ENDPOINTS.fetchWeeklyMeals);
-      url.searchParams.append("weekDateRange", weekData.displayRange);
-      const data = await apiJson(url.toString(), {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-      const normalized = normalizeDbMeals(data);
-      setSelectedMeals(normalized);
-      const weekKey = `selectedMeals_${weekData.startDate}`;
-      if (normalized.length > 0) {
-        localStorage.setItem(weekKey, JSON.stringify(normalized));
-      } else {
-        localStorage.removeItem(weekKey);
-      }
-    } catch {
-      // Keep stale localStorage data on network failure
-    } finally {
-      if (showLoading) setMealsLoading(false);
-    }
-  }, []);
-
   // Fetch selectedMeals from DB on mount (stale-while-revalidate)
   useEffect(() => { loadMealsFromDb({ showLoading: true }); }, [loadMealsFromDb]);
-
-  // Callback for children to refresh meals from DB after mutations
-  const refreshMeals = useCallback(() => loadMealsFromDb(), [loadMealsFromDb]);
-
-  // Navigate with unsaved-changes confirmation and browser history push
-  const navigateToScreen = useCallback((screen) => {
-    // Redirect legacy IDs to new ones
-    const target = LEGACY_REDIRECT[screen] || screen;
-
-    if (hasUnsavedChangesRef.current) {
-      const confirmed = window.confirm(
-        "You have unsaved changes that will be lost. Are you sure you want to leave?"
-      );
-      if (!confirmed) return;
-      hasUnsavedChangesRef.current = false;
-    }
-    setCurrentScreen(target);
-    window.history.pushState({ screen: target }, "", `#${target}`);
-    document.querySelector('main')?.scrollTo(0, 0);
-  }, []);
 
   const handleStartShopping = useCallback((data) => {
     setInStoreData(data);
@@ -157,94 +93,10 @@ const App = () => {
   // join_session webhook, stash the session in sessionStorage, and redirect
   // to #shop. Runs once on mount — the initial joinState='joining' means
   // App renders a blocking loading view until this resolves.
-  useEffect(() => {
-    const code = extractJoinCode();
-    if (!code) return undefined;
-    let cancelled = false;
-    (async () => {
-      try {
-        const url = new URL(ENDPOINTS.joinSession);
-        url.searchParams.append("code", code);
-        const data = await apiJson(url.toString(), {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          timeout: 8000,
-          retries: 1,
-        });
-        if (cancelled) return;
-        if (data.found && data.week_start_date) {
-          sessionStorage.setItem(
-            JOINED_SESSION_STORAGE_KEY,
-            JSON.stringify({
-              code: data.code,
-              week_start_date: data.week_start_date,
-              expires_at: data.expires_at,
-            })
-          );
-          setJoinState("idle");
-          setCurrentScreen("shop");
-          window.history.replaceState({ screen: "shop" }, "", "#shop");
-        } else {
-          setJoinError("That invite is invalid or expired.");
-          setJoinState("error");
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setJoinError("Couldn't reach the server — check your connection and try again.");
-        setJoinState("error");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useEffect(resolveJoin, [resolveJoin]);
 
   // Browser back/forward button support + hashes typed/pasted into an open tab
-  useEffect(() => {
-    const initialRoute = resolveScreenFromHash(window.location.hash);
-    // Skip the URL normalization when arriving via `#join/CODE` — the
-    // partner-invite effect above reads the code then rewrites the URL to
-    // `#shop` itself. Still wire up the listeners so back/forward work after.
-    if (!initialRoute.join) {
-      window.history.replaceState({ screen: initialRoute.screen }, "", `#${initialRoute.screen}`);
-    }
-
-    // Fires for back/forward (popstate) and for manual hash edits, which some
-    // browsers report only as hashchange. `navigateToScreen`'s pushState fires
-    // neither, so there is no double-handling from in-app navigation.
-    const handleRouteChange = (event) => {
-      const stateScreen = event?.state?.screen;
-      if (stateScreen) {
-        // History entry we pushed ourselves — trust its state.
-        const next = VALID_SCREENS.includes(stateScreen)
-          ? LEGACY_REDIRECT[stateScreen] || stateScreen
-          : "home";
-        setCurrentScreen((prev) => (prev === next ? prev : next));
-        document.querySelector('main')?.scrollTo(0, 0);
-        return;
-      }
-
-      // No history state — the hash was typed, pasted, or opened from a
-      // bookmark while the app was already running. Resolve from the URL
-      // instead of falling back to home (FB#54).
-      const route = resolveScreenFromHash(window.location.hash);
-      if (route.join) {
-        // The join flow only runs at mount, so reload to let it pick up the code.
-        window.location.reload();
-        return;
-      }
-      window.history.replaceState({ screen: route.screen }, "", `#${route.screen}`);
-      setCurrentScreen((prev) => (prev === route.screen ? prev : route.screen));
-      document.querySelector('main')?.scrollTo(0, 0);
-    };
-
-    window.addEventListener("popstate", handleRouteChange);
-    window.addEventListener("hashchange", handleRouteChange);
-    return () => {
-      window.removeEventListener("popstate", handleRouteChange);
-      window.removeEventListener("hashchange", handleRouteChange);
-    };
-  }, []);
+  useEffect(listenForRoutes, [listenForRoutes]);
 
   const toaster = (
     <Toaster
@@ -404,12 +256,7 @@ const App = () => {
             <p className="text-sm text-body mb-5">{joinError}</p>
             <button
               type="button"
-              onClick={() => {
-                setJoinState("idle");
-                setJoinError(null);
-                window.history.replaceState({ screen: "home" }, "", "#home");
-                setCurrentScreen("home");
-              }}
+              onClick={goHomeFromJoin}
               className="w-full py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover"
             >
               Go home
