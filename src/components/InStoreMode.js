@@ -17,8 +17,10 @@ import { useCategories } from "../hooks/useCategories";
 import { useFeedback } from "../contexts/FeedbackContext";
 import { findBestMatch } from "../utils/shoppingVoiceMatch";
 import { useHoldToTalk } from "../hooks/useHoldToTalk";
-import { readJoinedSession, readHostSession } from "../utils/shoppingSessions";
+import { readJoinedSession } from "../utils/shoppingSessions";
 import { groupByWalkOrder } from "../utils/shoppingList";
+import usePartnerSession from "../hooks/usePartnerSession";
+import useShoppingProgress from "../hooks/useShoppingProgress";
 import { ProgressRing, AisleSection } from "./instore/ShoppingItems";
 import ReorderDrawer from "./instore/ReorderDrawer";
 import { ModeMenu } from "./instore/ModeMenu";
@@ -38,7 +40,6 @@ const WALK_ORDER_STORAGE_KEY = "inStoreWalkOrder";
 
 const InStoreMode = ({ inStoreData, onExit }) => {
   const { openFeedback } = useFeedback();
-  const [checkedItems, setCheckedItems] = useState(new Set());
   const [shoppingList, setShoppingList] = useState(null);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
@@ -59,77 +60,25 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   // Section names the user has manually collapsed. Default-expanded; adding
   // a name here hides that section's body until the user taps the header.
   const [collapsedSections, setCollapsedSections] = useState(() => new Set());
-  const [toast, setToast] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [editOrder, setEditOrder] = useState(false);
   // Active partner session (either joined via invite or hosted). Refreshed
   // when the invite modal closes so the badge appears after "Copy link".
-  const [partnerSession, setPartnerSession] = useState(() => {
-    const joined = readJoinedSession();
-    if (joined) return { ...joined, role: "partner" };
-    const hosted = readHostSession();
-    if (hosted) return { ...hosted, role: "host" };
-    return null;
-  });
+  const { partnerSession, refreshPartnerSession } = usePartnerSession();
 
   const wakeLockRef = useRef(null);
   const celebratedRef = useRef(false);
   const startTimeRef = useRef(Date.now());
-  const toastTimerRef = useRef(null);
   const menuTriggerRef = useRef(null);
-  // Tracks the timestamp of the last local check/uncheck. The polling sync
-  // ignores remote updates that land within ~2s of a local mutation so the
-  // in-flight POST has time to land server-side (avoids brief flip-back).
-  const lastLocalMutationRef = useRef(0);
-  // Check/uncheck mutations not yet acknowledged by the server:
-  // itemId -> { desired, weekStart, token, failed }. The live-sync poll never
-  // overrides these (store Wi-Fi makes slow/failed POSTs routine — the old
-  // fire-and-forget approach let the next poll silently revert the tap), and
-  // failed ones are re-sent when connectivity returns.
-  const pendingOpsRef = useRef(new Map());
-  const opTokenRef = useRef(0);
 
-  const sendProgressOp = useCallback((itemId, desired, weekStart, token) => {
-    const endpoint = desired ? ENDPOINTS.shoppingProgressCheck : ENDPOINTS.shoppingProgressUncheck;
-    apiJson(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ week_start_date: weekStart, item_id: itemId }),
-    })
-      .then(() => {
-        const entry = pendingOpsRef.current.get(itemId);
-        if (!entry || entry.token !== token) return; // superseded by a newer toggle
-        pendingOpsRef.current.delete(itemId);
-      })
-      .catch(() => {
-        const entry = pendingOpsRef.current.get(itemId);
-        if (entry && entry.token === token) entry.failed = true;
-      });
-  }, []);
+  const {
+    checkedItems, toast, handleToggleItem, handleUndo,
+    retryProgressEffect, hydrateProgressEffect,
+    cleanupUndoToastEffect, pollPartnerProgressEffect,
+  } = useShoppingProgress({ shoppingList, partnerSession });
 
-  // Re-send failed ops when the network returns (or on a slow background
-  // tick — grocery-store dead spots end when you walk three aisles over).
-  const drainPendingOps = useCallback(() => {
-    pendingOpsRef.current.forEach((entry, itemId) => {
-      if (!entry.failed) return;
-      entry.failed = false;
-      entry.token = ++opTokenRef.current;
-      sendProgressOp(itemId, entry.desired, entry.weekStart, entry.token);
-    });
-  }, [sendProgressOp]);
-
-  useEffect(() => {
-    const onOnline = () => drainPendingOps();
-    window.addEventListener("online", onOnline);
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") drainPendingOps();
-    }, 10000);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      clearInterval(timer);
-    };
-  }, [drainPendingOps]);
+  useEffect(retryProgressEffect, [retryProgressEffect]);
 
   // --- Shopping list resolution: fetch-fresh-first with cache as offline fallback ---
   // Always re-fetch on mount so a mid-week addition/removal on the Plan screen
@@ -251,43 +200,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   }, []);
 
   // --- Load checked items from DB, fall back to localStorage ---
-  useEffect(() => {
-    if (!shoppingList) return;
-    const loadCheckedItems = async () => {
-      try {
-        const weekStart = shoppingList.weekStartDate || getWeekDates().startDate;
-        const weekRange = shoppingList.weekDateRange || getWeekDates().displayRange;
-        const url = new URL(ENDPOINTS.shoppingProgress);
-        url.searchParams.append("week_start_date", weekStart);
-        // Backend JOINs against WeeklyGroceryList on WeekDateRange so stale
-        // rows (items no longer on the list) are filtered out server-side.
-        url.searchParams.append("week_date_range", weekRange);
-        const data = await apiJson(url.toString(), {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        });
-        const checkedIds = Array.isArray(data) ? data.map((row) => String(row.item_id)) : [];
-        setCheckedItems(new Set(checkedIds));
-        return;
-      } catch {
-        /* fall through to localStorage fallback */
-      }
-      try {
-        const stored = localStorage.getItem("inStoreCheckedItems");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed.savedAt === shoppingList.savedAt) {
-            setCheckedItems(new Set(parsed.checkedIds));
-          } else {
-            localStorage.removeItem("inStoreCheckedItems");
-          }
-        }
-      } catch {
-        localStorage.removeItem("inStoreCheckedItems");
-      }
-    };
-    loadCheckedItems();
-  }, [shoppingList]);
+  useEffect(hydrateProgressEffect, [hydrateProgressEffect]);
 
   // --- Coupon lookup ---
   useEffect(() => {
@@ -354,53 +267,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   }, []);
 
   // --- Cleanup timers on unmount ---
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
-
-  // --- Toggle check (+ toast on newly-checked) ---
-  const handleToggleItem = useCallback(
-    (item) => {
-      const itemId = item.ItemID.toString();
-      lastLocalMutationRef.current = Date.now();
-      setCheckedItems((prev) => {
-        const next = new Set(prev);
-        const isChecking = !next.has(itemId);
-        if (isChecking) next.add(itemId);
-        else next.delete(itemId);
-
-        const weekStart = shoppingList?.weekStartDate || getWeekDates().startDate;
-        const token = ++opTokenRef.current;
-        pendingOpsRef.current.set(itemId, { desired: isChecking, weekStart, token, failed: false });
-        sendProgressOp(itemId, isChecking, weekStart, token);
-
-        if (shoppingList) {
-          localStorage.setItem(
-            "inStoreCheckedItems",
-            JSON.stringify({ savedAt: shoppingList.savedAt, checkedIds: Array.from(next) })
-          );
-        }
-
-        if (isChecking) {
-          setToast({ itemId, itemName: item.ItemName });
-          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-          toastTimerRef.current = setTimeout(() => setToast(null), 3000);
-        } else {
-          // If we're un-checking the item currently shown in the toast, clear it.
-          setToast((current) => (current && current.itemId === itemId ? null : current));
-          if (toastTimerRef.current) {
-            clearTimeout(toastTimerRef.current);
-            toastTimerRef.current = null;
-          }
-        }
-
-        return next;
-      });
-    },
-    [shoppingList, sendProgressOp]
-  );
+  useEffect(cleanupUndoToastEffect, [cleanupUndoToastEffect]);
 
   // Grouped items in walk order
   const grouped = useMemo(
@@ -456,13 +323,6 @@ const InStoreMode = ({ inStoreData, onExit }) => {
     },
     [grouped, persistWalkOrder]
   );
-
-  const handleUndo = useCallback(() => {
-    if (!toast) return;
-    const item = shoppingList?.items.find((i) => i.ItemID.toString() === toast.itemId);
-    if (item) handleToggleItem(item);
-    else setToast(null);
-  }, [toast, shoppingList, handleToggleItem]);
 
   // Voice check-off v2: hold-to-talk on the header mic button.
   // The hook handles audio capture + transcription. We wire the result to
@@ -545,56 +405,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
   // risk of a stale snapshot reverting a slow check-off. The snapshot is
   // merged over pending (unacknowledged) local mutations, never replacing
   // them. Stops when tab is hidden to save battery.
-  useEffect(() => {
-    if (!shoppingList || !partnerSession) return undefined;
-    const weekStart = shoppingList.weekStartDate;
-    if (!weekStart) return undefined;
-
-    let cancelled = false;
-
-    const weekRange = shoppingList.weekDateRange;
-
-    const poll = async () => {
-      if (document.visibilityState !== "visible") return;
-      if (Date.now() - lastLocalMutationRef.current < 2000) return;
-      try {
-        const url = new URL(ENDPOINTS.shoppingProgress);
-        url.searchParams.append("week_start_date", weekStart);
-        if (weekRange) url.searchParams.append("week_date_range", weekRange);
-        const data = await apiJson(url.toString(), {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          timeout: 8000,
-          retries: 0,
-        });
-        if (cancelled) return;
-        const remoteIds = Array.isArray(data) ? data.map((r) => String(r.item_id)) : [];
-        // Re-check mutation timestamp in case user toggled during the fetch.
-        if (Date.now() - lastLocalMutationRef.current < 2000) return;
-        setCheckedItems((prev) => {
-          const next = new Set(remoteIds);
-          // Local taps the server hasn't acknowledged yet always win —
-          // otherwise a failed/slow POST gets silently reverted by the poll.
-          pendingOpsRef.current.forEach((entry, itemId) => {
-            if (entry.desired) next.add(itemId);
-            else next.delete(itemId);
-          });
-          if (prev.size === next.size && Array.from(prev).every((id) => next.has(id))) {
-            return prev;
-          }
-          return next;
-        });
-      } catch {
-        /* network hiccup — try again next tick */
-      }
-    };
-
-    const interval = setInterval(poll, 4000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [shoppingList, partnerSession]);
+  useEffect(pollPartnerProgressEffect, [pollPartnerProgressEffect]);
 
   const couponSavingsTotal = useMemo(() => {
     if (!shoppingList?.items || !couponLookup) return 0;
@@ -827,14 +638,7 @@ const InStoreMode = ({ inStoreData, onExit }) => {
             returnFocusRef={menuTriggerRef}
             onClose={() => {
               setShowInvite(false);
-              // Surface the presence badge as soon as the host has copied a link.
-              const joined = readJoinedSession();
-              if (joined) {
-                setPartnerSession({ ...joined, role: "partner" });
-                return;
-              }
-              const hosted = readHostSession();
-              setPartnerSession(hosted ? { ...hosted, role: "host" } : null);
+              refreshPartnerSession();
             }}
           />
         )}
