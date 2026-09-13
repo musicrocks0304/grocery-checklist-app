@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
 import { ENDPOINTS, apiFetch, apiJson, userMessage } from '../config/api';
+import useChatTransport from '../hooks/useChatTransport';
+import { createCreatorChatAdapter } from './chat/creatorChatAdapter';
 
 // Generate or retrieve a creator-specific session ID — keyed by week so each grocery week gets fresh history
 const getCreatorSessionId = () => {
@@ -17,7 +19,6 @@ const getCreatorSessionId = () => {
   return sessionId;
 };
 
-const PROPOSE_WEBHOOK_URL = ENDPOINTS.mealCreatorPropose;
 const BUILD_WEBHOOK_URL = ENDPOINTS.mealCreatorBuild;
 const SAVE_WEBHOOK_URL = ENDPOINTS.mealCreatorSave;
 
@@ -48,7 +49,6 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   const [showMealsPanel, setShowMealsPanel] = useState(false);
   const [isAddingToWeek, setIsAddingToWeek] = useState(false);
   const messagesEndRef = useRef(null);
-  const lastProposeRef = useRef(null);
 
   const addDebugLog = (message, data = null) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -218,106 +218,10 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
   };
 
   // ===== PHASE 1: Send message to get proposals =====
-  // `overrideText` lets Retry resend directly — set-state-then-call read the
-  // stale pre-update input and silently no-opped.
-  const sendMessage = async (overrideText) => {
-    const rawText = typeof overrideText === 'string' ? overrideText : inputMessage;
-    if (!rawText.trim()) return;
-
-    const messageToSend = rawText.trim();
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      content: messageToSend,
-      timestamp: new Date().toLocaleTimeString()
-    };
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsLoading(true);
-
-    // Show typing indicator
-    const typingId = Date.now() + Math.random();
-    setMessages(prev => [...prev, { id: typingId, type: 'bot', content: '...', isTyping: true, timestamp: '' }]);
-
-    addDebugLog('Sending proposal request...', messageToSend);
-
-    try {
-      const weekData = getWeekDates();
-      const payload = {
-        message: messageToSend,
-        sessionId: sessionId,
-        context: 'meal_creation',
-        weekDateRange: weekData.displayRange,
-        timestamp: new Date().toISOString()
-      };
-
-      lastProposeRef.current = payload;
-
-      // AI agent run: long timeout, no retries (a retry re-runs the agent)
-      const response = await apiFetch(PROPOSE_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(payload),
-        mode: 'cors',
-        timeout: 120000,
-        retries: 0,
-      });
-
-      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-
-      const responseText = await response.text();
-      addDebugLog('Raw propose response:', responseText);
-
-      let data = JSON.parse(responseText);
-
-      // Handle array wrapper from n8n
-      if (Array.isArray(data) && data.length > 0) data = data[0];
-
-      // Unwrap n8n AI Agent output
-      let output = data;
-      if (data.output && typeof data.output === 'object') output = data.output;
-      else if (data.output && typeof data.output === 'string') {
-        try { output = JSON.parse(data.output); } catch { output = data; }
-      }
-
-      addDebugLog('Parsed output:', output);
-
-      // Remove typing indicator
-      setMessages(prev => prev.filter(msg => msg.id !== typingId));
-
-      if (output.responseType === 'recipe_proposals' && output.proposals) {
-        setProposals(output.proposals);
-        setMessages(prev => [...prev, {
-          id: Date.now(),
-          type: 'bot',
-          content: output.message || "Here are some ideas! Pick one and I'll build the full recipe.",
-          proposals: output.proposals,
-          timestamp: new Date().toLocaleTimeString()
-        }]);
-      } else {
-        setMessages(prev => [...prev, {
-          id: Date.now(),
-          type: 'bot',
-          content: output.message || output.text || JSON.stringify(output),
-          timestamp: new Date().toLocaleTimeString()
-        }]);
-      }
-    } catch (error) {
-      addDebugLog('Error in propose:', error.message);
-      setMessages(prev => prev.filter(msg => msg.id !== typingId));
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        type: 'bot',
-        content: error.name === 'AbortError'
-          ? "That took too long — please try again with a simpler description."
-          : "Something went wrong generating proposals. Please try again!",
-        isRetryable: true,
-        timestamp: new Date().toLocaleTimeString()
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { sendMessage, retryLastMessage: retryLastPropose } = useChatTransport({
+    inputMessage, setInputMessage, setMessages, setIsLoading,
+    adapter: createCreatorChatAdapter({ sessionId, setMessages, setProposals, addDebugLog }),
+  });
 
   // ===== PHASE 2: Build full recipe from selected proposal =====
   const buildRecipe = async (proposal) => {
@@ -547,11 +451,6 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     }]);
     // Reload to pick up the new session ID
     window.location.reload();
-  };
-
-  const retryLastPropose = () => {
-    if (!lastProposeRef.current) return;
-    sendMessage(lastProposeRef.current.message || lastProposeRef.current.description || '');
   };
 
   const handleKeyPress = (e) => {
