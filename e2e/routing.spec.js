@@ -53,6 +53,18 @@ test.describe('routing', () => {
     await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('#plan');
   });
 
+  test('legacy #smart-deals redirects to Deals', async ({ page, backend }) => {
+    await open(page, 'smart-deals');
+    await expect.poll(() => page.evaluate(() => window.location.hash)).toBe('#deals');
+    await expect(page.locator('main').getByText('Deals & Coupons', { exact: false }).first()).toBeVisible();
+  });
+
+  test('legacy #coupons remains reachable', async ({ page, backend }) => {
+    await open(page, 'coupons');
+    await expect(page.locator('main').getByRole('heading', { name: 'HEB Digital Coupons' })).toBeVisible();
+    expect(await page.evaluate(() => window.location.hash)).toBe('#coupons');
+  });
+
   test('unknown hash goes home', async ({ page, backend }) => {
     await open(page, 'nonsense');
     // Scoped to <main> — the same text also appears in the mobile
