@@ -86,16 +86,27 @@ Deferred from G:
 
 Release report: `docs/superpowers/reports/2026-09-08-accessibility-pass-release.md` (review, verification, rulings, and backlog snapshot).
 
-## D. Decompose the large components — `[ ]` (after B, so refactors are guarded)
+## D. Decompose the large components — `[x]` shipped 2026-09-14
 
-- [ ] `App.js`: extract `useHashRoute` (routing + popstate/hashchange + join flow) and `useWeeklyMeals` (meal load/refresh); use `resolveScreenFromHash` in the state branch of the popstate handler (currently re-implemented inline)
-- [ ] `InStoreMode.js` (~1,900 lines): split `useShoppingProgress` (pending-ops layer, poll), `usePartnerSession`, voice check-off hook already exists; move `ModeMenu`, `InviteModal`, `ReorderDrawer`, `AisleSection` to `src/components/instore/`
-- [ ] `HebCart.js` (~1,400): `useClipSession` (status poll, connect/disconnect/recheck), `useCartBuild` (SSE), panels to `src/components/cart/`
-- [ ] `RecipeInstructions.js` (~1,450): selection screen vs cooking mode as separate components; timer hook
-- [ ] `ChatBot.js` / `MealCreator.js` (~1,300 / ~1,200): shared chat transport hook with the `sendMessage(overrideText)` retry pattern and the text-parsing fallbacks
-- [ ] Delete dead code: `SmartDeals.js`, `Coupons.js` if unrouted after check, `SessionManager.js` (already slated in A)
+Spec: `docs/superpowers/specs/2026-09-10-component-decomposition-design.md`. Release report: [2026-09-14-component-decomposition-release.md](reports/2026-09-14-component-decomposition-release.md).
 
-Why: every fix round pays a context tax on these files; reviewers repeatedly flagged file size.
+- [x] `App.js`: `useHashRoute` owns routing/join/history and `useWeeklyMeals` owns meal loading/refresh; history-state whitelist remains before `resolveScreenFromHash`.
+- [x] `InStoreMode.js`: views/helpers and `useHoldToTalk` moved out; `useShoppingProgress` owns pending operations/polling and `usePartnerSession` owns presence, with original effect registration order.
+- [x] `HebCart.js`: `useClipSession` owns session lifecycle, `useCartBuild` owns build/SSE, and panels live under `src/components/cart/`; matching/review and steps remain screen-owned.
+- [x] `RecipeInstructions.js`: selection/cooking views and `useCookingTimer` extracted; screen persistence, navigation and timer policies preserved.
+- [x] `ChatBot.js` / `MealCreator.js`: shared `useChatTransport` with separate Planner/Creator adapters preserves their distinct parsing/retry behavior; history/domain/Creator phases remain screen-owned.
+- [x] Dead-code audit: removed only unused `SmartDeals.js`; retained routed `Coupons.js` and `#smart-deals` redirect; `SessionManager.js` was already removed under A.
+
+Why: every fix round paid a context cost on these files; smaller responsibilities make future changes easier to review.
+
+Shipped state (2026-09-14): strictly behavior-preserving implementation `2b6c59f` fast-forwarded into main after all ten task reviews and whole-branch Astra review approved it. Existing timing, closure/snapshot, request/storage, DOM, focus/menu/dialog and 44px behavior remain. No dependency or backend workflow changes. App/Shop/Cart/Cook/Planner/Creator facades are now 314/665/760/727/954/1086 lines.
+
+Validation: lint zero warnings; Jest 47 suites / 380 tests with zero act warnings; foreground hermetic 106/106 without retries; existing live suite once, 4/4 without retries/skips. Feature CI34863179902 and source-main CI34863550980 passed. Netlify deployment `6aa815153d1005000813156c` serves `main.2a187bdc.js` for exact source `2b6c59f`. Deployed #plan/#shop both produced zero page errors and zero client_errors requests. Telemetry remains total1/sentinel1; prescribed test-catalog cleanup removed one new named row, leaving residue0. G contrast deferrals remain.
+
+Deferred from D:
+
+- A Cart build-start response resolving after unmount can create an EventSource after cleanup already ran, leaving it open. This original behavior was characterized and retained; a separate fix needs a request/stream lifetime policy.
+- Creator fixed-clock retry characterization exposes duplicate keys from its existing Date.now-only response/error IDs. ID generation was retained; assess a separate ID change if pursued. This is narrow original-source test evidence, not a new runtime incident.
 
 ## C. HEB session lifecycle — `[ ]`
 
