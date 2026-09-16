@@ -63,3 +63,7 @@ backups/
 playwright-report/
 test-results/
 e2e/.auth/
+
+# Root-level debug artifacts (screenshots, n8n execution dumps)
+/*.png
+/exec_*.json
