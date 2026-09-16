@@ -34,7 +34,7 @@ simultaneously reports `sessionAuthenticated: false` and shows "HEB session expi
 user connects, a browser launches, and product search fails.
 
 (The weekly anonymous scrape can reach the same state via `index.js:187`, but that path is
-currently unreachable — see §9.)
+currently unreachable — see §8.)
 
 **Second defect.** Deals' expired banner (`Deals.js:872`) instructs the user to start a session
 in "Session Manager", a component deleted by sub-project A (`8ad2bf4`). Cart's panel
@@ -52,16 +52,29 @@ which is the normal state between manual logins.
 the browser-context loader; `/api/health` also reports store binding. The app consumes one hook.
 
 Rejected:
-- *App-side reconciliation only* — avoids a Docker rebuild, but the n8n alert would still judge
-  "signed in" by a different definition than the UI displays. The same bug, relocated.
+- *App-side reconciliation only* — a shared hook reconciles the two endpoints client-side and no
+  container is rebuilt. But the loose predicate would survive in `/session/start` and
+  `createBrowserContext`, so the browser still launches with cookies it cannot use; the UI would
+  merely be better at describing a backend that stays broken. It also leaves every future consumer
+  to re-implement the reconciliation.
 - *Route all health through n8n* — adds a hop to a check that runs on every Deals/Cart mount and
   discards a working, CORS-allowed direct path. The health endpoint is read-only; there is
   nothing to protect.
 
 This supersedes the checklist's "a `heb_session_expired` flag the app can read". A flag written
 by a daily job would be up to 24h stale in the UI: a user who re-logged in on their phone would
-still be told to sign in. The app reads live health; the DB table exists only for alert
-throttling (§6).
+still be told to sign in. The app reads live health instead, and **no flag table is created**.
+
+**Alerting is out of scope entirely** (decided 2026-09-16). The checklist's first C bullet called
+for a Slack alert. The user does not use Slack and never has; sub-project E introduced Slack on an
+assumption, and its two nodes — the only notification mechanism anywhere in the stack — have never
+fired. Rather than substitute a different channel, C surfaces session state where the user is
+already blocked: in Cart and Deals, with the re-login flow attached. That covers the real failure
+(clipping and cart-building are dead) at the moment it bites, and needs no new infrastructure. A
+push channel would add only advance warning, which is the smaller half of the value.
+
+Consequences: no `heb_session_events` table, no changes to Daily Maintenance
+`NGvnsYXF8cpFTHA1`, and no n8n restart for `SLACK_WEBHOOK_URL`.
 
 ---
 
@@ -85,7 +98,7 @@ browser's, not the file's.
 
 **File mtime no longer gates validity.** HEB's auth cookies last ~30 days; the previous 24h cap
 measured *inactivity*, not expiry. Left in place it would flip the system to `signedOut` after a
-single idle day, firing a daily alert and demanding a phone re-login (with hCaptcha) every day —
+single idle day, demanding a phone re-login (with hCaptcha) every day —
 making C actively worse than nothing.
 
 Because `createBrowserContext` (`auth.js:47`) currently refuses to *load* a >24h file, the
@@ -205,7 +218,7 @@ only to `heb-clip-server`; without this the webhook 401s on first use
 Kasm syncs the profile on a ~30s cycle and Chrome flushes cookies lazily, so **the first tap
 after signing in will commonly return 400 `success:false`** — the expected case, not an incident.
 n8n's HTTP Request node throws on 4xx by default, which would surface as an n8n 500, and
-`apiJson`'s `raise()` would file a `client_errors` row (and an E Slack alert) on every attempt.
+`apiJson`'s `raise()` would file a `client_errors` row on every attempt.
 
 So: HTTP node set to never error; Respond passes the clip-server's status and body through
 unchanged; the UI says "give it a few seconds and try again" on a 4xx. A 4xx is not reported by
@@ -225,53 +238,12 @@ when the file's mtime is newer than the session's start time.
 
 ---
 
-## 6. Alerting
-
-New table `heb_session_events` — DDL via an n8n migration workflow (MySQL MCP is read-only).
-Columns: observed state, `storeId`, `observed_at`, `notified_at`.
-
-Its purpose is alert throttling, not analytics. Alert on a **state transition**
-(e.g. `ready` → `signedOut`), never on every observation — otherwise a 30-day expiry Slacks every
-morning.
-
-Added to Daily Maintenance `NGvnsYXF8cpFTHA1`:
-HTTP Request → `http://heb-clip-server:3847/api/health` → classify → compare to last row →
-INSERT event → Slack on transition.
-
-Three failure modes the naive version silently loses, each addressed:
-
-1. **Empty table.** A 0-row SELECT stops the flow in n8n MySQL 2.4 (node-level
-   `alwaysOutputData`; inside `parameters.options` it does nothing). The migration **seeds a
-   baseline row**, so the first comparison always has a predecessor.
-2. **Slack failure loses the alert forever.** If the row is inserted first and Slack then fails
-   (the URL is empty today), the state is recorded as observed and never retried. `notified_at`
-   is set **only after a Slack 2xx**, and the gate is "state changed **OR** `notified_at IS NULL`".
-   A missed alert is worse than a duplicate.
-3. **`unreachable` is a state, not an exception.** The HTTP node is set to continue-on-error; a
-   missing or invalid body classifies as `unreachable` and alerts like any other transition.
-   Otherwise the execution just fails and the only signal is the generic Error Workflow, which is
-   itself Slack-dependent.
-
-**The branch attaches to the schedule trigger, not to the tail of the existing MySQL chain**, so
-the health check does not depend on four unrelated maintenance nodes succeeding. The existing
-chain is not modified.
-
-**Scrape freshness** (approved 2026-09-16, cheap while in the same job): alert when the newest
-`heb_scraping_history` success is older than ~10 days. C's session alerting would not otherwise
-catch a WAF-blocked scraper — see §9.
-
-**Slack enablement**: user supplies `SLACK_WEBHOOK_URL` (empty since 2026-09-06), then
-`docker compose up -d hsa-local`. Batch this restart with the `ADMIN_API_KEY` addition (§5) —
-one restart, ~65s, 42 workflows re-activate. Verify a real delivery.
-
----
-
-## 7. Deployment order
+## 6. Deployment order
 
 Netlify deploys `main` automatically; the clip-server needs a manual Docker rebuild. The orders
 are **not** symmetric:
 
-1. Compose env: `HEB_STORE_ID` on `heb-clip-server`, `ADMIN_API_KEY` + `SLACK_WEBHOOK_URL` on
+1. Compose env: `HEB_STORE_ID` on `heb-clip-server`, `ADMIN_API_KEY` on
    `hsa-local`
 2. Clip-server rebuild + restart
 3. n8n restart (one restart, batched with step 1) and workflow changes
@@ -286,7 +258,7 @@ Clipping and cart building are down during the clip-server rebuild.
 
 ---
 
-## 8. Testing
+## 7. Testing
 
 **Jest** — state precedence for all seven states; `undefined` vs `null` `storeId`; both screens'
 banner per state; the strict/loose divergence case specifically; `signedOut` overriding `active`.
@@ -309,12 +281,18 @@ of the change. Live verification of the import flow is manual and must be planne
 
 ---
 
-## 9. Out of scope, recorded
+## 8. Out of scope, recorded
 
 - **The weekly scrape is broken.** `heb_scraping_history` shows `WAF_BLOCKED` on 2026-08-20,
   08-27 and 09-03; last success 2026-08-06 (917 coupons); the 09-10 run logged no row at all.
-  Deals is serving ~6-week-old coupons. Agreed 2026-09-16 to finish C first; the freshness alert
-  in §6 makes it visible meanwhile.
+  Deals is serving ~6-week-old coupons. Agreed 2026-09-16 to finish C first. The freshness check
+  originally planned alongside C's alerting died with that section, so **nothing currently
+  surfaces this** — it is invisible until someone queries the table. A "coupon data is N days old"
+  line in Deals would be cheap and is the natural home, but it belongs to F, not C.
+
+- **Store 809 is live drift.** The session is bound to 809 while the system expects 794; user
+  confirmed 794 correct on 2026-09-16. C's store check reports it; re-binding happens at the next
+  login through the §5 flow. Aisle/walk-order data keyed to #794 is unaffected by C.
 - **`ready` is a cookie-shape heuristic, not HEB-verified.** `saveSession` re-persists whatever
   auth cookies were loaded even if HEB rejected them. The existing `SESSION_EXPIRED` signal
   (`useClipCoupons.js:95`) should trigger a recheck into the same component.
