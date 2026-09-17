@@ -55,6 +55,28 @@ test('unknown state stays neutral, then the shared session state supplies the si
   expect(mock.for('/api/health')).toHaveLength(1);
 });
 
+test('degraded blocks the Connect step instead of auto-advancing past it', async () => {
+  // runBuildJob calls db.connect() and inserts into heb_cart_sessions OUTSIDE
+  // its inner try/catches, so a DB outage fails the whole build. Auto-
+  // advancing would sail past Connect and fail later with a raw connection
+  // error instead of an explanation.
+  // activeSession, not idle: auto-advance only fires on a live browser
+  // session, so an idle one would leave the gate untested.
+  const mock = installMockFetch(cartFetchMap({
+    '/api/heb/session/status': activeSession,
+    '/api/health': { status: 'degraded', degradedReason: 'db_unreachable', sessionAuthenticated: true, storeExpected: '794' },
+  }));
+  renderCart();
+  await flush();
+  expect(await screen.findByTestId('heb-session-panel')).toHaveTextContent(/database/i);
+  // Still on 'connect' — the review list never loaded.
+  expect(screen.queryByText('Bread', { exact: true })).toBeNull();
+  // And blocked there rather than merely explained: driving a browser session
+  // accomplishes nothing while the server cannot read its coupons.
+  expect(screen.queryByRole('button', { name: 'Disconnect' })).toBeNull();
+  expect(mock.for('/api/health')).toHaveLength(1);
+});
+
 test('HTTP and thrown status checks still resolve offline instead of hanging', async () => {
   let statusReply = { status: 503, body: {} };
   const mock = installMockFetch(cartFetchMap({ '/api/heb/session/status': () => statusReply }));

@@ -13,7 +13,10 @@ const ConnectionPanel = ({ sessionStatus, hebState, hebHealth, onConnect, onDisc
   const loginValid = sessionStatus?.loginSessionValid;
 
   // `blocked` gates the Connect/Disconnect row: these are the states where
-  // driving a browser session cannot work.
+  // driving a browser session cannot work. 'degraded' is one of them — the
+  // build job connects to MySQL and inserts into heb_cart_sessions outside
+  // its inner try/catches, so a browser session bought here could only fail
+  // later with a raw connection error.
   //
   // It deliberately EXCLUDES two states:
   //   'expiring'   advisory — the session still works, so connecting must
@@ -26,7 +29,7 @@ const ConnectionPanel = ({ sessionStatus, hebState, hebHealth, onConnect, onDisc
   // There is no 'noStore' state to exclude (ruling R13): HEB resolves the
   // curbside store server-side, so a healthy live session carries no store
   // cookie and `deriveState` never emits one.
-  const blocked = ['signedOut', 'unreachable'].includes(hebState);
+  const blocked = ['signedOut', 'unreachable', 'degraded'].includes(hebState);
 
   // Two independently unknown things, and neither may flash a verdict at the
   // user on mount: the shared session state before its first answer, and the

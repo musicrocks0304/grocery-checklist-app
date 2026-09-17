@@ -525,7 +525,12 @@ const HebCart = ({ onNavigate }) => {
   // the same reason — the two probes race and the browser status usually wins,
   // so advancing on it would sail past a signedOut verdict landing a tick
   // later, and the `step === 'connect'` guard means we never come back.
-  const autoAdvanceAllowed = hebState !== 'checking' && hebState !== 'signedOut' && hebState !== 'unreachable';
+  // 'degraded' is here for the same reason: runBuildJob calls db.connect() and
+  // inserts into heb_cart_sessions OUTSIDE its inner try/catches, so a DB
+  // outage fails the whole build. Advancing would sail past Connect and fail
+  // later with a raw connection error instead of an explanation.
+  const autoAdvanceAllowed = hebState !== 'checking' && hebState !== 'signedOut'
+    && hebState !== 'unreachable' && hebState !== 'degraded';
   useEffect(() => {
     if (sessionStatus?.active && step === 'connect' && autoAdvanceAllowed) {
       setStep('review');
