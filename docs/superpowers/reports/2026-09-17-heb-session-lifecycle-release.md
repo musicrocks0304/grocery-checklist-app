@@ -161,3 +161,56 @@ Ranked by the final review.
   2x2 matrix run in sequence against the same Chrome profile directory, where the first failing
   launch had already migrated the profile. A contaminated measurement is worse than none,
   because it reads as evidence. Always take a fresh copy per cell.
+
+---
+
+## Post-release verification — CLOSED 2026-09-17
+
+The open item was a live clip retry, never run at the time of the release report. It has now
+run, and **sub-project C is verified end to end**.
+
+**The R22 retry had in fact already succeeded.** A real job at **11:18** clipped `5/6` via
+GraphQL (`API method used: graphql`), under the rebuilt container carrying the
+`--disable-dev-shm-usage` fix. The `/dev/shm` regression is confirmed closed under real load.
+
+**The session is HEB-verified, not merely cookie-shaped.** Probed before the retry:
+`{"userId":"3122717174","storeId":"794","authorization":true,…}` on a 2.84MB page load — so
+`ready` was telling the truth on this occasion, though the R23 gap that allows it to lie is
+untouched and still the ranked next fix.
+
+### A second, unrelated outage was found by the retry
+
+A user-initiated job at **15:03 failed all 7 coupons**. Not R22, not R23. Between 11:18 and
+15:03 HEB deployed a frontend change that broke clipping two ways at once — diagnosed, fixed
+and verified in scraper `f673e76`, which is where the detail lives:
+
+1. The `CouponClip` persisted-query hash rotated; the value captured 2026-04-12 now returns
+   `PersistedQueryNotFound`.
+2. The post-clip button was renamed "Add eligible items" → **"Add items"**, which
+   `CLIPPED_TEXT_PATTERNS` did not match, so successful clips were scored as failures.
+
+These compound badly: the DOM fallback is also the only path that recaptures a fresh hash, so
+the self-healing mechanism sits downstream of the path it exists to rescue. A stale hash
+therefore cannot be recovered without a deploy. **Making hash capture independent of the DOM
+click is new, ranked work** — it did not exist on the deferred list before today.
+
+Verified after rebuild: the five coupons still unclipped from the 15:03 job were clipped
+through the production API — **5 clipped, 0 failed, all via GraphQL**. Scraper suite
+17 suites / 143 tests.
+
+### Correction to the deferred list
+
+"The clip-server container has the default 64MB `/dev/shm` … Clipping goes through GraphQL and
+is unaffected" was **wrong**, and was already wrong when written — that `shm_size` is exactly
+what crashed the renderer and took clipping down. `--disable-dev-shm-usage` (R22) is the
+shipped mitigation; raising `shm_size` in compose remains the cleaner infra fix.
+
+### Method note
+
+The first probe of the session appeared to show a *third* cause — Chrome failing to launch with
+`DevTools endpoint did not come up on port 9222`. It was an artifact of the measurement:
+`docker exec` does not inherit `DISPLAY`, which the entrypoint sets only for the server process
+(`DISPLAY=:99 node src/clip-server.js`), and `launchChrome` spawns with `stdio: 'ignore'` so
+Chrome's actual complaint — "Missing X server or $DISPLAY" — was discarded. Probes must be run
+as `docker exec -e DISPLAY=:99`. A fourth instance of this project's recurring lesson, caught
+before it was published as a finding this time.
