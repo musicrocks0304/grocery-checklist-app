@@ -214,3 +214,69 @@ The first probe of the session appeared to show a *third* cause — Chrome faili
 Chrome's actual complaint — "Missing X server or $DISPLAY" — was discarded. Probes must be run
 as `docker exec -e DISPLAY=:99`. A fourth instance of this project's recurring lesson, caught
 before it was published as a finding this time.
+
+---
+
+## Deferred list — worked through 2026-09-17
+
+All three **High** items are closed, and one turned out to need no fix at all.
+
+### 1. `useHebSession` never re-polls — FIXED (app `c234989`)
+
+Wired as spec §8 intended: `useClipCoupons` takes an optional `onSessionExpired`, and Deals
+passes `useHebSession`'s `recheck`. The server had been sending `SESSION_EXPIRED` all along; it
+simply had nowhere to send it.
+
+Keyed on that signal alone, never on clip failure in general — a stale-hash failure says nothing
+about the login, and rechecking on every failure would hammer `/api/health` through a bad batch.
+Deliberately **not** a timer: polling a healthy server forever to catch a rare event the server
+already reports is the wrong trade. In Deals the `useHebSession` call moved above
+`useClipCoupons`, because a `const` read before its declaration is a TDZ crash, not a lint
+warning.
+
+Gates: lint clean, **50 suites / 426 tests**, e2e **122 passed**.
+
+### 2. `endSession` + `loginToHeb` persist unverified cookies — FIXED (scraper `5fff8d4`)
+
+Fixed at the chokepoint they share rather than in each caller. `saveSession` now refuses to
+write a state `evaluateSession` calls unusable, and returns a boolean. A jar with no `sst` and
+no `accounts.heb.com` cookie cannot log anyone in, so writing it can only lose information. All
+eight callers already awaited without reading a result, so a refusal is a logged no-op — fail-safe
+everywhere.
+
+`loginToHeb` additionally ends in `verifyAndSaveLogin`, which loads the homepage and requires
+`classifyHebPage` to say `authenticated`. Its old `catch` branch was worse than the URL check
+itself: on timeout, any URL that merely wasn't a login page was saved and reported as success.
+
+`touched` is left as it is and documented instead. It means "this session was used", not "HEB
+accepted a request"; narrowing it would mean instrumenting every cart request, and the guard
+makes that unnecessary for correctness.
+
+Checked against the live session before trusting the guard — 25 cookies, `usable`, reason `ok` —
+because a false refusal would have silently stopped every session refresh, a quieter failure
+than the one being fixed.
+
+### 3. `killChrome` process-group leak — NO FIX NEEDED (scraper `1a8d289`)
+
+Verified before fixing, as the list asked. Driving a real page load through the production path:
+
+| | |
+|---|---|
+| while open | **11** chrome processes |
+| +500ms after `cleanup()` | **0**, parent gone |
+| +2s / +5s | 0, 0 |
+
+Chrome's browser process handles SIGTERM and reaps its own zygote, GPU and renderer children.
+There is no leak.
+
+**The obvious fix would have been harmful.** `session-import.js` needs a process-GROUP SIGKILL
+only because it races the deletion of the profile directory, and SIGKILL gives Chrome no chance
+to shut down cleanly. Copying that into `chrome-launcher.js` would trade a graceful shutdown for
+an abrupt one against the long-lived automation profile. Recorded as a comment on `killChrome`
+so it does not get "fixed" later.
+
+### Still open
+
+The **Lower** items above are untouched, plus one new item created today: **hash capture is
+gated behind the DOM click**, so a rotation cannot self-heal without a deploy. Sub-project F is
+not started, by request.
