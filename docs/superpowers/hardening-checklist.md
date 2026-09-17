@@ -108,12 +108,14 @@ Deferred from D:
 - A Cart build-start response resolving after unmount can create an EventSource after cleanup already ran, leaving it open. This original behavior was characterized and retained; a separate fix needs a request/stream lifetime policy.
 - Creator fixed-clock retry characterization exposes duplicate keys from its existing Date.now-only response/error IDs. ID generation was retained; assess a separate ID change if pursued. This is narrow original-source test evidence, not a new runtime incident.
 
-## C. HEB session lifecycle — `[ ]`
+## C. HEB session lifecycle — `[x]` SHIPPED 2026-09-17
 
-- [ ] Daily maintenance workflow checks clip-server `/api/health` `sessionAuthenticated`; on false, Slack alert + a `heb_session_expired` flag the app can read
-- [ ] Cart/Deals show one shared "HEB sign-in needed" state sourced from that flag (Cart already has the panel; Deals banner should match)
-- [ ] Phone-friendly re-login: evaluate the existing `heb-login.needexcelexpert.com` remote-browser tunnel as the path (link from the Cart panel) versus a scraper endpoint that triggers `scrape:login`; pick one and wire it
-- [ ] Session store binding check (must be store #794) surfaced in the same state
+- [~] ~~Daily maintenance checks `/api/health`; on false, Slack alert + a `heb_session_expired` flag~~ — **retired by decision, not implemented.** Slack is a dead end (never used, its two nodes have never fired) and a daily flag would be up to 24h stale, so a user who re-logged in on their phone would still be told to sign in. The app reads live health instead; no flag table was created.
+- [x] Cart and Deals show one shared session state, sourced from one predicate in the clip-server rather than a flag
+- [x] Phone-friendly re-login: the `heb-login.needexcelexpert.com` remote-browser tunnel, wired to a one-tap import through a keyed n8n webhook. The Kasm container had to be repaired first — it was booting a desktop with no browser — and the cookie import itself had never worked.
+- [~] Store binding surfaced — **reduced in scope on measurement.** HEB resolves the curbside store server-side from the account, so no cookie can establish it. The check now reports only an observed `CURR_SESSION_STORE`; `SHOPPING_STORE_ID` was found to be wrong in 2 of 2 field observations and is no longer trusted. An unknown store produces no warning.
+
+Shipped: one predicate (`evaluateSession`) decides validity for all eight consumers; file mtime is no longer a validity input anywhere. See `reports/2026-09-17-heb-session-lifecycle-release.md`.
 
 Why: Deals clipping and the Cart builder are unusable whenever the login expires, which is the normal state between manual logins.
 
