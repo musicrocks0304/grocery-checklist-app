@@ -6,6 +6,9 @@
     "note": "An OBSERVED store cookie that disagrees with the configured store. deriveState -> 'wrongStore', which is advisory only (ruling R14): it reports, it never blocks."
   },
   "status": "ok",
+  "degradedReason": null,
+  "dataStale": false,
+  "staleDays": 0,
   "sessionValid": true,
   "sessionAuthenticated": true,
   "sessionReason": "ok",
@@ -14,7 +17,7 @@
   "storeSource": "shopping",
   "storeExpected": "794",
   "sessionAgeHours": 3,
-  "lastScrapeAt": null,
+  "lastScrapeAt": "2026-09-09T11:01:00.000Z",
   "couponCount": 826,
   "activeJobs": 0,
   "activeScraperJob": null

@@ -1,0 +1,24 @@
+{
+  "_recorded": {
+    "at": "hand-written",
+    "endpoint": "api/health",
+    "sanitised": true,
+    "note": "The clip server is up but cannot reach MySQL. deriveState -> 'degraded'. The HEB session is deliberately HEALTHY here: sessionAuthenticated comes from the session FILE, so a database outage cannot make it read false, and deriveState only reaches 'degraded' once the login has already passed. Every database-derived number is null because the server has nothing to report, not zero: couponCount null, staleDays null, lastScrapeAt null. dataStale is false because staleness is unknown, and an unknown must not be rendered as a stale-data claim."
+  },
+  "status": "degraded",
+  "degradedReason": "db_unreachable",
+  "dataStale": false,
+  "staleDays": null,
+  "sessionValid": true,
+  "sessionAuthenticated": true,
+  "sessionReason": "ok",
+  "authExpiresAt": "2027-09-17T04:13:37.495Z",
+  "storeId": null,
+  "storeSource": null,
+  "storeExpected": "794",
+  "sessionAgeHours": 1.5,
+  "lastScrapeAt": null,
+  "couponCount": null,
+  "activeJobs": 0,
+  "activeScraperJob": null
+}

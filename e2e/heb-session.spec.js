@@ -10,12 +10,13 @@ const main = (page) => page.locator('main');
 // Cart, and sub-project G's scoped axe run targets the ConnectionPanel root.
 const panel = (page) => main(page).getByTestId('heb-session-panel');
 
-// useHebSession derives exactly six states:
-//   'checking' | 'unreachable' | 'signedOut' | 'wrongStore' | 'expiring' | 'ready'
+// useHebSession derives exactly seven states:
+//   'checking' | 'unreachable' | 'signedOut' | 'degraded' | 'wrongStore'
+//   | 'expiring' | 'ready'
 // 'checking' is the pre-answer state and renders nothing by design (see the
 // 2026-09-05 UI review), so it is covered by the Jest suite rather than here.
 // The clip fixture names are a separate vocabulary: 'expired' -> signedOut,
-// 'nostore' -> ready, 'healthy' -> ready.
+// 'nostore' -> ready, 'healthy' -> ready, 'degraded' -> degraded.
 test.describe('HEB session state', () => {
   test('signed out offers the phone sign-in and blocks Connect on Cart', async ({ page, backend }) => {
     backend.clip('expired');
@@ -49,6 +50,44 @@ test.describe('HEB session state', () => {
     await open(page, 'deals');
     await expect(panel(page).getByText('Clip server offline')).toBeVisible();
     await expect(main(page).getByRole('button', { name: 'Select All Unclipped' })).toHaveCount(0);
+  });
+
+  test('a degraded clip server explains itself and disables clipping on both screens', async ({ page, backend }) => {
+    // The mirror image of 'unreachable' above: there, no usable answer at all;
+    // here, a perfectly good answer that says the server is up and its
+    // database is not. The HEB login in health.degraded.json is deliberately
+    // healthy — deriveState only reaches 'degraded' after the login has
+    // already passed — so the panel must explain the database and say nothing
+    // about signing in.
+    backend.clip('degraded');
+    await open(page, 'deals');
+    const p = panel(page);
+    await expect(p).toBeVisible();
+    // The apostrophe in the title is a typographic ’, not '.
+    await expect(p).toContainText(/can.t reach its database/i);
+    // Ruling R11: there is no "Clip selected" control to disable. Deals gates
+    // clipping by hiding the whole selection toolbar and disabling every
+    // per-coupon checkbox — the same two assertions the signedOut test makes,
+    // because 'degraded' joins signedOut and unreachable in
+    // clipServerUnavailable: the clip server maps hash_id -> heb_coupon_id
+    // through its database before it ever contacts HEB.
+    await expect(main(page).getByRole('button', { name: 'Select All Unclipped' })).toHaveCount(0);
+    await expect(main(page).locator('input[type="checkbox"]').first()).toBeDisabled();
+    // The remedy is a retry, not a sign-in: there is nothing the user can do
+    // but wait, and offering a sign-in would blame them for a server fault.
+    await expect(p.getByRole('link', { name: /Sign in to HEB/i })).toHaveCount(0);
+    await expect(p.getByRole('button', { name: /Check again/i })).toBeEnabled();
+    // dataStale is false, so no freshness line is claimed. Staleness is
+    // unknowable without the database, and an unknown must not be rendered as
+    // a verdict.
+    await expect(main(page).getByText(/days old/i)).toHaveCount(0);
+
+    // Cart's builder inserts into heb_cart_sessions outside its inner
+    // try/catches, so a browser session bought here could only fail later with
+    // a raw connection error. Connect goes away too.
+    await open(page, 'cart');
+    await expect(panel(page)).toBeVisible();
+    await expect(main(page).getByRole('button', { name: /Connect to HEB/ })).toHaveCount(0);
   });
 
   test('wrong store is advisory on both screens: it names the store, blocks nothing', async ({ page, backend }) => {

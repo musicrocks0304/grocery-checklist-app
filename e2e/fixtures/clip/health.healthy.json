@@ -6,6 +6,9 @@
     "note": "Modelled on the payload the deployed clip server actually returns for a good session. storeId is null here on purpose — see health.nostore.json."
   },
   "status": "ok",
+  "degradedReason": null,
+  "dataStale": false,
+  "staleDays": 0,
   "sessionValid": true,
   "sessionAuthenticated": true,
   "sessionReason": "ok",
@@ -14,7 +17,7 @@
   "storeSource": null,
   "storeExpected": "794",
   "sessionAgeHours": 1.5,
-  "lastScrapeAt": null,
+  "lastScrapeAt": "2026-09-09T11:01:00.000Z",
   "couponCount": 826,
   "activeJobs": 0,
   "activeScraperJob": null

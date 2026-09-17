@@ -6,6 +6,9 @@
     "note": "REGRESSION FIXTURE — the deleted 'noStore' state (ruling R13). A freshly imported, fully authenticated session that carries NO store cookie: HEB resolves the curbside store server-side from the account, so storeId is null for a correctly configured user. This fixture is deliberately near-identical to health.healthy.json; that identity IS the finding. It must render no panel and block nothing. See heb-session.spec.js."
   },
   "status": "ok",
+  "degradedReason": null,
+  "dataStale": false,
+  "staleDays": 0,
   "sessionValid": true,
   "sessionAuthenticated": true,
   "sessionReason": "ok",
@@ -14,7 +17,7 @@
   "storeSource": null,
   "storeExpected": "794",
   "sessionAgeHours": 0.2,
-  "lastScrapeAt": null,
+  "lastScrapeAt": "2026-09-09T11:01:00.000Z",
   "couponCount": 826,
   "activeJobs": 0,
   "activeScraperJob": null

@@ -100,8 +100,9 @@ class MockBackend {
   // names, not the names useHebSession derives: 'expired' produces the
   // 'signedOut' state, and 'nostore' produces 'ready' (there is no 'noStore'
   // state — ruling R13). Known: 'healthy' | 'expired' | 'nostore' |
-  // 'wrongstore' | 'expiring'. A name with no fixture pair 404s as unmocked,
-  // which fails the test at teardown rather than passing silently.
+  // 'wrongstore' | 'expiring' | 'degraded'. A name with no fixture pair 404s
+  // as unmocked, which fails the test at teardown rather than passing
+  // silently.
   clip(state) { this.clipState = state; }
 
   record(p, request) {

@@ -6,6 +6,9 @@
     "note": "HEB has rejected the saved auth cookies. deriveState -> 'signedOut'."
   },
   "status": "ok",
+  "degradedReason": null,
+  "dataStale": false,
+  "staleDays": 0,
   "sessionValid": false,
   "sessionAuthenticated": false,
   "sessionReason": "no_auth_cookies",
@@ -14,7 +17,7 @@
   "storeSource": null,
   "storeExpected": "794",
   "sessionAgeHours": 40,
-  "lastScrapeAt": null,
+  "lastScrapeAt": "2026-09-09T11:01:00.000Z",
   "couponCount": 826,
   "activeJobs": 0,
   "activeScraperJob": null
