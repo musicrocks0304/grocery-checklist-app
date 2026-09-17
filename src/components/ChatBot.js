@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Send, ChefHat, Wifi, ChevronDown, ChevronUp, Sparkles, Plus, X, ShoppingCart, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
 import { ENDPOINTS, apiFetch, apiJson, userMessage } from '../config/api';
 import useChatTransport from '../hooks/useChatTransport';
+import useGenerateGroceryList from '../hooks/useGenerateGroceryList';
 import { createPlannerChatAdapter } from './chat/plannerChatAdapter';
 
 // Generate or retrieve session ID — keyed by week so each grocery week gets fresh history
@@ -42,8 +43,9 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
   const selectedMeals = parentSelectedMeals || localSelectedMeals;
   const setSelectedMeals = setParentSelectedMeals || setLocalSelectedMeals;
   const [showMealsPanel, setShowMealsPanel] = useState(false);
-  const [isGeneratingGroceryList, setIsGeneratingGroceryList] = useState(false);
-  const [lastGroceryListRequest, setLastGroceryListRequest] = useState(null);
+  // Grocery-list generation lives in useGenerateGroceryList so the Create Recipe
+  // tab can run the same code path (TB-1). The hook owns its own in-flight and
+  // duplicate-request state.
   const [collapsedCards, setCollapsedCards] = useState(new Set());
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef(null);
@@ -308,115 +310,8 @@ const ChatBot = ({ onBack, onNavigate, selectedMeals: parentSelectedMeals, setSe
   };
 
   // Generate grocery list from selected meals
-  const handleGenerateGroceryList = useCallback(async () => {
-    if (isGeneratingGroceryList) {
-      addDebugLog('⚠️ Grocery list generation already in progress, ignoring duplicate request');
-      return;
-    }
-
-    setIsGeneratingGroceryList(true);
-    addDebugLog('Generating grocery list for meals:', selectedMeals);
-
-    const recipeIds = selectedMeals
-      .map(meal => meal.recipeId)
-      .filter(id => id);
-
-    addDebugLog('Recipe IDs to send:', recipeIds);
-
-    const requestKey = JSON.stringify(recipeIds.sort());
-    const now = Date.now();
-    if (lastGroceryListRequest &&
-        lastGroceryListRequest.key === requestKey &&
-        (now - lastGroceryListRequest.timestamp) < 120000) {
-      addDebugLog('⚠️ Duplicate request detected within 2 minutes, ignoring');
-      toast('A grocery list for these same recipes was recently requested. Please wait a moment before trying again.', { icon: '⚠️' });
-      setIsGeneratingGroceryList(false);
-      return;
-    }
-
-    setLastGroceryListRequest({ key: requestKey, timestamp: now });
-
-    if (recipeIds.length === 0) {
-      addDebugLog('❌ No recipe IDs found in selected meals');
-      toast.error('No recipe IDs found. Please make sure meals were added properly.');
-      setIsGeneratingGroceryList(false);
-      return;
-    }
-
-    try {
-      const baseWebhookURL = ENDPOINTS.getRecipeItems;
-      const weekInfo = getWeekDates();
-
-      const recipePayload = {
-        recipe_ids: JSON.stringify(recipeIds),
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        meal_count: selectedMeals.length.toString(),
-        meals: JSON.stringify(selectedMeals.map(meal => ({
-          id: meal.recipeId,
-          name: meal.name,
-          description: meal.description
-        }))),
-        week_start_date: weekInfo.startDate,
-        week_end_date: weekInfo.endDate,
-        week_display_range: weekInfo.displayRange
-      };
-
-      addDebugLog('Sending POST request to get_recipe_items webhook');
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        addDebugLog('⏰ Request timed out after 90 seconds');
-      }, 90000);
-
-      const response = await apiFetch(baseWebhookURL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(recipePayload),
-        mode: 'cors',
-        signal: controller.signal,
-        retries: 0,
-      });
-
-      clearTimeout(timeoutId);
-      addDebugLog('Webhook response status:', response.status);
-
-      if (response.ok) {
-        const responseData = await response.text();
-        addDebugLog('✅ Successfully called get_recipe_items webhook');
-
-        try {
-          const parsedData = JSON.parse(responseData);
-          setGroceryListData(parsedData);
-          addDebugLog('✅ Grocery list data stored successfully');
-          onNavigate('recipe-ingredients');
-        } catch (parseError) {
-          addDebugLog('❌ Error parsing webhook response JSON:', parseError.message);
-          toast.error('Received invalid data from the server. Please try again.');
-        }
-      } else {
-        const errorText = await response.text();
-        addDebugLog('⚠️ Webhook returned non-OK status:', response.status);
-        addDebugLog('Error response:', errorText);
-        toast.error('Failed to generate grocery list. The server returned an error. Please try again.');
-      }
-    } catch (error) {
-      addDebugLog('❌ Error calling get_recipe_items webhook:', error.message);
-      if (error.name === 'AbortError') {
-        toast.error('The grocery list generation timed out. Please try again.');
-      } else if (error.message === 'Failed to fetch') {
-        toast.error('Could not connect to the server. Please check your connection and try again.');
-      } else {
-        toast.error('Error generating grocery list. Please try again.');
-      }
-    } finally {
-      setIsGeneratingGroceryList(false);
-    }
-  }, [isGeneratingGroceryList, selectedMeals, lastGroceryListRequest, sessionId, setGroceryListData, onNavigate]);
+  const { generate: handleGenerateGroceryList, isGenerating: isGeneratingGroceryList } =
+    useGenerateGroceryList({ selectedMeals, sessionId, setGroceryListData, onNavigate, addDebugLog });
 
   return (
     <div className="h-full flex flex-col lg:flex-row lg:max-w-7xl lg:mx-auto lg:gap-6 lg:p-4 relative">

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { getWeekDates } from '../utils/weekDates';
 import { ENDPOINTS, apiFetch, apiJson, userMessage } from '../config/api';
 import useChatTransport from '../hooks/useChatTransport';
+import useGenerateGroceryList from '../hooks/useGenerateGroceryList';
 import { createCreatorChatAdapter } from './chat/creatorChatAdapter';
 
 // Generate or retrieve a creator-specific session ID — keyed by week so each grocery week gets fresh history
@@ -24,7 +25,7 @@ const SAVE_WEBHOOK_URL = ENDPOINTS.mealCreatorSave;
 
 const CHAT_HISTORY_URL = ENDPOINTS.chatHistory;
 
-const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refreshMeals, debugMode = false }) => {
+const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refreshMeals, setGroceryListData, debugMode = false }) => {
   const [sessionId] = useState(getCreatorSessionId());
   const [phase, setPhase] = useState(1); // 1=describe, 2=building, 3=preview, 4=saved
   const [messages, setMessages] = useState([
@@ -55,6 +56,18 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
     setDebugInfo(prev => [...prev, { timestamp, message, data }]);
     console.log(`[Creator ${timestamp}] ${message}`, data || '');
   };
+
+  // TB-1: Create Recipe used to dead-end at "Add to This Week's Meals" — the
+  // Generate Grocery List button lived only in ChatBot, so finishing the chain
+  // meant switching tabs. Same hook, so the two paths cannot drift.
+  const { generate: handleGenerateGroceryList, isGenerating: isGeneratingGroceryList } =
+    useGenerateGroceryList({
+      selectedMeals,
+      sessionId,
+      setGroceryListData: setGroceryListData || (() => {}),
+      onNavigate,
+      addDebugLog,
+    });
 
   const removeMeal = async (mealId) => {
     const mealToRemove = selectedMeals.find(meal => meal.id === mealId);
@@ -1011,6 +1024,20 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                   </div>
                 )}
               </div>
+              {selectedMeals.length > 0 && (
+                <div className="p-4 border-t border-default">
+                  <p className="text-sm text-body mb-2">
+                    {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
+                  </p>
+                  <button
+                    onClick={handleGenerateGroceryList}
+                    disabled={isGeneratingGroceryList}
+                    className="w-full px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white disabled:opacity-50"
+                  >
+                    {isGeneratingGroceryList ? 'Generating…' : 'Generate Grocery List'}
+                  </button>
+                </div>
+              )}
             </motion.div>
           </>
         )}
@@ -1077,6 +1104,20 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                   </div>
                 )}
               </div>
+              {selectedMeals.length > 0 && (
+                <div className="p-4 border-t border-default">
+                  <p className="text-sm text-body mb-2">
+                    {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''} selected
+                  </p>
+                  <button
+                    onClick={handleGenerateGroceryList}
+                    disabled={isGeneratingGroceryList}
+                    className="w-full px-4 py-2 rounded-xl transition-colors flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white disabled:opacity-50"
+                  >
+                    {isGeneratingGroceryList ? 'Generating…' : 'Generate Grocery List'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
     </div>

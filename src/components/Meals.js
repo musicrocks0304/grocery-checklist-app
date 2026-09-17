@@ -142,6 +142,7 @@ const Meals = ({
             selectedMeals={selectedMeals}
             setSelectedMeals={setSelectedMeals}
             refreshMeals={refreshMeals}
+            setGroceryListData={setGroceryListData}
             debugMode={debugMode}
           />
         )}
