@@ -265,31 +265,29 @@ test.describe('Accessibility', () => {
     expect(backend.calls('submit_feedback')).toHaveLength(0);
   });
 
-  test('Cart disclosure is named, keyboard operated, 44px, and scoped-audited', async ({ page, backend }) => {
+  test('Cart sign-in remedy is keyboard operated, 44px, and scoped-audited', async ({ page, backend }) => {
     await open(page, 'cart');
+    // Still the ConnectionPanel root, deliberately. The remedy panel inside it
+    // carries its own, different id (`heb-session-panel`); scoping the axe run
+    // to the ConnectionPanel root is what keeps Cart covered, and it now picks
+    // up the new markup for free.
     const panel = page.getByTestId('heb-signin-panel');
     await expect(panel.getByText('HEB sign-in needed')).toBeVisible();
-    const disclosure = panel.getByRole('button', { name: 'Show technical details' });
-    await expect(disclosure).toHaveAttribute('aria-controls', 'heb-login-details');
-    await expect(page.locator('#heb-login-details')).toHaveCount(0);
-    const disclosureRow = disclosure.locator('..');
-    const currentRowBox = await disclosureRow.boundingBox();
-    const currentClass = await disclosure.getAttribute('class');
-    await disclosure.evaluate((el) => {
-      el.className = 'inline-flex items-center gap-1 text-xs text-muted hover:text-body transition-colors';
-    });
-    const baselineRowBox = await disclosureRow.boundingBox();
-    await disclosure.evaluate((el, className) => { el.className = className; }, currentClass);
-    console.log(`[measure cart row] baseline=${JSON.stringify(baselineRowBox)} current=${JSON.stringify(currentRowBox)}`);
-    expect(currentRowBox.height).toBe(baselineRowBox.height);
-    await disclosure.focus();
-    await page.keyboard.press('Enter');
-    await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.locator('#heb-login-details')).toContainText('npm run scrape:login');
-    const box = await expectTarget(disclosure, 'Cart disclosure');
-    await expectHitTarget(disclosure, 'Cart disclosure');
+    // What used to be measured here — the "Show technical details" disclosure,
+    // its aria-expanded, #heb-login-details and the `npm run scrape:login`
+    // copy — went away with the desktop-only panel. The remedy is now a link a
+    // phone can open plus an import button, so the 44px target measurement
+    // moves to those two.
+    const importButton = panel.getByRole('button', { name: /I've signed in/i });
+    await importButton.focus();
+    await expect(importButton).toBeFocused();
+    const box = await expectTarget(importButton, 'Cart import button');
+    await expectHitTarget(importButton, 'Cart import button');
+    const signIn = panel.getByRole('link', { name: /Sign in to HEB/i });
+    const signInBox = await expectTarget(signIn, 'Cart sign-in link');
+    await expectHitTarget(signIn, 'Cart sign-in link');
     const panelBox = await panel.boundingBox();
-    console.log(`[measure cart] disclosure=${JSON.stringify(box)} panel=${JSON.stringify(panelBox)}`);
+    console.log(`[measure cart] import=${JSON.stringify(box)} signIn=${JSON.stringify(signInBox)} panel=${JSON.stringify(panelBox)}`);
     await expectNoSeriousViolations(page, '[data-testid="heb-signin-panel"]', 'cart sign-in panel');
     await screenshot(page, 'cart');
   });

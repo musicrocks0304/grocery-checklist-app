@@ -55,6 +55,13 @@ class MockBackend {
         return readFixture('n8n/fetch_weekly_meals.json') || [];
       case 'client_errors':
         return { success: true, new: true };
+      case 'heb_session_import':
+        // The real webhook answers the moment the import STARTS (202
+        // {started:true}); whether the session actually came back is only
+        // knowable by re-polling api/health, which is exactly what
+        // useHebSessionImport does. Tests drive that second half by flipping
+        // backend.clip(...) before the click.
+        return { started: true, alreadyRunning: false };
       default:
         return undefined;
     }
@@ -88,6 +95,13 @@ class MockBackend {
     for (let i = 0; i < times; i++) list.push({ status, body, headers });
     this.overrides.set(p, list);
   }
+  // Selects which clip/health.<state>.json + clip/session-status.<state>.json
+  // pair api/health and api/heb/session/status answer with. These are FIXTURE
+  // names, not the names useHebSession derives: 'expired' produces the
+  // 'signedOut' state, and 'nostore' produces 'ready' (there is no 'noStore'
+  // state — ruling R13). Known: 'healthy' | 'expired' | 'nostore' |
+  // 'wrongstore' | 'expiring'. A name with no fixture pair 404s as unmocked,
+  // which fails the test at teardown rather than passing silently.
   clip(state) { this.clipState = state; }
 
   record(p, request) {

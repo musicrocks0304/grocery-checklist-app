@@ -8,6 +8,7 @@ import { getWeekDateRange } from '../utils/weekDates';
 import toast from 'react-hot-toast';
 import useClipSession from '../hooks/useClipSession';
 import useCartBuild from '../hooks/useCartBuild';
+import { useHebSession } from '../hooks/useHebSession';
 import StepIndicator from './cart/StepIndicator';
 import { ConnectionPanel } from './cart/ConnectionPanel';
 import MatchCard from './cart/MatchCard';
@@ -30,9 +31,14 @@ const HebCart = ({ onNavigate }) => {
   const [searchWarning, setSearchWarning] = useState(null);
 
   const {
-    sessionStatus, connecting, checkSession,
+    sessionStatus, connecting,
     handleConnect, handleDisconnect, ensureSession,
   } = useClipSession({ onStepChange: transitionToStep });
+
+  // The shared HEB session state. `sessionStatus` above describes the clip
+  // server's *browser* session; this describes whether HEB itself still
+  // accepts our cookies. They disagree routinely, and this one wins.
+  const { state: hebState, health: hebHealth, recheck: hebRecheck } = useHebSession();
 
   // --- Load weekly grocery items + coupon data + existing matches ---
   const loadGroceryItems = useCallback(async () => {
@@ -513,11 +519,18 @@ const HebCart = ({ onNavigate }) => {
   }, [groceryItems, matches]);
 
   // --- Auto-advance from connect when session is already active ---
+  // A live browser session is not permission to skip the remedy: HEB may have
+  // rejected its cookies already, so signedOut and unreachable keep us on
+  // 'connect' where the way out is on screen. 'checking' is in the list for
+  // the same reason — the two probes race and the browser status usually wins,
+  // so advancing on it would sail past a signedOut verdict landing a tick
+  // later, and the `step === 'connect'` guard means we never come back.
+  const autoAdvanceAllowed = hebState !== 'checking' && hebState !== 'signedOut' && hebState !== 'unreachable';
   useEffect(() => {
-    if (sessionStatus?.active && step === 'connect') {
+    if (sessionStatus?.active && step === 'connect' && autoAdvanceAllowed) {
       setStep('review');
     }
-  }, [sessionStatus, step]);
+  }, [sessionStatus, step, autoAdvanceAllowed]);
 
   // --- Pre-load weekly items when entering the review step ---
   useEffect(() => {
@@ -555,9 +568,11 @@ const HebCart = ({ onNavigate }) => {
       {step === 'connect' && (
         <ConnectionPanel
           sessionStatus={sessionStatus}
+          hebState={hebState}
+          hebHealth={hebHealth}
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}
-          onRecheck={checkSession}
+          onRecheck={hebRecheck}
           connecting={connecting}
         />
       )}

@@ -5,17 +5,20 @@ const { test, expect, open } = require('./support/test.js');
 const main = (page) => page.locator('main');
 
 test.describe('Cart', () => {
-  test('expired login shows the sign-in panel and Check again re-polls', async ({ page, backend }) => {
+  test('expired login shows the sign-in panel and the import re-polls health', async ({ page, backend }) => {
     // mock-backend defaults clipState to 'expired' — no explicit backend.clip() needed.
     await open(page, 'cart');
     await expect(main(page).getByText('HEB sign-in needed')).toBeVisible();
-    // ConnectionPanel's onRecheck is wired to HebCart's checkSession, which
-    // only calls ENDPOINTS.hebSessionStatus (api/heb/session/status) — it
-    // does not call api/health (that's useClipServerHealth, used only by
-    // Deals.js, not HebCart.js).
-    const before = backend.calls('api/heb/session/status').length;
-    await main(page).getByRole('button', { name: 'Check again' }).click();
-    await expect.poll(() => backend.calls('api/heb/session/status').length).toBeGreaterThan(before);
+    // Cart's recheck now runs through useHebSession, which polls api/health —
+    // the same endpoint Deals uses. That shared path is the point of the
+    // change, and it inverts what this test used to assert: it previously
+    // pinned down that Cart called only api/heb/session/status and never
+    // api/health, because the verdict lived in useClipServerHealth (deleted)
+    // and was Deals-only. The "Check again" button that drove it is gone too;
+    // the remedy is now the import button.
+    const before = backend.calls('api/health').length;
+    await main(page).getByRole('button', { name: /I've signed in/i }).click();
+    await expect.poll(() => backend.calls('api/health').length).toBeGreaterThan(before);
   });
 
   test('healthy login shows the Connect step', async ({ page, backend }) => {

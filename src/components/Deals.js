@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Tag, Search, AlertCircle, Calendar, DollarSign, Loader,
   Scissors, CheckCircle, XCircle, ShoppingCart, RefreshCw,
-  ChevronDown, ChevronUp, Plus, Filter, Ticket, Percent, Gift, WifiOff, AlertTriangle,
+  ChevronDown, ChevronUp, Plus, Filter, Ticket, Percent, Gift,
 } from 'lucide-react';
 import { ENDPOINTS, apiJson } from '../config/api';
 import { getWeekDates, parseLocalDay } from '../utils/weekDates';
 import { decodeHtmlEntities } from '../utils/text';
 import { useClipCoupons } from '../hooks/useClipCoupons';
-import { useClipServerHealth } from '../hooks/useClipServerHealth';
+import { useHebSession } from '../hooks/useHebSession';
+import { HebSignInPanel } from './heb/HebSignInPanel';
 
 // ---------------------------------------------------------------------------
 // Shared constants
@@ -337,8 +338,14 @@ const Deals = ({ onNavigate }) => {
   // Selection + clip state (shared hook)
   const [selectedCoupons, setSelectedCoupons] = useState(new Set());
   const { clipSelected, clipProgress, clipMessages, clipResults, clipError, isClipping, resetClipState } = useClipCoupons();
-  const { status: clipServerStatus, health: clipServerHealth } = useClipServerHealth();
-  const clipServerUnavailable = clipServerStatus === 'unreachable' || clipServerStatus === 'expired';
+  const { state: hebState, health: hebHealth, recheck: hebRecheck } = useHebSession();
+  // Only the two states where a clip request CANNOT succeed disable the
+  // controls. 'wrongStore' is deliberately absent (R14): its only signal is a
+  // transient, non-authoritative cookie that has already produced one false
+  // positive, so blocking on it would strand a correctly configured user with
+  // no way to comply. 'expiring' still works, and 'checking' must never
+  // flash the controls off before the first answer arrives.
+  const clipServerUnavailable = ['signedOut', 'unreachable'].includes(hebState);
 
   // Add-to-list state (smart deals only)
   const [addingToList, setAddingToList] = useState(new Map());
@@ -803,6 +810,14 @@ const Deals = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* HEB session state — one panel for every state, rendered
+          unconditionally; it self-silences on 'checking' and 'ready'.
+          It sits ABOVE the selection toolbar on purpose: when the session is
+          signedOut or the clip server is unreachable the toolbar is hidden and
+          the clip controls are disabled, so the explanation has to come before
+          the controls it accounts for, not after them. */}
+      <HebSignInPanel state={hebState} health={hebHealth} onRecheck={hebRecheck} />
+
       {/* Selection toolbar */}
       {totalItems > 0 && !clipServerUnavailable && (
         <div className="bg-surface rounded-2xl shadow-warm border border-default p-3 mb-4 flex flex-wrap items-center gap-2 transition-colors duration-200">
@@ -851,37 +866,6 @@ const Deals = ({ onNavigate }) => {
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Clip server status banner */}
-      {clipServerStatus === 'unreachable' && (
-        <div className="mb-4 p-3 bg-danger-light border border-danger rounded-xl flex items-start gap-2">
-          <WifiOff className="text-danger flex-shrink-0 mt-0.5" size={16} />
-          <div>
-            <p className="text-sm font-medium text-danger">Clip server offline</p>
-            <p className="text-xs text-danger">Coupon clipping is unavailable. The clip server may need to be restarted.</p>
-          </div>
-        </div>
-      )}
-      {clipServerStatus === 'expired' && (
-        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-xl flex items-start gap-2">
-          <AlertTriangle className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" size={16} />
-          <div>
-            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">HEB session expired</p>
-            <p className="text-xs text-amber-600 dark:text-amber-400">Coupon clipping won't work until a new session is started in Session Manager.</p>
-          </div>
-        </div>
-      )}
-      {clipServerStatus === 'expiring' && (
-        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-2">
-          <AlertTriangle className="text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" size={16} />
-          <div>
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">HEB session expiring soon</p>
-            <p className="text-xs text-amber-500 dark:text-amber-400">
-              Session expires in {clipServerHealth?.sessionExpiresIn || 'a few hours'}. Clip coupons soon or refresh the session.
-            </p>
-          </div>
         </div>
       )}
 

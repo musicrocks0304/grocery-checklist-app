@@ -1,0 +1,21 @@
+{
+  "_recorded": {
+    "at": "hand-written",
+    "endpoint": "api/health",
+    "sanitised": true,
+    "note": "authExpiresAt is ~6h after the suite's frozen clock (2026-09-09T10:00 America/Chicago = 15:00Z), well inside deriveState's 48h advisory window. Fixed rather than relative because every hermetic run freezes the browser clock to that instant."
+  },
+  "status": "ok",
+  "sessionValid": true,
+  "sessionAuthenticated": true,
+  "sessionReason": "ok",
+  "authExpiresAt": "2026-09-09T21:00:00.000Z",
+  "storeId": "794",
+  "storeSource": "curr",
+  "storeExpected": "794",
+  "sessionAgeHours": 46,
+  "lastScrapeAt": null,
+  "couponCount": 826,
+  "activeJobs": 0,
+  "activeScraperJob": null
+}
