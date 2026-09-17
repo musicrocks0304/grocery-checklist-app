@@ -344,13 +344,17 @@ const Deals = ({ onNavigate }) => {
   // claiming `ready` the moment the server says otherwise.
   const { clipSelected, clipProgress, clipMessages, clipResults, clipError, isClipping, resetClipState } =
     useClipCoupons({ onSessionExpired: hebRecheck });
-  // Only the two states where a clip request CANNOT succeed disable the
-  // controls. 'wrongStore' is deliberately absent (R14): its only signal is a
+  // Only the states where a clip request CANNOT succeed disable the controls.
+  // 'degraded' joins signedOut and unreachable: the clip server maps
+  // hash_id -> heb_coupon_id through its database before it ever contacts HEB,
+  // so without the database a clip cannot succeed no matter how healthy the
+  // HEB session is.
+  // 'wrongStore' is deliberately absent (R14): its only signal is a
   // transient, non-authoritative cookie that has already produced one false
   // positive, so blocking on it would strand a correctly configured user with
   // no way to comply. 'expiring' still works, and 'checking' must never
   // flash the controls off before the first answer arrives.
-  const clipServerUnavailable = ['signedOut', 'unreachable'].includes(hebState);
+  const clipServerUnavailable = ['signedOut', 'unreachable', 'degraded'].includes(hebState);
 
   // Add-to-list state (smart deals only)
   const [addingToList, setAddingToList] = useState(new Map());
@@ -822,6 +826,21 @@ const Deals = ({ onNavigate }) => {
           the clip controls are disabled, so the explanation has to come before
           the controls it accounts for, not after them. */}
       <HebSignInPanel state={hebState} health={hebHealth} onRecheck={hebRecheck} />
+
+      {/* Coupon-data freshness — rendered ONLY on the server's `dataStale`
+          verdict. The client never recomputes staleness from `lastScrapeAt`:
+          one place decides how old is too old, and it is the server.
+          It says "coupon data", never "deals": heb_scraping_history records
+          the coupon scraper alone, and Smart Deals is coupons x frequent
+          products, so calling it stale deals would overstate what is known.
+          `bg-background` and not `bg-surface-alt`: there is no surface-alt
+          colour in tailwind.config.js, and JIT emits nothing for an unknown
+          token, so that class would render an invisible line. */}
+      {hebHealth?.dataStale && (
+        <div className="mb-3 px-3 py-2 rounded-xl bg-background border border-default text-sm text-muted">
+          Coupon data is {hebHealth.staleDays} days old — the weekly update hasn’t run.
+        </div>
+      )}
 
       {/* Selection toolbar */}
       {totalItems > 0 && !clipServerUnavailable && (

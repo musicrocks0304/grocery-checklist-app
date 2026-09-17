@@ -118,4 +118,37 @@ describe('Deals HEB session state', () => {
     expect(screen.queryByRole('button', { name: /Select All Unclipped/i })).toBeNull();
     expect(screen.getByRole('checkbox')).toBeDisabled();
   });
+
+  test('a degraded clip server shows the panel and blocks clipping', async () => {
+    // A clip cannot succeed without the database: the clip server maps
+    // hash_id -> heb_coupon_id there before it ever contacts HEB. So degraded
+    // joins signedOut and unreachable, and blocks exactly the way they do —
+    // toolbar gone, per-coupon checkbox disabled.
+    installMockFetch({ ...base(), '/api/health': { status: 'degraded', degradedReason: 'db_unreachable', sessionAuthenticated: true, storeId: null, storeSource: null, storeExpected: '794', authExpiresAt: null } });
+    renderWithProviders(<Deals onNavigate={() => {}} />);
+    await screen.findByText('Pillsbury Original Crescent Dinner Rolls');
+    expect(await screen.findByTestId('heb-session-panel')).toHaveTextContent(/database/i);
+    expect(screen.queryByRole('button', { name: /Select All Unclipped/i })).toBeNull();
+    expect(screen.getByRole('checkbox')).toBeDisabled();
+  });
+});
+
+describe('Deals coupon-data freshness', () => {
+  test('stale coupon data shows an advisory line', async () => {
+    installMockFetch({ ...base(), '/api/health': { sessionAuthenticated: true, storeId: null, storeExpected: '794', authExpiresAt: null, dataStale: true, staleDays: 9, lastScrapeAt: '2026-09-08T11:00:00.000Z' } });
+    renderWithProviders(<Deals onNavigate={() => {}} />);
+    expect(await screen.findByText(/Coupon data is 9 days old/i)).toBeInTheDocument();
+  });
+
+  test('the client NEVER recomputes staleness from the timestamp', async () => {
+    // lastScrapeAt is 30 days old but the server said dataStale:false. The
+    // client must render nothing: one place decides, and it is the server.
+    const mock = installMockFetch({ ...base(), '/api/health': { sessionAuthenticated: true, storeId: null, storeExpected: '794', authExpiresAt: null, dataStale: false, staleDays: null, lastScrapeAt: new Date(Date.now() - 30 * 86400000).toISOString() } });
+    renderWithProviders(<Deals onNavigate={() => {}} />);
+    await screen.findByText('Pillsbury Original Crescent Dinner Rolls');
+    // The line is silent for a healthy verdict too, so prove health was
+    // actually consulted before asserting its absence.
+    expect(mock.for('/api/health').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/days old/i)).not.toBeInTheDocument();
+  });
 });
