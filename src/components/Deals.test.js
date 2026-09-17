@@ -131,6 +131,46 @@ describe('Deals HEB session state', () => {
     expect(screen.queryByRole('button', { name: /Select All Unclipped/i })).toBeNull();
     expect(screen.getByRole('checkbox')).toBeDisabled();
   });
+
+  test('recovery: Check again lifts the degraded lockout once the database is back', async () => {
+    // The C2 lockout guard, and the reason it is not optional. useHebSession
+    // fetches /api/health exactly once on mount; its only other trigger is a
+    // SESSION_EXPIRED message during a clip, which cannot fire once clipping
+    // is disabled -- and degraded disables it. So "Check again" is the ONLY
+    // escape. The blip it has to escape is realistic: mysql2's pool drops
+    // idle sockets after 60s, so a MySQL restart leaves dead ones that throw
+    // a single time. Without this test, a one-shot dbReachable:false could
+    // strand clipping until the user navigated away and back, and nothing
+    // would have gone red.
+    let dbBack = false;
+    // installMockFetch resolves a function entry per request, which is the
+    // supported way to make one endpoint answer differently over time --
+    // no re-install, so the mount-time call and the recheck share a mock.
+    const session = { sessionAuthenticated: true, storeId: null, storeSource: null, storeExpected: '794', authExpiresAt: null };
+    const mock = installMockFetch({
+      ...base(),
+      '/api/health': () => (dbBack
+        ? { status: 'healthy', ...session }
+        : { status: 'degraded', degradedReason: 'db_unreachable', ...session }),
+    });
+    renderWithProviders(<Deals onNavigate={() => {}} />);
+    await screen.findByText('Pillsbury Original Crescent Dinner Rolls');
+
+    expect(await screen.findByTestId('heb-session-panel')).toHaveTextContent(/database/i);
+    expect(screen.queryByRole('button', { name: /Select All Unclipped/i })).toBeNull();
+    expect(screen.getByRole('checkbox')).toBeDisabled();
+
+    dbBack = true;
+    fireEvent.click(screen.getByRole('button', { name: /Check again/i }));
+
+    // The controls come back, which is the whole point: the panel going quiet
+    // would not prove the clip path was re-enabled.
+    expect(await screen.findByRole('button', { name: /Select All Unclipped/i })).toBeEnabled();
+    expect(screen.getByRole('checkbox')).toBeEnabled();
+    expect(screen.queryByTestId('heb-session-panel')).not.toBeInTheDocument();
+    expect(mock.for('/api/health').length).toBeGreaterThanOrEqual(2);
+    expect(mock.unmocked()).toEqual([]);
+  });
 });
 
 describe('Deals coupon-data freshness', () => {
