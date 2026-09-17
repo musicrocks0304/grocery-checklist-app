@@ -3,20 +3,24 @@ const { test, expect, open } = require('./support/test.js');
 const main = (page) => page.locator('main');
 
 test.describe('Deals', () => {
-  test('renders smart deals and coupons from fixtures, expired banner by default', async ({ page, backend }) => {
+  test('renders smart deals and coupons from fixtures, sign-in banner by default', async ({ page, backend }) => {
     await open(page, 'deals');
     await expect(main(page).getByText('Deals & Coupons')).toBeVisible();
-    await expect(main(page).getByText('HEB session expired')).toBeVisible();
+    // Deals' three hand-rolled banners ("HEB session expired" among them)
+    // collapsed into the one shared HebSignInPanel; the expired-login copy is
+    // now "HEB sign-in needed", offering a remedy instead of pointing at the
+    // deleted Session Manager. Every state of it is covered in heb-session.spec.js.
+    await expect(main(page).getByTestId('heb-session-panel')).toContainText('HEB sign-in needed');
     await expect(main(page).getByText('Pillsbury Original Crescent Dinner Rolls').first()).toBeVisible();
     expect(backend.calls('smart_deals')[0].method).toBe('POST');
     expect(backend.calls('fetch_heb_coupons').length).toBeGreaterThan(0);
   });
 
-  test('no expired banner when the clip session is healthy', async ({ page, backend }) => {
+  test('no session banner at all when the clip session is healthy', async ({ page, backend }) => {
     backend.clip('healthy');
     await open(page, 'deals');
     await expect(main(page).getByText('Deals & Coupons')).toBeVisible();
-    await expect(main(page).getByText('HEB session expired')).toHaveCount(0);
+    await expect(main(page).getByTestId('heb-session-panel')).toHaveCount(0);
   });
 
   test('Add to list posts add_oneoff_item once and settles on Added', async ({ page, backend }) => {

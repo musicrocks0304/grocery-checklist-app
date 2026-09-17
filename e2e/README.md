@@ -7,8 +7,15 @@ Playwright specs for the grocery-checklist-app. Three projects
   `REACT_APP_API_KEY` in repo-root `.env`; specs under `e2e/live/`).
 
 ## Scripts
+- `e2e/heb-session.spec.js` — one test per state `useHebSession` derives
+  (`unreachable` / `signedOut` / `wrongStore` / `expiring` / `ready`; the
+  pre-answer `checking` renders nothing by design and is covered in Jest),
+  across both screens that show it, plus the phone sign-in → import round
+  trip. Which state a test gets is chosen with `backend.clip(<fixture name>)`
+  — see the comment on `MockBackend.clip`; fixture names and state names are
+  deliberately different vocabularies.
 - `e2e/a11y.spec.js` — keyboard-only flows for the feedback dialog, the Shop
-  ⋯ menu + invite dialog and the Cart sign-in disclosure, 44px target
+  ⋯ menu + invite dialog and the Cart sign-in remedy, 44px target
   measurements, and a scoped `@axe-core/playwright` audit (fails only on
   serious/critical violations inside those regions except `color-contrast`,
   which is printed and deferred because colour and font changes are explicit

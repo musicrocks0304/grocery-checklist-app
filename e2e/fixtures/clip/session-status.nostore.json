@@ -1,0 +1,11 @@
+{
+  "_recorded": {
+    "at": "hand-written",
+    "endpoint": "api/heb/session/status",
+    "sanitised": true,
+    "note": "mock-backend keys BOTH clip routes off the same clipState, so every health.<state>.json needs a session-status sibling or api/heb/session/status 404s as unmocked. The browser session is a different fact from the HEB login, so these stay the healthy shape."
+  },
+  "active": false,
+  "loginSessionValid": true,
+  "idleSeconds": 0
+}

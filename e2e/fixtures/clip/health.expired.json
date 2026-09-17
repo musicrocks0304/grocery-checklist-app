@@ -1,7 +1,21 @@
 {
-  "_recorded": { "at": "hand-written", "endpoint": "api/health", "sanitised": true },
-  "ok": true,
+  "_recorded": {
+    "at": "hand-written",
+    "endpoint": "api/health",
+    "sanitised": true,
+    "note": "HEB has rejected the saved auth cookies. deriveState -> 'signedOut'."
+  },
+  "status": "ok",
   "sessionValid": false,
   "sessionAuthenticated": false,
-  "sessionAgeHours": 40
+  "sessionReason": "no_auth_cookies",
+  "authExpiresAt": null,
+  "storeId": null,
+  "storeSource": null,
+  "storeExpected": "794",
+  "sessionAgeHours": 40,
+  "lastScrapeAt": null,
+  "couponCount": 826,
+  "activeJobs": 0,
+  "activeScraperJob": null
 }
