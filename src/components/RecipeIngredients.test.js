@@ -78,6 +78,36 @@ describe('RecipeIngredients quantity display', () => {
     expect(screen.getByText('2 lbs 1 lb package')).toBeInTheDocument();
   });
 
+  // F3b: the initial seed was fixed, but the two *toggle* paths still seeded the
+  // multiplier from QuantitySelected, so one ordinary interaction brought the
+  // squared display straight back. Reproduced on production 2026-09-17:
+  // deselecting and re-selecting flour tortillas re-rendered "= 4 x 4 items".
+  test('re-selecting an item leaves its multiplier at 1', async () => {
+    renderScreen();
+
+    expect(await screen.findByText('flour tortillas')).toBeInTheDocument();
+
+    // The row checkboxes carry no accessible name, so drive them all: every item
+    // goes through the same toggleItemSelection path that reseeded the multiplier.
+    const checkboxes = screen.getAllByRole('checkbox');
+    checkboxes.forEach((cb) => fireEvent.click(cb)); // deselect
+    checkboxes.forEach((cb) => fireEvent.click(cb)); // re-select
+
+    expect(screen.queryByText(/=\s*8\s*×\s*8/)).not.toBeInTheDocument();
+  });
+
+  test('Select All leaves multipliers at 1', async () => {
+    renderScreen();
+
+    expect(await screen.findByText('flour tortillas')).toBeInTheDocument();
+
+    // Everything starts selected, so the group button reads "Deselect All".
+    fireEvent.click(screen.getByRole('button', { name: /Deselect All/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Select All/i }));
+
+    expect(screen.queryByText(/=\s*8\s*×\s*8/)).not.toBeInTheDocument();
+  });
+
   test('raising the multiplier still multiplies the purchase amount', async () => {
     renderScreen();
 

@@ -272,15 +272,14 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
         });
       } else {
         newSet.add(itemIdStr);
-        // Set default quantity when selecting
-        const item = ingredientsList.find(i => i.ItemID.toString() === itemIdStr);
-        if (item) {
-          setItemQuantities(prevQuantities => {
-            const newQuantities = new Map(prevQuantities);
-            newQuantities.set(itemIdStr, item.QuantitySelected || 1);
-            return newQuantities;
-          });
-        }
+        // The multiplier starts at 1 here for the same reason it does at the
+        // initial seed — seeding it with QuantitySelected brought "8 x 8 items"
+        // straight back the moment an item was deselected and re-selected.
+        setItemQuantities(prevQuantities => {
+          const newQuantities = new Map(prevQuantities);
+          newQuantities.set(itemIdStr, 1);
+          return newQuantities;
+        });
       }
       return newSet;
     });
@@ -720,8 +719,8 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                       if (allSelected) {
                         newMap.delete(id);
                       } else if (!newMap.has(id)) {
-                        const item = ingredientsList.find(i => i.ItemID.toString() === id);
-                        newMap.set(id, item?.QuantitySelected || 1);
+                        // Multiplier, not purchase amount — always starts at 1.
+                        newMap.set(id, 1);
                       }
                     });
                     return newMap;
