@@ -337,8 +337,13 @@ const Deals = ({ onNavigate }) => {
 
   // Selection + clip state (shared hook)
   const [selectedCoupons, setSelectedCoupons] = useState(new Set());
-  const { clipSelected, clipProgress, clipMessages, clipResults, clipError, isClipping, resetClipState } = useClipCoupons();
+  // useHebSession first: useClipCoupons takes its recheck, and a `const` read
+  // before its declaration is a TDZ crash, not a lint warning.
   const { state: hebState, health: hebHealth, recheck: hebRecheck } = useHebSession();
+  // A SESSION_EXPIRED mid-clip re-checks the session, so the panel stops
+  // claiming `ready` the moment the server says otherwise.
+  const { clipSelected, clipProgress, clipMessages, clipResults, clipError, isClipping, resetClipState } =
+    useClipCoupons({ onSessionExpired: hebRecheck });
   // Only the two states where a clip request CANNOT succeed disable the
   // controls. 'wrongStore' is deliberately absent (R14): its only signal is a
   // transient, non-authoritative cookie that has already produced one false

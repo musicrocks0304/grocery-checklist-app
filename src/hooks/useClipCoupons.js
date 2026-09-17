@@ -6,7 +6,7 @@ import { CLIP_SERVER_URL } from '../config/api';
  * Replaces duplicated logic in Deals.js, SmartDeals.js, CouponMatchPanel.js.
  * Handles EventSource lifecycle and cleanup on unmount.
  */
-export function useClipCoupons() {
+export function useClipCoupons({ onSessionExpired } = {}) {
   const [isClipping, setIsClipping] = useState(false);
   const [clipProgress, setClipProgress] = useState(new Map());
   // couponId -> server detail message (failure reasons stay visible in the UI
@@ -15,6 +15,12 @@ export function useClipCoupons() {
   const [clipResults, setClipResults] = useState(null);
   const [clipError, setClipError] = useState(null);
   const eventSourceRef = useRef(null);
+
+  // Held in a ref so a caller passing an inline arrow does not re-create
+  // clipSelected on every render, which would break the stable identity the
+  // consuming components depend on.
+  const onSessionExpiredRef = useRef(onSessionExpired);
+  useEffect(() => { onSessionExpiredRef.current = onSessionExpired; }, [onSessionExpired]);
 
   // Cleanup EventSource on unmount
   useEffect(() => {
@@ -93,6 +99,13 @@ export function useClipCoupons() {
             // Detect session expiration and surface it immediately
             if (data.message && data.message.includes('SESSION_EXPIRED')) {
               setClipError('HEB session expired during clipping. Log in at heb-login.needexcelexpert.com and import the session, then retry.');
+              // Tell the session hook to re-check. It only fetches /api/health
+              // on mount, so without this the panel goes on reporting `ready`
+              // while every clip fails — the exact disagreement sub-project C
+              // existed to end, reappearing over time rather than across
+              // screens. Keyed on SESSION_EXPIRED alone, not on any failure:
+              // a stale-hash failure says nothing about the login.
+              onSessionExpiredRef.current?.();
             }
           } else if (data.type === 'complete') {
             setClipResults(data.summary);
