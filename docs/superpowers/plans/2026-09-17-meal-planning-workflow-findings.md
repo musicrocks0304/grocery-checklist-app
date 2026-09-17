@@ -20,6 +20,15 @@
 > `weekly_selections` = `selection_id` 173 only, 0 MealIngredients rows,
 > `client_errors` = 1 (the permanent sentinel).
 >
+> **F3b — found during verification, fixed same day (`8999b20`).** The F3 fix corrected
+> only the initial seed. Both *toggle* paths (`RecipeIngredients.js` per-item toggle and
+> the group "Select All") still seeded the multiplier from `QuantitySelected`, so one
+> ordinary interaction brought the squared display back. Reproduced on the deployed
+> production site: deselect + re-select `flour tortillas` → the multiplier dropdown jumped
+> from 1 to 4 and the row rendered **`= 4 × 4 items`**. Both paths now seed 1.
+> Display-only today *only* because the n8n Transform ignores `item.quantity` (F4) — if F4
+> is ever fixed, this would have become a real 4× over-purchase.
+>
 > **Still true after the fix (not in this slice):** F6's garbled text is unchanged —
 > `Buy: 1 small jar small jar` was observed verbatim during verification. F10 also stands:
 > the remove-meal buttons carry `title="Remove meal"` but no `aria-label` and no text, so
