@@ -40,7 +40,11 @@ export default function useClipSession({ onStepChange }) {
       throw new Error(data.message || `Failed (${res.status})`);
     }
     const data = await res.json();
-    setSessionStatus({ active: true, sessionId: data.sessionId, loginSessionValid: true, idleSeconds: 0 });
+    // Deliberately no `loginSessionValid`: starting a browser session says
+    // nothing about whether HEB still accepts our cookies, and asserting it
+    // here is how a stale login used to masquerade as a healthy one.
+    // `useHebSession` owns that fact now.
+    setSessionStatus({ active: true, sessionId: data.sessionId, idleSeconds: 0 });
     return data;
   }, []);
 

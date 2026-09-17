@@ -1,17 +1,37 @@
-import React, { useState } from 'react';
-import { Wifi, WifiOff, Loader2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
-import toast from 'react-hot-toast';
+import React from 'react';
+import { Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { HebSignInPanel } from '../heb/HebSignInPanel';
 
 // ─── Connection Panel (Step 1) ──────────────────────────────────
-const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, connecting }) => {
+//
+// The login verdict is no longer this component's to make. `hebState` comes
+// from `useHebSession`, the one place that derives it, and the remedy copy
+// comes from the shared `HebSignInPanel`. What is left here is the browser
+// session — connect, disconnect, idle time — which is a different fact.
+const ConnectionPanel = ({ sessionStatus, hebState, hebHealth, onConnect, onDisconnect, onRecheck, connecting }) => {
   const isActive = sessionStatus?.active;
   const loginValid = sessionStatus?.loginSessionValid;
-  // Until the first status lands, sessionStatus is null — don't flash the
-  // "sign-in needed" state at everyone on mount.
-  const isChecking = sessionStatus == null;
-  const isExpired = sessionStatus != null && !loginValid && !isActive;
-  const [rechecking, setRechecking] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
+
+  // `blocked` gates the Connect/Disconnect row: these are the states where
+  // driving a browser session cannot work.
+  //
+  // It deliberately EXCLUDES two states:
+  //   'expiring'   advisory — the session still works, so connecting must
+  //                stay available.
+  //   'wrongStore' advisory (ruling R14) — its only signal is a transient,
+  //                non-authoritative store cookie that has already produced
+  //                one false positive in the field. Blocking on it would stop
+  //                a user who is in fact correctly configured, with no action
+  //                available that could clear the block.
+  // There is no 'noStore' state to exclude (ruling R13): HEB resolves the
+  // curbside store server-side, so a healthy live session carries no store
+  // cookie and `deriveState` never emits one.
+  const blocked = ['signedOut', 'unreachable'].includes(hebState);
+
+  // Two independently unknown things, and neither may flash a verdict at the
+  // user on mount: the shared session state before its first answer, and the
+  // browser-session status before its first poll lands.
+  const isChecking = hebState === 'checking' || sessionStatus == null;
 
   const lastLoginLabel = sessionStatus?.lastLoginAt
     ? `Last connected ${new Date(sessionStatus.lastLoginAt).toLocaleString()}`
@@ -25,20 +45,6 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, co
         ? 'Ready to connect'
         : lastLoginLabel;
 
-  const handleRecheck = async () => {
-    setRechecking(true);
-    try {
-      const status = await onRecheck?.();
-      if (status?.loginSessionValid) {
-        toast.success('Connected!');
-      } else {
-        toast('Still signed out — sign in on the computer, then try again.');
-      }
-    } finally {
-      setRechecking(false);
-    }
-  };
-
   return (
     <div data-testid="heb-signin-panel" className="bg-surface rounded-2xl shadow-warm border border-default p-4 sm:p-6 transition-colors duration-200">
       <div className="flex items-center gap-3 mb-4">
@@ -46,68 +52,28 @@ const ConnectionPanel = ({ sessionStatus, onConnect, onDisconnect, onRecheck, co
           {isActive ? <Wifi size={24} /> : <WifiOff size={24} />}
         </div>
         <div>
-          <h2 className="text-lg font-semibold font-display text-heading">
-            {isExpired ? 'HEB sign-in needed' : 'HEB Connection'}
-          </h2>
+          {/* The heading stays generic on purpose. HebSignInPanel supplies the
+              state-specific title ("HEB sign-in needed", "Clip server
+              offline"); repeating it here would both duplicate the text and
+              mislabel states like 'unreachable' as a sign-in problem. */}
+          <h2 className="text-lg font-semibold font-display text-heading">HEB Connection</h2>
           {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
         </div>
       </div>
 
-      {isExpired && (
-        <div className="mb-4 space-y-3">
-          <p className="text-sm text-body">
-            The saved HEB login has expired, so the cart builder can't search products yet. Sign in again from the computer, then tap <strong>Check again</strong>.
-          </p>
-          <button
-            onClick={handleRecheck}
-            disabled={rechecking}
-            className={`inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl font-medium text-sm transition-colors ${
-              rechecking
-                ? 'bg-primary/70 text-white cursor-wait'
-                : 'bg-primary text-white hover:bg-primary-hover'
-            }`}
-          >
-            {rechecking ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Checking...
-              </>
-            ) : (
-              <>
-                <RefreshCw size={16} />
-                Check again
-              </>
-            )}
-          </button>
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowDetails(v => !v)}
-              aria-expanded={showDetails}
-              aria-controls="heb-login-details"
-              className="inline-flex items-center gap-1 text-xs text-muted hover:text-body transition-colors min-h-[44px] -my-2.5 align-top"
-            >
-              {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              Show technical details
-            </button>
-            {showDetails && (
-              <div id="heb-login-details" className="mt-2 text-xs text-muted space-y-1">
-                <code className="block bg-background border border-default px-2 py-1 rounded text-body">npm run scrape:login</code>
-                <p>Run this on the server, then re-check.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Rendered unconditionally: the panel silences itself on 'checking' and
+          'ready', and rendering it here is what finally gives Cart the
+          'expiring' warning it has never had. */}
+      <HebSignInPanel state={hebState} health={hebHealth} onRecheck={onRecheck} />
 
-      {!isExpired && !isChecking && (
+      {!blocked && !isChecking && (
         <div className="flex gap-3">
           {!isActive ? (
             <button
               onClick={onConnect}
-              disabled={connecting || !loginValid}
+              disabled={connecting}
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors ${
-                connecting || !loginValid
+                connecting
                   ? 'bg-default text-muted cursor-not-allowed'
                   : 'bg-primary text-white hover:bg-primary-hover'
               }`}
