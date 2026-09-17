@@ -69,7 +69,7 @@ describe('useHebSession / deriveState', () => {
     // undefined as a mismatch would put every user in wrongStore. Same single
     // rule as the null case above, approached from the other direction: only
     // a store id that was actually observed is ever compared.
-    const old = { status: 'ok', sessionAuthenticated: true, authExpiresAt: future(30 * 24 * HOUR) };
+    const old = { sessionAuthenticated: true, authExpiresAt: future(30 * 24 * HOUR) };
     expect(deriveState(old)).toBe('ready');
   });
 
@@ -100,6 +100,38 @@ describe('useHebSession / deriveState', () => {
 
   test('a wrong store outranks expiring', () => {
     expect(deriveState({ ...healthy, storeId: '809', authExpiresAt: future(1 * HOUR) })).toBe('wrongStore');
+  });
+
+  test('a degraded server derives degraded', () => {
+    expect(deriveState({ ...healthy, status: 'degraded', degradedReason: 'db_unreachable' }))
+      .toBe('degraded');
+  });
+
+  test('signedOut OUTRANKS degraded — the sign-in remedy still works', () => {
+    // sessionAuthenticated comes from the session FILE (buildSessionHealth ->
+    // evaluateSession), which the health handler's DB code never touches, so a
+    // DB outage cannot move it. And session-import.js has zero DB references,
+    // so signing in works fine during an outage. Ordering degraded first would
+    // hide a working remedy behind a broken one.
+    expect(deriveState({ ...healthy, status: 'degraded', sessionAuthenticated: false }))
+      .toBe('signedOut');
+  });
+
+  test('degraded outranks wrongStore and expiring — blocking beats advisory', () => {
+    expect(deriveState({ ...healthy, status: 'degraded', storeId: '809', storeSource: 'curr' }))
+      .toBe('degraded');
+    expect(deriveState({ ...healthy, status: 'degraded', authExpiresAt: future(HOUR) }))
+      .toBe('degraded');
+  });
+
+  test('COMPATIBILITY: a payload with NO status field behaves exactly as today', () => {
+    // An old container omits the field entirely. Absent is not wrong.
+    const old = { sessionAuthenticated: true, authExpiresAt: future(30 * 24 * HOUR) };
+    expect(deriveState(old)).toBe('ready');
+  });
+
+  test('an explicit status ok is not degraded', () => {
+    expect(deriveState({ ...healthy, status: 'ok' })).toBe('ready');
   });
 
   test('null health → unreachable', () => {

@@ -8,16 +8,31 @@ const EXPIRING_WINDOW_MS = 48 * 3600 * 1000;
  * The one place that decides what the HEB session state is.
  *
  * Returns one of:
- *   'unreachable' | 'signedOut' | 'wrongStore' | 'expiring' | 'ready'
+ *   'unreachable' | 'signedOut' | 'degraded' | 'wrongStore' | 'expiring' | 'ready'
  * (the hook adds 'checking' before the first answer arrives).
  *
- * Precedence matters: reachability, then login, then store binding, then the
- * expiry advisory. Store binding is meaningless when logged out, so it never
- * outranks signedOut. 'wrongStore' is advisory — it reports, it does not block.
+ * Precedence, in order:
+ *   unreachable → signedOut → degraded → wrongStore → expiring → ready
+ *
+ * Reachability, then login, then whether the server can actually serve data,
+ * then store binding, then the expiry advisory. Store binding is meaningless
+ * when logged out, so it never outranks signedOut. 'wrongStore' is advisory —
+ * it reports, it does not block.
  */
 export function deriveState(health) {
   if (!health) return 'unreachable';
   if (!health.sessionAuthenticated) return 'signedOut';
+
+  // Fourth, NOT second. The first draft put this above signedOut, reasoning
+  // that a DB outage might make sessionAuthenticated read false — it cannot,
+  // that value comes from the session FILE. The inverse is what matters:
+  // session import touches no database, so signing in works during an outage,
+  // and ordering degraded first would hide a working remedy behind a broken
+  // one. Blocking states outrank advisories; the login verdict is independent.
+  //
+  // An older clip-server omits `status` entirely: undefined is not 'degraded',
+  // so it behaves exactly as before. Absent is not wrong.
+  if (health.status === 'degraded') return 'degraded';
 
   // Compare only a store id that was actually OBSERVED, against an
   // expectation that actually EXISTS. Absent is not wrong.
