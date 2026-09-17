@@ -131,3 +131,28 @@ describe('HebSignInPanel import flow', () => {
     expect(screen.queryByText(/HTTP 400/)).not.toBeInTheDocument();
   });
 });
+
+describe('degraded', () => {
+  test('names the clip server as the thing that cannot reach its database', async () => {
+    render(<HebSignInPanel state="degraded" health={{}} onRecheck={() => {}} />);
+    // Never "the database is down": dbReachable false can be a container
+    // network fault while the app's own n8n path is fine.
+    expect(await screen.findByText(/can.t reach its database/i)).toBeInTheDocument();
+  });
+
+  test('offers no sign-in route — signing in cannot fix a database outage', () => {
+    render(<HebSignInPanel state="degraded" health={{}} onRecheck={() => {}} />);
+    expect(screen.queryByText(/sign in/i)).not.toBeInTheDocument();
+  });
+
+  test('Check again calls onRecheck, so a transient cannot become a lockout', () => {
+    // useHebSession fetches once on mount and its only other trigger is
+    // SESSION_EXPIRED during a clip -- which cannot fire while clipping is
+    // disabled. Without this button a single transient dbReachable:false
+    // would disable clipping until the user navigated away and back.
+    const onRecheck = jest.fn();
+    render(<HebSignInPanel state="degraded" health={{}} onRecheck={onRecheck} />);
+    fireEvent.click(screen.getByRole('button', { name: /check again/i }));
+    expect(onRecheck).toHaveBeenCalledTimes(1);
+  });
+});

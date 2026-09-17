@@ -49,6 +49,17 @@ function copyFor(state, health) {
         body: 'The HEB login lapses within two days. Clipping and the cart builder still work; you’ll get a sign-in prompt here when it runs out.',
         offersSignIn: false,
       };
+    case 'degraded':
+      return {
+        title: 'Clip server can’t reach its database',
+        // Says nothing about the HEB sign-in. Under deriveState's ordering,
+        // degraded is only reached when the session is already authenticated,
+        // so a reassurance is unnecessary — and asserting it from a state that
+        // does not know is how the first draft contradicted the server.
+        body: 'Coupon clipping and the cart builder look up coupons there, so both are unavailable until it reconnects. There’s nothing to fix on your side.',
+        offersSignIn: false,
+        offersRecheck: true,
+      };
     default:
       return null;
   }
@@ -102,6 +113,23 @@ const HebSignInPanel = ({ state, health, onRecheck }) => {
                   : <><RefreshCw size={16} />I've signed in — import it</>}
               </button>
             </div>
+          )}
+
+          {/*
+            Reuses the import button's tokens: there is no `surface-alt` colour
+            in tailwind.config.js, so `bg-surface-alt` would compile to nothing
+            and `hover:bg-surface` would match the panel's own background.
+            min-h-[44px] keeps the touch target the accessibility pass set.
+          */}
+          {copy.offersRecheck && (
+            <button
+              type="button"
+              onClick={onRecheck}
+              className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium bg-background text-body hover:bg-default border border-default transition-colors"
+            >
+              <RefreshCw size={16} />
+              Check again
+            </button>
           )}
 
           {error && <p className="mt-2 text-xs text-muted">{error}</p>}
