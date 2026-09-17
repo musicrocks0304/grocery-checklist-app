@@ -121,6 +121,9 @@ export const ENDPOINTS = {
   // Grocery Prep
   groceryPrep: `${API_BASE_URL}/grocery_prep`,
   groceryPrepStatus: `${API_BASE_URL}/grocery_prep_status`,
+
+  // HEB session lifecycle — n8n proxies the import so the admin key stays server-side
+  hebSessionImport: `${API_BASE_URL}/heb_session_import`,
 };
 
 /**
