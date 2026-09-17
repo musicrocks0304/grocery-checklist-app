@@ -810,6 +810,14 @@ const Deals = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* HEB session state — one panel for every state, rendered
+          unconditionally; it self-silences on 'checking' and 'ready'.
+          It sits ABOVE the selection toolbar on purpose: when the session is
+          signedOut or the clip server is unreachable the toolbar is hidden and
+          the clip controls are disabled, so the explanation has to come before
+          the controls it accounts for, not after them. */}
+      <HebSignInPanel state={hebState} health={hebHealth} onRecheck={hebRecheck} />
+
       {/* Selection toolbar */}
       {totalItems > 0 && !clipServerUnavailable && (
         <div className="bg-surface rounded-2xl shadow-warm border border-default p-3 mb-4 flex flex-wrap items-center gap-2 transition-colors duration-200">
@@ -860,10 +868,6 @@ const Deals = ({ onNavigate }) => {
           )}
         </div>
       )}
-
-      {/* HEB session state — one panel for every state, rendered
-          unconditionally; it self-silences on 'checking' and 'ready'. */}
-      <HebSignInPanel state={hebState} health={hebHealth} onRecheck={hebRecheck} />
 
       {/* Clip error/results/progress banners */}
       {clipError && (
