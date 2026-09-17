@@ -205,9 +205,12 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
       transformedIngredients.forEach((item) => {
         if (item.IsSelected === 1) {
           preSelectedItems.add(item.ItemID.toString());
-          // Use QuantitySelected from payload, fallback to 1 if not present
-          const quantity = item.QuantitySelected || 1;
-          preSelectedQuantities.set(item.ItemID.toString(), quantity);
+          // The control is a MULTIPLIER — "how many of the suggested purchase
+          // amount to buy" — so it must start at 1. Seeding it with
+          // QuantitySelected made every ingredient whose purchase quantity was a
+          // bare number render as N x N: an 8-pack of tortillas showed as
+          // "8 x 8 items" on the confirmation screen.
+          preSelectedQuantities.set(item.ItemID.toString(), 1);
         }
       });
 
@@ -734,7 +737,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
             <div className="divide-y divide-default">
               {currentGroupItems.map((item) => {
                 const isSelected = selectedItems.has(item.ItemID.toString());
-                const quantity = itemQuantities.get(item.ItemID.toString()) || item.QuantitySelected || 1;
+                // No QuantitySelected fallback here — it would resurrect the
+                // "8 x 8 items" bug whenever the map misses.
+                const quantity = itemQuantities.get(item.ItemID.toString()) || 1;
 
                 return (
                   <div key={item.ItemID} className="p-4 hover:bg-background transition-colors">
