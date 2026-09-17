@@ -1,8 +1,29 @@
 # Meal Planning Workflow — Findings & Remediation Plan
 
-> **Status: FINDINGS + PLAN ONLY. Nothing has been fixed.** Every finding below was
-> reproduced against the live production system on 2026-09-17. All test data written
-> during the investigation has been reverted; the database is at baseline.
+> **Status: Slice 1 (F1, F2, F3) SHIPPED and VERIFIED LIVE on 2026-09-17.**
+> F4-F10 remain open. Every finding below was reproduced against the live production
+> system on 2026-09-17. All test data written during the investigation and during the
+> post-fix verification has been reverted; the database is at baseline.
+>
+> **Post-fix verification (2026-09-17, week `2026-09-20`, driven through the real UI):**
+>
+> | check | expected if fixed | observed |
+> |---|---|---|
+> | F1 — plan recipes 3+20+47 | 23 stored, carrots + avocado present | **23 stored**, both present |
+> | F1 intent guard — carrots checked as a staple for the week | suppressed exactly once, no duplicate line | **22 meal rows**, `Carrots` present once as `Staples`, `Avocado` (unchecked) survives |
+> | F2 down — remove Beef Tacos, resubmit | ground beef 2 -> 1 | **1** `1 lb package`; `Lime` 2 -> **1** `item`; `Green onions` 4 -> **2** |
+> | F2 up — add it back, resubmit | returns to 2 | **2** (replace, not an inverted ratchet) |
+> | F3 — selection + confirmation screens | `8 items` | **`8 items`** / **`6 items`**, zero squared quantities |
+>
+> Gates at merge: `npm run lint` clean, Jest **443 passing**, Playwright e2e **124 passing**.
+> Baseline after revert: WGL week `2026-09-20` = ids 3688-3693 (6 Staples rows),
+> `weekly_selections` = `selection_id` 173 only, 0 MealIngredients rows,
+> `client_errors` = 1 (the permanent sentinel).
+>
+> **Still true after the fix (not in this slice):** F6's garbled text is unchanged —
+> `Buy: 1 small jar small jar` was observed verbatim during verification. F10 also stands:
+> the remove-meal buttons carry `title="Remove meal"` but no `aria-label` and no text, so
+> the accessible name comes only from the `title` fallback.
 
 **Investigator note:** this is an end-to-end review of the meal-planning workflow driven
 through the real UI (Playwright against `grocery-checklist-app.netlify.app`), from the
@@ -396,6 +417,9 @@ change live shopping behaviour and should be confirmed before implementation.**
 
 **Recommended first slice: items 1–3.** They are the three defects that make the list
 wrong, they are independent of each other, and together they are roughly a day of work.
+
+> **Slice 1 is now shipped and verified live** — see the status block at the top of this
+> document. The remaining open work is F4–F10.
 
 ---
 
