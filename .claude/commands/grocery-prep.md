@@ -17,27 +17,29 @@ If Docker Desktop isn't running, offer to launch it: `"/c/Program Files/Docker/D
 If specific containers are down, offer to start them with `docker start <name>`. Do NOT proceed until infrastructure is confirmed healthy.
 
 ### 2. Check HEB Session
-The scraper checks **file age** (not cookie expiry). Run this check:
+The scraper checks **real cookie expiry**, not file age. Run this check:
 ```bash
 cd "C:/New Grocery App/heb-coupon-scraper" && node -e "
 const config = require('./src/config');
-const { isSessionFileValid } = require('./src/auth');
+const { evaluateSessionFile } = require('./src/heb-session-fs');
 const fs = require('fs');
 const path = require('path');
 const cookiePath = path.resolve(config.browser.cookiePath);
 if (!fs.existsSync(cookiePath)) { console.log('NO SESSION FILE'); process.exit(1); }
 const stats = fs.statSync(cookiePath);
-const ageHours = (Date.now() - stats.mtimeMs) / (1000 * 60 * 60);
-const maxAge = config.browser.sessionMaxAgeHours;
-const valid = isSessionFileValid(cookiePath);
-console.log('File age:', Math.round(ageHours), 'hours (max:', maxAge, 'hours)');
+const r = evaluateSessionFile(cookiePath);
 console.log('Last modified:', new Date(stats.mtimeMs).toLocaleString());
-console.log('Status:', valid ? 'VALID' : 'EXPIRED');
-if (!valid) process.exit(1);
+console.log('Auth expires:', r.authExpiresAt || 'session cookies (no fixed expiry)');
+console.log('Status:', r.usable ? 'VALID' : 'EXPIRED (' + r.reason + ')');
+if (!r.usable) process.exit(1);
 "
 ```
 
-If the session is expired or the file doesn't exist, ask the user: "HEB session is expired. Want me to open the login browser?" If yes, run `cd "C:/New Grocery App/heb-coupon-scraper" && npm run scrape:login` (with a 5-minute timeout, run in background so the user can interact with the browser).
+File age is deliberately NOT a validity input any more (sub-project C, 2026-09-16): HEB's auth
+cookies last ~30 days, while an anonymous scrape or a cart teardown refreshes the file's mtime
+without refreshing the login. Judging by mtime is what made Cart and Deals disagree.
+
+If the session is expired or the file doesn't exist, ask the user: "HEB session is expired. Want me to open the login browser?" If yes, run `cd "C:/New Grocery App/heb-coupon-scraper" && npm run scrape:login` (with a 5-minute timeout, run in background so the user can interact with the browser). Signing in on the phone works too — open `https://heb-login.needexcelexpert.com`, then tap "I've signed in — import it" in the app.
 
 Wait for login to complete before proceeding.
 
