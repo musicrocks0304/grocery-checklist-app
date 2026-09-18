@@ -107,4 +107,160 @@ describe('ReviewScreen', () => {
     expect(screen.getByText(/nothing selected yet/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /start shopping/i })).toBeDisabled();
   });
+
+  // ── Attribution parity with StaplesScreen (follow-up to TB-4) ──────────
+  // The list screen derives meal attribution from RecipeNames (ItemID - 1000 ->
+  // ingredient_id, computed in `Pull Grocery Staples`). ReviewScreen used to
+  // re-derive it from a lowercased name lookup, so the same item could be filed
+  // under a different meal on the two screens, and optional items carried no
+  // marker here at all.
+
+  test('RecipeNames wins over the legacy name lookup for grouping', () => {
+    render(
+      <ReviewScreen
+        items={[
+          {
+            ItemID: 1101,
+            ItemName: 'Chicken thighs',
+            Category: 'Meat & seafood',
+            DataSource: 'MealIngredients',
+            RecipeNames: 'Sheet pan chicken',
+          },
+        ]}
+        selected={new Set([1101])}
+        // The name lookup would file this under "Chicken tacos" — the derived
+        // attribution must win.
+        meals={[{ mealName: 'Chicken tacos', ingredientNames: ['Chicken thighs'] }]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    expect(screen.getByText('Sheet pan chicken')).toBeInTheDocument();
+    expect(screen.queryByText('Chicken tacos')).not.toBeInTheDocument();
+  });
+
+  test('the first of several || joined recipe names is used as the group', () => {
+    render(
+      <ReviewScreen
+        items={[
+          {
+            ItemID: 1102,
+            ItemName: 'Garlic',
+            Category: 'Fruit & vegetables',
+            DataSource: 'MealIngredients',
+            RecipeNames: 'Beef tacos||Sheet pan chicken',
+          },
+        ]}
+        selected={new Set([1102])}
+        meals={[]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    expect(screen.getByText('Beef tacos')).toBeInTheDocument();
+    expect(screen.queryByText(/\|\|/)).not.toBeInTheDocument();
+  });
+
+  test('the name lookup still resolves rows the derivation could not attribute', () => {
+    render(
+      <ReviewScreen
+        items={[
+          {
+            ItemID: 1103,
+            ItemName: 'Chicken thighs',
+            Category: 'Meat & seafood',
+            DataSource: 'MealIngredients',
+            RecipeNames: null,
+          },
+        ]}
+        selected={new Set([1103])}
+        meals={[{ mealName: 'Chicken tacos', ingredientNames: ['Chicken thighs'] }]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    expect(screen.getByText('Chicken tacos')).toBeInTheDocument();
+  });
+
+  test('a row neither source can attribute still renders, under Other meal ingredients', () => {
+    render(
+      <ReviewScreen
+        items={[
+          {
+            ItemID: 1104,
+            ItemName: 'Sriracha',
+            Category: 'Condiments & sauces',
+            DataSource: 'MealIngredients',
+            RecipeNames: null,
+          },
+        ]}
+        selected={new Set([1104])}
+        meals={[]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    expect(screen.getByText('Sriracha')).toBeInTheDocument();
+    expect(screen.getByText('Other meal ingredients')).toBeInTheDocument();
+  });
+
+  test('IsOptional as the wire-shape number 1 renders the optional marker', () => {
+    render(
+      <ReviewScreen
+        items={[
+          {
+            ItemID: 1105,
+            ItemName: 'Sesame oil',
+            Category: 'Condiments & sauces',
+            DataSource: 'MealIngredients',
+            RecipeNames: 'Sesame rice',
+            IsOptional: 1,
+          },
+        ]}
+        selected={new Set([1105])}
+        meals={[]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    expect(screen.getByText('optional')).toBeInTheDocument();
+  });
+
+  test('IsOptional as the wire-shape number 0 does not leak the digit into the row', () => {
+    // `{0 && <span/>}` renders the literal "0" in JSX and the query COALESCEs
+    // IsOptional to the number 0, so an uncoerced check prints "Bread0".
+    render(
+      <ReviewScreen
+        items={[
+          {
+            ItemID: 1106,
+            ItemName: 'Brown rice',
+            Category: 'Pasta, rice & grains',
+            DataSource: 'MealIngredients',
+            RecipeNames: 'Sesame rice',
+            IsOptional: 0,
+          },
+        ]}
+        selected={new Set([1106])}
+        meals={[]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    expect(screen.getByText('Brown rice')).toBeInTheDocument();
+    expect(screen.queryByText('optional')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Brown rice0/)).not.toBeInTheDocument();
+  });
 });

@@ -20,11 +20,23 @@ const SectionHeader = ({ icon: Icon, label, count }) => (
   </div>
 );
 
-const ReviewRow = ({ item, onRemove }) => (
+const ReviewRow = ({ item, onRemove }) => {
+  // IsOptional arrives over the wire as the JSON number 0/1 (COALESCE(..., 0)
+  // AS IsOptional), not a boolean. `{0 && <span/>}` renders the digit "0" in
+  // JSX, so coerce here rather than trusting the raw value — same rule as
+  // ItemRow.
+  const isOptional =
+    item.IsOptional === 1 || item.IsOptional === '1' || item.IsOptional === true;
+  return (
   <div className="flex items-center gap-3 px-3 py-2.5 min-h-[48px] border-b border-default last:border-b-0">
     <div className="flex-1 min-w-0">
       <div className="text-sm font-medium text-heading truncate">
         {item.ItemName}
+        {isOptional && (
+          <span className="ml-2 text-[10px] uppercase tracking-wide text-muted">
+            optional
+          </span>
+        )}
       </div>
     </div>
     <button
@@ -36,7 +48,8 @@ const ReviewRow = ({ item, onRemove }) => (
       <X size={16} />
     </button>
   </div>
-);
+  );
+};
 
 const ReviewScreen = ({
   items,
@@ -54,7 +67,11 @@ const ReviewScreen = ({
     const isOn = (i) => selected.has(i.ItemID);
     const oneOffsList = items.filter((i) => i.DataSource === 'OneOff' && isOn(i));
 
-    // Correlate meal ingredients to meal names (same logic as StaplesScreen).
+    // Correlate meal ingredients to meal names — identical rule to
+    // StaplesScreen, so the two screens can never file the same item under
+    // different meals. Attribution is DERIVED by the query (RecipeNames, via
+    // ItemID - 1000 -> ingredient_id in `Pull Grocery Staples`); this name
+    // lookup is kept only as a fallback for rows the derivation cannot resolve.
     const nameToMeal = {};
     for (const m of rawMeals) {
       for (const ingName of m.ingredientNames || []) {
@@ -65,10 +82,14 @@ const ReviewScreen = ({
 
     const mealIngredients = items
       .filter((i) => i.DataSource === 'MealIngredients' && isOn(i))
-      .map((i) => ({
-        ...i,
-        MealName: nameToMeal[i.ItemName.trim().toLowerCase()] || 'Other meal ingredients',
-      }));
+      .map((i) => {
+        const derived = String(i.RecipeNames || '').split('||').filter(Boolean);
+        const fallback = nameToMeal[i.ItemName.trim().toLowerCase()];
+        return {
+          ...i,
+          MealName: derived[0] || fallback || 'Other meal ingredients',
+        };
+      });
 
     const mealsByName = {};
     mealIngredients.forEach((i) => {
