@@ -1090,10 +1090,15 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
                                 </div>
                               )}
                             </div>
+                            {/* The icon has no text, and `title` is only a
+                                last-resort accessible name: it never surfaces on
+                                touch and reads identically on every row. Name the
+                                meal so the control says what it removes (F10). */}
                             <button
                               onClick={() => removeMeal(meal.id)}
                               className="text-danger hover:text-danger-hover transition-colors ml-2"
                               title="Remove meal"
+                              aria-label={`Remove ${meal.name}`}
                             >
                               <X size={16} />
                             </button>

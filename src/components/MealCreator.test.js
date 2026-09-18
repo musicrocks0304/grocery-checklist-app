@@ -63,3 +63,22 @@ test('Generate Grocery List posts to get_recipe_items and navigates to the revie
   expect(setGroceryListData).toHaveBeenCalled();
   expect(onNavigate).toHaveBeenCalledWith('recipe-ingredients');
 });
+
+// F10: the remove-meal button is icon-only with `title="Remove meal"` and no
+// aria-label. `title` IS a last-resort accessible-name fallback, so a
+// Playwright/testing-library snapshot shows a name and the button looks fine —
+// it is not. A title is a hover tooltip that never appears on touch, and it is
+// identical on every row, so it cannot say WHICH meal is removed. Assert the
+// attribute, not the computed name.
+test('each remove-meal button names the meal it removes via aria-label', () => {
+  installMockFetch({});
+  renderWithProviders(<MealCreator {...props()} />);
+
+  openPanel();
+
+  const buttons = screen.getAllByRole('button', { name: /Remove Test Invented Recipe/i });
+  expect(buttons.length).toBeGreaterThan(0);
+  buttons.forEach((btn) => {
+    expect(btn).toHaveAttribute('aria-label', 'Remove Test Invented Recipe');
+  });
+});

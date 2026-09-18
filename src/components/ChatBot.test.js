@@ -49,3 +49,24 @@ test('a 500 from the agent shows the fallback message, not a crash', async () =>
   expect(await screen.findByText(/hit a snag/)).toBeInTheDocument();
   expect(mock.unmocked()).toEqual([]);
 });
+
+// F10 — see the matching test in MealCreator.test.js. ChatBot renders its own
+// copy of the Selected Meals panel, so the two must be fixed together or the
+// a11y gap simply moves to the other tab.
+test('each remove-meal button names the meal it removes via aria-label', async () => {
+  installMockFetch({ '/chat_history': [] });
+  renderWithProviders(
+    <ChatBot
+      {...props()}
+      selectedMeals={[{ id: 3, recipeId: 3, name: 'Cheesy Beef Enchiladas', description: 'x' }]}
+    />
+  );
+
+  fireEvent.click(await screen.findByRole('button', { name: /meals? planned/i }));
+
+  const buttons = screen.getAllByRole('button', { name: /Remove Cheesy Beef Enchiladas/i });
+  expect(buttons.length).toBeGreaterThan(0);
+  buttons.forEach((btn) => {
+    expect(btn).toHaveAttribute('aria-label', 'Remove Cheesy Beef Enchiladas');
+  });
+});
