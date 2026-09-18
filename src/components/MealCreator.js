@@ -880,6 +880,32 @@ const MealCreator = ({ onBack, onNavigate, selectedMeals, setSelectedMeals, refr
           )}
         </div>
 
+        {/* Mobile Floating Meal Badge — below lg this is the ONLY way to reach the
+            selected-meals sheet. The strip below it is `hidden lg:flex` and the sheet
+            itself is `lg:hidden`, so without this the sheet (and the Generate button
+            inside it) could not be opened on a phone at all. ChatBot.js has had this
+            control all along; MealCreator shipped without it — the same divergence as
+            TB-1. It carries an aria-label because its visible content is an icon and a
+            bare number, which is not a usable accessible name. */}
+        {selectedMeals.length > 0 && !showMealsPanel && (
+          <button
+            onClick={() => setShowMealsPanel(true)}
+            aria-label={`Show selected meals (${selectedMeals.length})`}
+            className="lg:hidden fixed z-30 flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
+            style={{
+              left: '12px',
+              bottom: 'calc(var(--tab-bar-height) + 4.5rem)',
+              background: 'linear-gradient(135deg, #c17849, #d4915e)',
+              borderRadius: '24px',
+              padding: '10px 16px',
+              boxShadow: '0 4px 16px rgba(193,120,73,0.4)',
+            }}
+          >
+            <ChefHat size={16} className="text-white" />
+            <span className="text-white text-sm font-bold">{selectedMeals.length}</span>
+          </button>
+        )}
+
         {/* Selected Meals Strip — desktop only */}
         {selectedMeals.length > 0 && (
           <button

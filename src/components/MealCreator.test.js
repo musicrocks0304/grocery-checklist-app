@@ -82,3 +82,26 @@ test('each remove-meal button names the meal it removes via aria-label', () => {
     expect(btn).toHaveAttribute('aria-label', 'Remove Test Invented Recipe');
   });
 });
+
+// The selected-meals panel had exactly ONE opener — the `hidden lg:flex` desktop
+// strip — while the bottom sheet that renders below 1024px is `lg:hidden`. So on a
+// phone the sheet was unreachable and the whole panel, Generate button included,
+// could not be opened at all. ChatBot.js has the missing control (a `lg:hidden`
+// floating badge); MealCreator never got it. Same divergence as TB-1.
+//
+// Every other test in this file opens the panel through the desktop strip, which
+// under jsdom is NOT hidden (no CSS applies), which is exactly why they all passed
+// while the mobile path was broken. So assert the opener is mobile-scoped, not
+// merely that some opener exists.
+test('a mobile-scoped control opens the selected-meals panel', () => {
+  installMockFetch({});
+  renderWithProviders(<MealCreator {...props()} />);
+
+  const fab = screen.getByRole('button', { name: /show selected meals/i });
+  expect(fab.className).toMatch(/(^|\s)lg:hidden(\s|$)/);
+  expect(fab.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+
+  fireEvent.click(fab);
+
+  expect(screen.getAllByRole('button', { name: /Generate Grocery List/i }).length).toBeGreaterThan(0);
+});
