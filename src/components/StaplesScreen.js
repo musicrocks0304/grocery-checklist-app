@@ -35,15 +35,25 @@ const StaplesScreen = ({ onReview, staplesHook, mealsHook }) => {
       }
     }
 
-    // MealIngredients items that matched a known meal get a MealName injected.
-    // Drop unmatched ones (can't attribute to any meal).
+    // Attribution comes from the query (RecipeNames), derived via
+    // ItemID - 1000 -> ingredient_id. The old name lookup is kept only as a
+    // fallback for rows the derivation cannot resolve.
+    //
+    // NOTHING IS FILTERED OUT HERE. A row in WeeklyGroceryList is a row the
+    // shopper is buying, so it must appear on the list. Dropping unattributed
+    // rows is what hid every optional ingredient while the cart still bought
+    // them (TB-4).
     const enrichedMealItems = items
       .filter((i) => i.DataSource === 'MealIngredients')
-      .map((i) => ({
-        ...i,
-        MealName: itemNameToMeal[i.ItemName.trim().toLowerCase()] || null,
-      }))
-      .filter((i) => i.MealName !== null);
+      .map((i) => {
+        const derived = String(i.RecipeNames || '').split('||').filter(Boolean);
+        const fallback = itemNameToMeal[i.ItemName.trim().toLowerCase()];
+        return {
+          ...i,
+          MealName: derived[0] || fallback || 'Other meal ingredients',
+          IsOptional: i.IsOptional === 1 || i.IsOptional === '1' || i.IsOptional === true,
+        };
+      });
 
     const oneOffsList = items.filter((i) => i.DataSource === 'OneOff' && matches(i));
     const stapleItems = items.filter(

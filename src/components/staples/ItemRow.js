@@ -22,6 +22,11 @@ const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
         }`}
       >
         {item.ItemName}
+        {item.IsOptional && (
+          <span className="ml-2 text-[10px] uppercase tracking-wide text-muted">
+            optional
+          </span>
+        )}
       </label>
     </div>
   );

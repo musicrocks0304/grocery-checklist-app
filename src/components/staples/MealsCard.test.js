@@ -68,4 +68,16 @@ describe('MealsCard', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /chicken thighs/i }));
     expect(onToggle).toHaveBeenCalledWith(1);
   });
+
+  test('an optional item is marked inside the meals card', () => {
+    const withOptional = [
+      ...items,
+      { ItemID: 5, ItemName: 'Sriracha', MealName: 'Chicken tacos', IsOptional: true },
+    ];
+    render(
+      <MealsCard activeMeal={null} items={withOptional} selected={new Set()} onToggle={() => {}} />
+    );
+    expect(screen.getByText('Sriracha')).toBeInTheDocument();
+    expect(screen.getByText(/optional/i)).toBeInTheDocument();
+  });
 });

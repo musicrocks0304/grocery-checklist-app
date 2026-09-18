@@ -100,4 +100,47 @@ describe('StaplesScreen', () => {
     fireEvent.click(screen.getByText('Bakery & bread'));
     expect(screen.getByText('Bread')).toBeInTheDocument();
   });
+
+  test('a meal ingredient that matches no recipe still renders, under Other meal ingredients', () => {
+    const hook = {
+      ...baseHook,
+      items: [
+        ...baseHook.items,
+        { ItemID: 102, ItemName: 'Sriracha', Category: 'Condiments & sauces',
+          DataSource: 'MealIngredients', RecipeNames: null, IsOptional: 1 },
+      ],
+    };
+    render(<StaplesScreen onReview={() => {}} staplesHook={hook} mealsHook={mealsHookBase} />);
+
+    expect(screen.getByText('Sriracha')).toBeInTheDocument();
+    expect(screen.getByText('OTHER MEAL INGREDIENTS')).toBeInTheDocument();
+  });
+
+  test('an optional meal ingredient is rendered and marked, not hidden', () => {
+    const hook = {
+      ...baseHook,
+      items: [
+        ...baseHook.items,
+        { ItemID: 103, ItemName: 'Sesame oil', Category: 'Condiments & sauces',
+          DataSource: 'MealIngredients', RecipeNames: 'Chicken tacos', IsOptional: 1 },
+      ],
+    };
+    render(<StaplesScreen onReview={() => {}} staplesHook={hook} mealsHook={mealsHookBase} />);
+
+    expect(screen.getByText('Sesame oil')).toBeInTheDocument();
+    expect(screen.getByText(/optional/i)).toBeInTheDocument();
+  });
+
+  test('RecipeNames wins over the legacy name lookup for grouping', () => {
+    const hook = {
+      ...baseHook,
+      items: [
+        { ItemID: 100, ItemName: 'Chicken thighs', Category: 'Meat & seafood',
+          DataSource: 'MealIngredients', RecipeNames: 'Sheet pan chicken', IsOptional: 0 },
+      ],
+    };
+    render(<StaplesScreen onReview={() => {}} staplesHook={hook} mealsHook={mealsHookBase} />);
+
+    expect(screen.getByText('SHEET PAN CHICKEN')).toBeInTheDocument();
+  });
 });
