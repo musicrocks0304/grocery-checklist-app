@@ -1,7 +1,8 @@
 # Purchase quantities — show the recipe need, size packages from the real product
 
-**Status: DESIGN, approved section by section by Corey 2026-09-18; awaiting a second
-adversarial review of the parts designed after the first one.** Not yet implemented.
+**Status: DESIGN, approved section by section by Corey 2026-09-18, then attacked by two
+adversarial reviews (both folded in). One open question remains — what ×N means — see the
+end.** Not yet implemented.
 
 Two slices, one design. Slice 1 ships and is verified live before slice 2 starts.
 
@@ -104,7 +105,13 @@ join `WeeklyGroceryList w2` → `weekly_selections ws` → `recipe_ingredients r
 `DataSource = 'MealIngredients'`, and to `w2.week_start_date >= '2026-04-26'` (the ItemID
 convention is unreliable before that). The need is added to **both**, as conditional
 aggregation over a `LEFT JOIN units u ON u.unit_id = ri.unit_id`, multiplied by
-`COALESCE(w2.RecipeMultiplier, 1)`:
+**`COALESCE(MAX(w2.RecipeMultiplier), 1)`**.
+
+The `MAX()` is not optional. The server runs with `ONLY_FULL_GROUP_BY`, the subqueries are
+`GROUP BY w2.ItemID`, and `RecipeMultiplier` is not provably dependent on it. A bare
+`COALESCE(w2.RecipeMultiplier, 1)` fails with **ERROR 1055** (reproduced with a stand-in
+column), and because this query feeds every Grocery List, Review and In-Store load, the
+whole list would fail. The same applies to any other `w2.*` column referenced.
 
 | field | rows that contribute | value |
 |---|---|---|
@@ -114,22 +121,39 @@ aggregation over a `LEFT JOIN units u ON u.unit_id = ri.unit_id`, multiplied by
 | `NeedCountUnit` | the same rows | see fold rule |
 | `NeedUnspecified` | `quantity` NULL or ≤ 0, or `unit_type = 'other'` | `1` if any |
 
+**The counted-unit set.** Define it once and use it everywhere — in the `NeedCount` row
+filter, the fold rule and the mixed guard, on **both** producers: a unit is *counted* when
+`unit_type = 'count'` **or** it is a weight/volume unit with NULL `to_base` (live:
+`fluid ounce`, recipe 24 teriyaki glaze `1 fl oz`, recipe 26 worcestershire `0.5 fl oz`).
+Those unconvertible units must keep their own name. If the set were read as
+`unit_type = 'count'` alone, teriyaki glaze would fold to `piece` and render as a bare
+**"1"**, while the pre-submit screen says "1 fluid ounce" — the exact adjacent-screen
+disagreement this design exists to prevent. The JS side's `rawQuantities` keys are already
+exactly this set plus `''`.
+
 **Fold rule.** A no-unit row is a count of pieces unless the ingredient carries exactly one
-specified count unit, in which case it adopts it. So `NeedCountUnit` = that single unit, or
-`piece` when there is none. This fixes, at the source, the F5 split where
+unit from the counted-unit set, in which case it adopts it. So `NeedCountUnit` = that single
+unit, or `piece` when there is none. This fixes, at the source, the F5 split where
 `getBaseUnit('')` and `getBaseUnit('piece')` are different buckets (Whole wheat pita read
 "4 items + 4 pieces"), and garlic's lone no-unit "4" joins its cloves. It matches on units,
 never on ingredient names.
 
-**Mixed guard.** If an ingredient carries two or more *specified* count units,
+**Mixed guard.** If an ingredient carries two or more units from the counted-unit set,
 `NeedCountUnit = 'mixed'` and `NeedCount` is not trusted. Live today: none — the only
 ingredient with two count units is garlic, and that is one no-unit row beside cloves, which
 the fold rule resolves.
 
-**Duplicates within a recipe are summed, deliberately.** 13 recipes list the same
-ingredient twice (garlic in a sauce and a garnish). Both rows contribute, which is the real
-need and matches what `Aggregate Ingredients` does. This must be proven, not assumed —
-see verification.
+**Duplicates within a recipe are summed, deliberately — and one recipe's are bad data.**
+**2 recipes** hold 13 duplicated `(recipe, ingredient)` pairs (an earlier draft of this
+spec miscounted them as 13 recipes). Both producers sum both rows, so parity holds either
+way, but they are not the same kind of duplicate:
+- **Recipe 59** (3 pairs) is genuine — `preparation_notes` "first dump seasoning" /
+  "second dump seasoning". Summing is the real need.
+- **Recipe 36** (10 pairs) is a **double-save**: `recipe_ingredient_id` 340-349 and 350-359
+  carry identical quantities, units and `ingredient_order` 1-10, with NULL notes (pork
+  chorizo `10 oz` twice, jasmine rice `0.5 cup` twice). Summing them shows **20 oz** of
+  chorizo for a 10 oz recipe. That is a data defect, not a design one;
+  `recipe_ingredients` has no unique key that would have stopped it. See Out of scope.
 
 Optional ingredients are included, per the standing decision that they are shown and
 bought.
@@ -162,7 +186,30 @@ Two producers feed it:
   in tsp, and one group per count unit, where `''` is the no-unit group), applying the
   **same fold rule** to `''`.
 
-They must agree. That is an acceptance test, not an assumption.
+They must agree. That is an acceptance test, not an assumption. Three things make it true:
+
+- **`formatNeed()` coerces every field with `Number()` and rounds to 3 dp before
+  formatting.** The two producers do not hand it the same types. The n8n MySQL node returns
+  DECIMAL as a **string** — execution 27542, `Fetch Recipe Ingredients`, shows
+  `"quantity": "10.000"` (`typeof` string) — and `SUM(DECIMAL)` will too, whereas the JS
+  producer holds numbers. `formatQuantity`'s count branch is
+  `qty % 1 === 0 ? qty : qty.toFixed(2)`; `"12.000" % 1 === 0` is true, so it would print
+  the string itself — **"12.000 pieces"**, "0.500 tsp". `formatNeed(undefined, …)` returns
+  `''`, which is what makes a frontend-before-n8n deploy harmless.
+- **The same counted-unit set and fold rule on both sides.** `Convert to Shopping List`
+  applies them to `rawQuantities`.
+- **`unit_type` reaches the JS.** `Fetch Recipe Ingredients` selects `u.unit_type`, and the
+  JS treats `other` as unspecified, as the SQL does. No live row has an `other` unit with a
+  quantity today, but a future "2 pinch" would otherwise become the JS group "2 pinchs"
+  while the SQL files it as unspecified.
+
+**`toPurchaseQuantity`'s count branch consumes the folded need.** Otherwise the fold
+*creates* a mismatch: `toPurchaseQuantity` parses only the first number of a joined string,
+so Whole wheat pita's `"4 items + 4 pieces"` stores `Quantity` **4** (every stored pita row
+is 4 — weeks 04-26, 07-12, 07-26) while the screens, folded, say **8**. Lime is worse:
+no-unit in recipes 57/60/61 and `piece` in 63/66/68, so the need is 4 but `Quantity` 2 —
+and slice 2's bound would then *cut* the correct count of 4 limes to 2. So the stored count
+follows the folded need; see section 3 for what this does to the bound.
 
 ### Rules
 
@@ -184,7 +231,11 @@ They must agree. That is an acceptance test, not an assumption.
 | Grocery List row | `staples/ItemRow.js` | `1 lb package` | `4 oz` |
 | Review row | `staples/ReviewScreen.js` (`ReviewRow`) | `1 lb package` | `4 oz` |
 | In-Store pill | `instore/ShoppingItems.js` `QuantityPill` ← `InStoreMode.js:148` | `×1 · 1 lb package` | `4 oz` |
-| Pre-submit meal screen | `RecipeIngredients.js` | **Buy: 1 lb package** / small "Recipe needs: 4 oz" | **Need: 4 oz**; ×3 reads `= 12 oz` |
+| Pre-submit selection list | `RecipeIngredients.js:761`, `:782` | **Buy: 1 lb package** / small "Recipe needs: 4 oz"; `= 3 × 1 lb package` | **Need: 4 oz**; ×3 reads `= 12 oz` |
+| Pre-submit confirmation list | `RecipeIngredients.js:404-405` | `3 × 1 lb package` | `12 oz` |
+
+`RecipeIngredients.js:193` also builds a `Notes` string ("Recipe needs: …") from the raw
+display text; it goes with the rest.
 
 In-Store Mode reads `fetch_grocery_items` (`InStoreMode.js:135-148`); its second call, to
 the scraper's `weekly-items` (`:210-213`), is a coupon lookup by name and never touches
@@ -266,9 +317,26 @@ packagesFor({ need, size, quantity, aiCount }) → { count, basis }
    - volume ↔ volume (`fl oz` = 6 tsp, `pt` 96, `qt` 192, `gal` 768, `ml`, `l`):
      `ceil(NeedTsp / sizeTsp)`
    - pieces ↔ `N ct` / `Each`: `ceil(NeedCount / sizeCount)`
-   - a container count unit (`can`, `package`, `bunch`) ↔ any size: `NeedCount`, because one
-     product is one container
+   - **pieces ↔ `Avg. N lb` produce** (product category `Fruit & vegetables`): `NeedCount`.
+     HEB counts by-weight produce by the piece — Corey's own purchase history has Fresh
+     Zucchini `Avg. 0.45 lb` × **2** and Evercrisp apples `Avg. 0.55 lb` × **4**. These are
+     the most common piece needs live (onion, lemon, lime, roma tomato, jalapeño), so
+     sending them to the model would be needless risk. `Avg.` **meat** is a pack
+     (chicken thighs `Avg. 2.0 lbs` × 1) and stays the model's job.
+   - a container count unit (`can`, `package`, `bunch`) ↔ any size: `NeedCount`, one product
+     per container. Not right every time — a `N ct` case-pack of cans makes 2 cans 2 packs —
+     but the bound keeps it at today's count.
    - basis `arithmetic`
+
+   **"Pieces" means `piece` and the folded no-unit group, and nothing else.** `clove`,
+   `cube` and `dozen` go to rule 4. Garlic shows why: a need of `8 clove` against a search
+   hit sized `Each` (a head) would otherwise compute **8 heads**.
+
+   **The size parser is strict.** Whitespace runs are collapsed (`28  oz`) and case is
+   folded (`EACH`). Simple fractions are parsed (`1/2 gal`, 7 rows, is half a gallon, not
+   one). Anything ambiguous is **rejected, never guessed**: `N pk` (9 rows) says nothing
+   about what is in a pack, and bare `lb` means priced per pound. A rejected size falls
+   through to rule 4.
 4. Otherwise, a valid `aiCount` → basis `ai`.
 5. Otherwise → `quantity`, basis `fallback`.
 
@@ -276,11 +344,22 @@ packagesFor({ need, size, quantity, aiCount }) → { count, basis }
 quantity)`; anything invalid → `quantity`. Bases `shopper` and `fallback` return `quantity`
 untouched, so the fallback is **exactly** today's behaviour.
 
-That bound is the safety argument. `Quantity` is always a rounded-*up* guess, so the result
-**can never exceed what the cart would add today** — slice 2 can only save money. It makes
-"Confirm All" and pre-confirmed repeat items safe, since neither can raise a count. The
-honest cost: a case where today's guess *under*-buys (a 20 oz need, 8 oz packs, guess 2)
-stays under-bought — no worse than now, never better.
+That bound is the safety argument. `Quantity` is a rounded-*up* count, so the computed
+result **can never exceed what the cart would add today** — slice 2 can only save money.
+It makes "Confirm All" and pre-confirmed repeat items safe, since neither can raise a
+count. The honest cost: a case where today's guess *under*-buys (a 20 oz need, 8 oz packs,
+guess 2) stays under-bought — no worse than now, never better.
+
+**One deliberate exception, from slice 1, stated plainly.** Because `toPurchaseQuantity`
+now counts the *folded* need (section 2), a few stored `Quantity` values rise: lime 2 → 4,
+Whole wheat pita 4 → 8. In each case today's count was **short** — it read only the first
+half of a split need. So the precise guarantee is: *the cart never adds more than today,
+except where today's count dropped part of the recipe's own need, and never more than the
+need shown on screen rounded up to whole packages.* Pita against a `5 ct` pack is still 2
+packs, not 8.
+
+**The bound always uses the `Quantity` on the Cart Builder's own row** — the
+`weekly-items` item — never a value merged in from elsewhere (see wiring).
 
 There is deliberately **no fixed ceiling such as 10**. With `≤ quantity` in place it adds no
 safety, and it would cut correct counts: "12 cans" at `Quantity` 12 is right, and a cap of 10
@@ -290,25 +369,41 @@ would under-buy it below today. (`Quantity` exceeds 10 legitimately — tortilla
 ### Wiring
 
 - **Stop discarding the size.** `HebCart.js:208-211` (frequent products) and `:328-332`
-  (search results) keep `size` and `pricedByWeight`. The scraper already returns both
-  (`heb-cart-routes.js:1013-1023`, `cart-manager.js:165-190` `normalizeProduct`).
+  (search results) keep `size`. Live search returns `size` and `pricedByWeight`
+  (`cart-manager.js:165-190` `normalizeProduct`), but the cached frequent-products path
+  returns `size` **only** — `heb_frequent_products` has no by-weight column and
+  `/frequent-cached` (`heb-cart-routes.js:1000-1023`) selects none. So **by-weight is derived
+  from the size string** (`Avg. …`, bare `lb`), one rule for both paths, rather than from a
+  field half the data lacks.
 - **`Build Match Prompt`** (`DDlygjzqHlLs4V1E`) prints each product's size, so the model
   also picks better-sized products, prints each meal item's need (`Need: 4 pieces`), and
   asks for an integer `purchaseCount` on meal items. It already receives `unit` from the
   client (`HebCart.js:321`) and ignores it; the need replaces that role.
+- **`Build Match Prompt` also emits `sizeById`**, built from `body.frequentProducts` and
+  every item's `searchResults`. Today it emits only ID lists (`validProductsByItem`,
+  `validFrequentIds`), and `Format Output` reads nothing but that node's output — so without
+  this there is no size to look up.
 - **`Format Output`** keeps a `purchaseCount` only if it is an integer ≥ 1, and attaches the
-  **validated** product's `size` and `pricedByWeight`, looked up by product ID from the
-  input data it already cross-checks — never read from the model's text.
+  **validated** product's `size` from `sizeById` — never from the model's text.
 - **The need reaches the Cart Builder** by merging `fetch_grocery_items` (which carries the
   section 1 derivation) into `HebCart`'s items by `TRIM(LOWER(ItemName))` — the key
-  `Pull Grocery Staples` itself groups on. **No scraper change, no Docker rebuild.** An item
-  whose need does not merge falls back to `Quantity`.
+  `Pull Grocery Staples` itself groups on — **only from rows with `IsSelected = 1`**.
+  `weekly-items` returns only `is_skipped = 0` rows, but `fetch_grocery_items` groups skipped
+  and unskipped rows by name; without that filter a shopper who skipped a meal row and
+  checked the same-named staple would have the skipped need attached to the staple. (Latent:
+  no such mixed name group exists live since 2026-04-26.) An item whose need does not merge
+  falls back to `Quantity`. **No scraper change, no Docker rebuild.**
 - **The count is per week and never persisted on the match.** `heb_product_matches`
   persists across weeks (`UNIQUE (grocery_item_id, heb_product_id)`, keyed by item, not
   week) and has no size column; the need changes every week. So the count is computed
-  fresh each session. A repeat item that skips matching (it loads pre-confirmed,
-  `HebCart.js:71-86`) takes its size from the frequent-products list by product ID; if the
-  size is unknown, the count is `Quantity`.
+  fresh each session.
+- **Repeat items need the size list loaded on their path.** Today `runSmartMatch` returns
+  early when every item is already confirmed (`HebCart.js:189`, `if (needsMatch.length ===
+  0)`) — *before* it fetches frequent products (`:198-200`), which it also keeps in a local
+  rather than state. A fully pre-confirmed week would have no sizes at all. So the
+  frequent-products fetch moves ahead of that early return and its sizes are kept in state
+  as `sizeById`. Coverage is good once loaded: 409 of 538 `heb_product_matches` product IDs,
+  and all 6 confirmed ones, exist in `heb_frequent_products`. An unknown size → `Quantity`.
 - **`cart/MatchCard.js`** shows both — `Need 12 · Adding 1 × H-E-B Flour Tortillas (20 ct)` —
   with a stepper from 1 to `max(10, Quantity)`. A human override is **not** bounded by the
   computed count: the bound guards against the model and the arithmetic, not against the
@@ -334,19 +429,31 @@ use a throwaway 2020 week, delete by `id > watermark`, confirm the baseline.
    and updates it on duplicate.
 3. Both attribution subqueries derive the need; the clean-slate branch returns the same
    need columns as NULL, so the two branches' column sets cannot drift apart again.
-4. `Convert to Shopping List` emits the structured need.
-5. `formatNeed()`, then the four screens.
+4. `Fetch Recipe Ingredients` selects `u.unit_type`; `Convert to Shopping List` emits the
+   structured need, and `toPurchaseQuantity`'s count branch consumes the folded need.
+5. `formatNeed()`, then every render site in the section 2 table.
+
+**Deploy order is migration → n8n → frontend.** The n8n query must not reference
+`RecipeMultiplier` or `to_base` before the columns exist, or every list load fails. A
+frontend that ships first is harmless only because `formatNeed()` of absent fields returns
+`''` and the row falls back — that is a requirement, and it gets a unit test.
 6. `e2e/fixtures/n8n/fetch_grocery_items.json`: meal rows carry need fields, with assertions
    that the list shows `4 oz` and not `1 lb package`. A stale fixture once hid F6 from 124
    green e2e tests.
 
 ### Slice 1 verification
 
-- On a throwaway week: two recipes that share garlic, one of the 13 recipes that lists an
-  ingredient twice, and tortillas at ×3. Submit, then assert:
+- On a throwaway week: two recipes that share garlic, **recipe 59** (a genuine duplicated
+  ingredient — not recipe 36, whose duplicates are the bad data in Out of scope), a recipe
+  with Whole wheat pita or lime (the fold), and tortillas at ×3. Submit, then assert:
   - `RecipeMultiplier` is stored;
-  - **for every ingredient, the derived need equals the pre-submit need** — including the
-    duplicated ingredient;
+  - **for every submitted ingredient, the derived need equals the pre-submit need** —
+    excluding, by design, rows the shopper deselected and rows dropped as a staple
+    (`droppedAsStaple`), which never reach the list;
+  - **compared as rendered text, not just numbers**, for at least one count row and one
+    sub-3-tsp row (0.5 tsp black pepper is live) — the DECIMAL-as-string trap only shows
+    up in the text;
+  - pita / lime: stored `Quantity` now equals the folded need;
   - remove one garlic recipe → **garlic's need recalculates**;
   - resubmit at ×1 → **the multiplier updates** (proves the upsert list).
 - A check that `units.to_base` agrees with `TO_TSP` / `TO_OZ` for every unit.
@@ -376,9 +483,15 @@ Starts only once slice 1 is verified live; lands before the first meal-week cart
 - Showing a recipe's need on a checked staple that shadows it.
 - Converting `fluid ounce`, `gram` and the other units the pipeline has never converted —
   a change to both producers at once, for 2 live rows.
+- **Recipe 36's ten double-saved ingredient rows** (`recipe_ingredient_id` 350-359, exact
+  copies of 340-349). They double that recipe's need (20 oz chorizo for 10 oz). A live data
+  fix, awaiting Corey's go-ahead. Adding a unique key to prevent a recurrence would also
+  block recipe 59's legitimate duplicates, so any key must include `ingredient_order` or
+  `preparation_notes` — a separate decision.
 - `weekly_selections` 179-181, which carry a blank `WeekDateRange` (recipes 3, 20, 47,
-  created 2026-09-17 18:39:09) and can never match anything. Awaiting Corey's go-ahead to
-  delete.
+  created 2026-09-17 18:39:09) and can never match anything. Not from the Create Recipe
+  path, which sends a week (`MealCreator.js:376`); cause unknown. Awaiting Corey's
+  go-ahead to delete.
 
 ---
 
@@ -399,7 +512,29 @@ load-bearing claim was verified independently before acting. It changed the desi
 - The need must be structured numbers, not a display string; the Create Recipe path has
   its own submit payload; and the reduce-only bound came from this review.
 
-**Review 2: pending.** Sections 1-3 were designed after review 1, so the arithmetic-first
-sizing, the two need producers and their agreement, the fold rule and mixed guard, the
-`ATTR`/`ATTR2` additions, the name merge into the Cart Builder, and the render condition
-have never been attacked.
+**Review 2 (Fable, on this spec): APPROVE WITH CHANGES.** It ran the section 1 derivation
+as a plain SELECT over the live 2026-07-05 week and matched `Aggregate Ingredients`' totals
+**exactly for all 32 meal rows**, found no join fan-out, confirmed the removal of the fixed
+cap of 10, and found no `SELECT *`, column-less INSERT, trigger or view that the new columns
+disturb. Every load-bearing finding was reproduced before it was accepted. All thirteen are
+folded in above; the ones that would have produced a wrong number or a broken endpoint:
+
+- `COALESCE(w2.RecipeMultiplier, 1)` fails with **ERROR 1055** under `ONLY_FULL_GROUP_BY`
+  (reproduced) — it would have taken down every list load. Now `MAX()`.
+- The counted-unit set was ambiguous; read one way, teriyaki glaze rendered as a bare "1".
+- DECIMAL arrives as a string (reproduced), so the shared formatter would have printed
+  "12.000 pieces".
+- The fold raised the displayed need above the stored count, so the bound would have cut
+  a correct 4 limes to 2. `toPurchaseQuantity` now counts the folded need.
+- "Pieces" needed a whitelist (garlic → 8 heads); by-weight produce is arithmetic, not a
+  model call (proved from purchase history); repeat items never loaded a size list;
+  `Format Output` had no size data to look up; the name merge needed an `IsSelected` filter.
+- "13 recipes list an ingredient twice" was wrong — 2 recipes, and one is bad data.
+
+## Open question — awaiting Corey
+
+**What ×N means.** Today ×3 means *three of the suggested package*:
+`Quantity = ceil(base) × multiplier`. This design shows it as *three times the need*
+(`= 12 oz`). A shopper who set ×3 to stock up on three bags would read "12 oz" in the store
+and could buy one. This must be settled before implementation, because it decides what
+`Quantity` and the need both mean when the multiplier is above 1.
