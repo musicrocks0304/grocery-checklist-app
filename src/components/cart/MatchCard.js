@@ -1,5 +1,6 @@
 import React from 'react';
 import { Star, Check, X, CheckCircle2, Search } from 'lucide-react';
+import { formatPurchaseBadge } from '../../utils/formatPurchase';
 
 // ─── Match Card (single grocery item in review) ─────────────────
 const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSwap }) => {
@@ -29,7 +30,7 @@ const MatchCard = React.memo(({ item, match, onConfirm, onReject, onSearch, onSw
             <span className="text-sm font-semibold text-heading truncate">{item.ItemName}</span>
             {(item.Quantity > 1 || item.Unit) && (
               <span className="text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                {item.Unit ? `${item.Quantity || 1} ${item.Unit}` : `x${item.Quantity}`}
+                {formatPurchaseBadge(item.Quantity, item.Unit)}
               </span>
             )}
             <span className="text-xs text-muted bg-background px-1.5 py-0.5 rounded flex-shrink-0">

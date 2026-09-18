@@ -17,6 +17,7 @@ import { ENDPOINTS, apiJson } from '../config/api';
 import toast from 'react-hot-toast';
 import { getWeekDateRange, getWeekDates } from '../utils/weekDates';
 import { mapToCanonicalCategory } from '../utils/categoryMap';
+import { formatPurchase } from '../utils/formatPurchase';
 
 const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, debugMode = false }) => {
   const [ingredientsList, setIngredientsList] = useState([]);
@@ -400,8 +401,8 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold text-primary bg-primary-light px-3 py-1 rounded-full">
                         {item.quantity > 1
-                          ? `${item.quantity} \u00d7 ${item.QuantitySelected}${item.Unit && item.Unit !== 'item' ? ` ${item.Unit}` : ''}`
-                          : `${item.QuantitySelected}${item.Unit && item.Unit !== 'item' ? ` ${item.Unit}` : ''}`}
+                          ? `${item.quantity} \u00d7 ${formatPurchase(item.QuantitySelected, item.Unit)}`
+                          : formatPurchase(item.QuantitySelected, item.Unit)}
                       </span>
                     </div>
                   </div>
@@ -757,7 +758,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                             </h4>
                             <div className="mt-1 space-y-1">
                               <div className="text-sm text-primary font-medium">
-                                Buy: <span className="text-primary">{item.QuantitySelected}{item.Unit && item.Unit !== 'item' ? ` ${item.Unit}` : ''}</span>
+                                Buy: <span className="text-primary">{formatPurchase(item.QuantitySelected, item.Unit)}</span>
                               </div>
                               {item.RecipeNeeds && (
                                 <div className="text-xs text-body">
@@ -778,7 +779,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                                 ))}
                               </select>
                               <span className="text-xs text-muted">
-                                {quantity > 1 ? `= ${quantity} \u00d7 ${item.QuantitySelected}${item.Unit && item.Unit !== 'item' ? ` ${item.Unit}` : ''}` : ""}
+                                {quantity > 1 ? `= ${quantity} \u00d7 ${formatPurchase(item.QuantitySelected, item.Unit)}` : ""}
                               </span>
                             </div>
                           )}

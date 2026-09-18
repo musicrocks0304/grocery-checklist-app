@@ -263,4 +263,48 @@ describe('ReviewScreen', () => {
     expect(screen.queryByText('optional')).not.toBeInTheDocument();
     expect(screen.queryByText(/Brown rice0/)).not.toBeInTheDocument();
   });
+
+  // F8 — the review screen is the last look before shopping, so it needs the
+  // same quantities as the list. Same shared formatter, same suppression.
+  test('a meal row shows its quantity, and a digit-leading unit is not jammed on', () => {
+    render(
+      <ReviewScreen
+        items={[
+          { ItemID: 1201, ItemName: 'Ground beef', Category: 'Meat & seafood',
+            DataSource: 'MealIngredients', RecipeNames: 'Beef tacos',
+            QuantitySelected: 2, Unit: '1 lb package' },
+        ]}
+        selected={new Set([1201])}
+        meals={[]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    expect(screen.getByText('2 × 1 lb package')).toBeInTheDocument();
+    expect(screen.queryByText(/2 1 lb package/)).not.toBeInTheDocument();
+  });
+
+  test('a plain staple at quantity 1 gains no noise', () => {
+    render(
+      <ReviewScreen
+        items={[
+          { ItemID: 1202, ItemName: 'Bread', Category: 'Bakery & bread',
+            DataSource: 'Staples', QuantitySelected: 1, Unit: null },
+        ]}
+        selected={new Set([1202])}
+        meals={[]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    // Scope to the ROW: a bare queryByText('1') also matches the section
+    // header's item count, which is not what this is about.
+    const row = screen.getByText('Bread');
+    expect(row).toBeInTheDocument();
+    expect(row.textContent).toBe('Bread');
+  });
 });

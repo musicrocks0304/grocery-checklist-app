@@ -1,4 +1,5 @@
 import React from 'react';
+import { summarizePurchase } from '../../utils/formatPurchase';
 
 const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
   const inputId = `staple-item-${item.ItemID}`;
@@ -7,6 +8,10 @@ const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
   // JSX, so every consumer must coerce here rather than trust the raw value.
   const isOptional =
     item.IsOptional === 1 || item.IsOptional === '1' || item.IsOptional === true;
+  // F8: the list the shopper actually shops from showed names only, so an
+  // inflated quantity was invisible until the H-E-B Cart Builder spent it.
+  // summarizePurchase returns '' for a bare 1, so plain staples stay clean.
+  const purchase = summarizePurchase(item);
   return (
     <div
       className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] ${
@@ -27,6 +32,9 @@ const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
         }`}
       >
         {item.ItemName}
+        {purchase && (
+          <span className="ml-2 text-xs font-medium text-muted">{purchase}</span>
+        )}
         {isOptional && (
           <span className="ml-2 text-[10px] uppercase tracking-wide text-muted">
             optional

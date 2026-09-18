@@ -68,14 +68,22 @@ describe('RecipeIngredients quantity display', () => {
     expect(screen.queryByText(/8\s*×\s*8/)).not.toBeInTheDocument();
   });
 
-  test('a unit-bearing purchase quantity is unchanged', async () => {
+  // This assertion used to read `getByText('2 lbs 1 lb package')`. It was written
+  // for F3 (a unit-bearing quantity must not be multiplied by itself) and froze
+  // the F6 duplication in place as a side effect: purchaseQuantity already says
+  // "2 lbs", so appending purchaseUnit "1 lb package" printed both. F6 now routes
+  // every render site through formatPurchase, which keeps the quantity and drops
+  // the redundant unit. The F3 guarantee this test exists for is unchanged.
+  test('a unit-bearing purchase quantity is shown once, not doubled up', async () => {
     renderScreen();
 
     fireEvent.click(await screen.findByRole('button', { name: /Review List/i }));
 
     expect(await screen.findByText(/Recipe Grocery List/i)).toBeInTheDocument();
 
-    expect(screen.getByText('2 lbs 1 lb package')).toBeInTheDocument();
+    expect(screen.getByText('2 lbs')).toBeInTheDocument();
+    expect(screen.queryByText('2 lbs 1 lb package')).not.toBeInTheDocument();
+    expect(screen.queryByText(/lbs.*lb package/)).not.toBeInTheDocument();
   });
 
   // F3b: the initial seed was fixed, but the two *toggle* paths still seeded the

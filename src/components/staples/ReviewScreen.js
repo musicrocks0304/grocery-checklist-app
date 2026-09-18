@@ -3,6 +3,7 @@ import { ArrowLeft, ShoppingBag, X, Utensils, Package, Tag, Sparkles, Loader } f
 import { GROCERY_CATEGORIES } from '../../constants/categories';
 import { getWeekDates } from '../../utils/weekDates';
 import { ENDPOINTS, apiJson } from '../../config/api';
+import { summarizePurchase } from '../../utils/formatPurchase';
 import CouponMatchPanel from '../CouponMatchPanel';
 
 const formatMonthDay = (iso) => {
@@ -27,11 +28,17 @@ const ReviewRow = ({ item, onRemove }) => {
   // ItemRow.
   const isOptional =
     item.IsOptional === 1 || item.IsOptional === '1' || item.IsOptional === true;
+  // F8: the last look before shopping needs the same quantities as the list, via
+  // the same shared formatter — otherwise the two screens drift again.
+  const purchase = summarizePurchase(item);
   return (
   <div className="flex items-center gap-3 px-3 py-2.5 min-h-[48px] border-b border-default last:border-b-0">
     <div className="flex-1 min-w-0">
       <div className="text-sm font-medium text-heading truncate">
         {item.ItemName}
+        {purchase && (
+          <span className="ml-2 text-xs font-medium text-muted">{purchase}</span>
+        )}
         {isOptional && (
           <span className="ml-2 text-[10px] uppercase tracking-wide text-muted">
             optional

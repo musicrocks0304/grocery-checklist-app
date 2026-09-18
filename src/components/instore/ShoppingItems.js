@@ -2,6 +2,7 @@ import React from "react";
 import { Check, Tag, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatAisleBadge } from "../../utils/shoppingList";
+import { formatPurchaseBadge } from "../../utils/formatPurchase";
 
 // 38px ring with centered `checked/total` in 11px bold.
 const ProgressRing = React.memo(({ checked, total }) => {
@@ -82,7 +83,9 @@ const CouponChip = React.memo(({ coupon, prominent }) => {
 CouponChip.displayName = "CouponChip";
 
 const QuantityPill = React.memo(({ quantity, unit, dim }) => {
-  const label = unit ? `${quantity || 1} ${unit}` : `×${quantity || 1}`;
+  // Shared formatter: this pill used to glue a bare count to a unit that can
+  // itself start with a number, printing "2 1 lb package" in the aisle (F6).
+  const label = formatPurchaseBadge(quantity || 1, unit);
   return (
     <span
       className={`flex-shrink-0 text-[14px] font-bold rounded-full px-[11px] py-[5px] transition-colors duration-200 ${

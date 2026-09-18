@@ -14,10 +14,19 @@ const unselected = items.find(
   (i) => i.DataSource !== 'OneOff' && i.IsSelected === 0 && i.Category === selected.Category
 );
 const oneoff = items.find((i) => i.DataSource === 'OneOff');
+// F6/F8: a meal row whose Unit starts with a digit, to prove the shared
+// formatter puts a '×' between the count and the unit instead of printing
+// "2 1 lb package", and that the quantity reaches the list screen at all.
+const digitUnit = items.find(
+  (i) => i.DataSource === 'MealIngredients' && /^\d/.test(String(i.Unit || ''))
+);
+const wordUnit = items.find(
+  (i) => i.DataSource === 'MealIngredients' && /^[a-z]/i.test(String(i.Unit || ''))
+);
 
-if (!selected || !unselected || !oneoff) {
+if (!selected || !unselected || !oneoff || !digitUnit || !wordUnit) {
   throw new Error(
-    'plan.spec fixture assumption broken after re-record: need a selected staple, an unselected staple in the same category, and a one-off row in e2e/fixtures/n8n/fetch_grocery_items.json'
+    'plan.spec fixture assumption broken after re-record: need a selected staple, an unselected staple in the same category, a one-off row, a MealIngredients row whose Unit starts with a digit, and one whose Unit starts with a letter, in e2e/fixtures/n8n/fetch_grocery_items.json'
   );
 }
 
@@ -31,6 +40,31 @@ test.describe('Plan', () => {
     const q = backend.calls('fetch_grocery_items')[0].query;
     expect(q.weekDateRange).toBe(WEEK.displayRange);
     expect(q.weekStartDate).toBe(WEEK.startDate);
+  });
+
+
+  // F8 — the list the shopper shops from used to show names only, so an
+  // inflated quantity was invisible until the H-E-B Cart Builder spent it.
+  // F6 — a count and a unit that itself starts with a number must not be jammed
+  // together. Both go through src/utils/formatPurchase.js. Asserting on the
+  // rendered strings rather than a regex keeps the escaping out of it.
+  // `backend` MUST be destructured even though it is not referenced: Playwright
+  // instantiates fixtures lazily, so leaving it out means no route mocks are
+  // installed and every n8n call fails, leaving the screen empty.
+  test('meal rows show their purchase quantity, never two numbers side by side', async ({ page, backend }) => {
+    await open(page, 'plan');
+    await expect(main(page).getByText('Grocery Staples')).toBeVisible();
+
+    // e.g. "2 × 1 lb package" — the × is what stops it reading "2 1 lb package".
+    const spaced = `${digitUnit.QuantitySelected} × ${digitUnit.Unit}`;
+    const jammed = `${digitUnit.QuantitySelected} ${digitUnit.Unit}`;
+    await expect(main(page).getByText(spaced)).toBeVisible();
+    expect(await main(page).getByText(jammed, { exact: true }).count()).toBe(0);
+
+    // e.g. "4 items" — a word unit needs no separator.
+    await expect(
+      main(page).getByText(`${wordUnit.QuantitySelected} ${wordUnit.Unit}`)
+    ).toBeVisible();
   });
 
   test('toggling a staple posts selection_check with the full row', async ({ page, backend }) => {
