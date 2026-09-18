@@ -2,6 +2,11 @@ import React from 'react';
 
 const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
   const inputId = `staple-item-${item.ItemID}`;
+  // IsOptional arrives over the wire as the JSON number 0/1 (COALESCE(..., 0)
+  // AS IsOptional), not a boolean. `{0 && <span/>}` renders the digit "0" in
+  // JSX, so every consumer must coerce here rather than trust the raw value.
+  const isOptional =
+    item.IsOptional === 1 || item.IsOptional === '1' || item.IsOptional === true;
   return (
     <div
       className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] ${
@@ -22,7 +27,7 @@ const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
         }`}
       >
         {item.ItemName}
-        {item.IsOptional && (
+        {isOptional && (
           <span className="ml-2 text-[10px] uppercase tracking-wide text-muted">
             optional
           </span>

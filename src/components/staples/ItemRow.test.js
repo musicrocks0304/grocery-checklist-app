@@ -24,4 +24,22 @@ describe('ItemRow', () => {
   });
 
   // divider only toggles a border class; not asserted in unit tests
+
+  test('IsOptional as the wire-shape number 0 does not leak into the accessible name', () => {
+    const staple = { ItemID: 2, ItemName: 'Bread', IsOptional: 0 };
+    render(<ItemRow item={staple} checked={false} onToggle={() => {}} />);
+    expect(screen.getByRole('checkbox', { name: 'Bread' })).toBeInTheDocument();
+  });
+
+  test('IsOptional as the wire-shape number 1 renders the optional marker', () => {
+    const optional = { ItemID: 3, ItemName: 'Sriracha', IsOptional: 1 };
+    render(<ItemRow item={optional} checked={false} onToggle={() => {}} />);
+    expect(screen.getByRole('checkbox', { name: /sriracha.*optional/i })).toBeInTheDocument();
+  });
+
+  test('IsOptional as boolean true still renders the optional marker', () => {
+    const optional = { ItemID: 4, ItemName: 'Cilantro', IsOptional: true };
+    render(<ItemRow item={optional} checked={false} onToggle={() => {}} />);
+    expect(screen.getByRole('checkbox', { name: /cilantro.*optional/i })).toBeInTheDocument();
+  });
 });

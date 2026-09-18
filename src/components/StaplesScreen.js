@@ -51,7 +51,6 @@ const StaplesScreen = ({ onReview, staplesHook, mealsHook }) => {
         return {
           ...i,
           MealName: derived[0] || fallback || 'Other meal ingredients',
-          IsOptional: i.IsOptional === 1 || i.IsOptional === '1' || i.IsOptional === true,
         };
       });
 

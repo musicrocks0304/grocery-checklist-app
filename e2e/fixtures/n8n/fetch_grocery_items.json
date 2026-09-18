@@ -11,7 +11,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 6"
+  "store_location": "Aisle 6",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 74,
@@ -25,7 +27,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 6"
+  "store_location": "Aisle 6",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 56,
@@ -39,7 +43,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 1"
+  "store_location": "Aisle 1",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 83,
@@ -53,7 +59,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 26"
+  "store_location": "Aisle 26",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 58,
@@ -67,7 +75,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": "In Dairy on the Back Wall"
+  "store_location": "In Dairy on the Back Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 59,
@@ -81,7 +91,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": "Aisle 13"
+  "store_location": "Aisle 13",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 63,
@@ -95,7 +107,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 24"
+  "store_location": "Aisle 24",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 71,
@@ -109,7 +123,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 27"
+  "store_location": "Aisle 27",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 61,
@@ -123,7 +139,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 26"
+  "store_location": "Aisle 26",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 49,
@@ -137,7 +155,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Produce on the Front Wall"
+  "store_location": "In Produce on the Front Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 48,
@@ -151,7 +171,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Produce on the Front Wall"
+  "store_location": "In Produce on the Front Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 57,
@@ -165,7 +187,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 24"
+  "store_location": "Aisle 24",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 338,
@@ -179,7 +203,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 13"
+  "store_location": "Aisle 13",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 60,
@@ -193,7 +219,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 13"
+  "store_location": "Aisle 13",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 29,
@@ -207,7 +235,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": "Aisle 9"
+  "store_location": "Aisle 9",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 36,
@@ -221,7 +251,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 9"
+  "store_location": "Aisle 9",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 35,
@@ -235,7 +267,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 9"
+  "store_location": "Aisle 9",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 38,
@@ -249,7 +283,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 9"
+  "store_location": "Aisle 9",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 70,
@@ -263,7 +299,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 7"
+  "store_location": "Aisle 7",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 79,
@@ -277,7 +315,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 10"
+  "store_location": "Aisle 10",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 64,
@@ -291,7 +331,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 6"
+  "store_location": "Aisle 6",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 344,
@@ -305,7 +347,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": "Aisle 6"
+  "store_location": "Aisle 6",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 66,
@@ -319,7 +363,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 6"
+  "store_location": "Aisle 6",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 28,
@@ -333,7 +379,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 26"
+  "store_location": "Aisle 26",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 18,
@@ -347,7 +395,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Meat Market on the Back Wall"
+  "store_location": "In Meat Market on the Back Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 336,
@@ -361,7 +411,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Dairy on the Back Wall"
+  "store_location": "In Dairy on the Back Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 39,
@@ -375,7 +427,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Dairy on the Back Wall"
+  "store_location": "In Dairy on the Back Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 340,
@@ -389,7 +443,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 27"
+  "store_location": "Aisle 27",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 24,
@@ -403,7 +459,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Dairy on the Back Wall"
+  "store_location": "In Dairy on the Back Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 73,
@@ -417,7 +475,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": "On the Right Edge of Deli"
+  "store_location": "On the Right Edge of Deli",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 21,
@@ -431,7 +491,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": "Back Edge of Deli"
+  "store_location": "Back Edge of Deli",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 25,
@@ -445,7 +507,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Meat Market on the Back Wall"
+  "store_location": "In Meat Market on the Back Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 26,
@@ -459,7 +523,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Meat Market on the Back Wall"
+  "store_location": "In Meat Market on the Back Wall",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 65,
@@ -473,7 +539,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Back Edge of Deli"
+  "store_location": "Back Edge of Deli",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 32,
@@ -487,7 +555,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "Aisle 14"
+  "store_location": "Aisle 14",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 15,
@@ -501,7 +571,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": "In Bakery"
+  "store_location": "In Bakery",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 33,
@@ -515,7 +587,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": "In Produce"
+  "store_location": "In Produce",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 75,
@@ -529,7 +603,9 @@
   "QuantitySelected": 1,
   "IsSelected": 0,
   "Unit": null,
-  "store_location": "In Produce"
+  "store_location": "In Produce",
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 100053,
@@ -543,7 +619,9 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": null
+  "store_location": null,
+  "RecipeNames": null,
+  "IsOptional": 0
  },
  {
   "ItemID": 100048,
@@ -557,6 +635,40 @@
   "QuantitySelected": 1,
   "IsSelected": 1,
   "Unit": null,
-  "store_location": null
+  "store_location": null,
+  "RecipeNames": null,
+  "IsOptional": 0
+ },
+ {
+  "ItemID": 1097,
+  "ItemName": "Sriracha",
+  "Category": "Condiments & sauces",
+  "Store": "HEB",
+  "GroceryStoreSection": "Condiments & sauces",
+  "Type": "Basic",
+  "IsActive": 1,
+  "DataSource": "MealIngredients",
+  "QuantitySelected": 1,
+  "IsSelected": 0,
+  "Unit": null,
+  "store_location": "Aisle 7",
+  "RecipeNames": "Some Recipe",
+  "IsOptional": 1
+ },
+ {
+  "ItemID": 1098,
+  "ItemName": "Fish sauce",
+  "Category": "Condiments & sauces",
+  "Store": "HEB",
+  "GroceryStoreSection": "Condiments & sauces",
+  "Type": "Basic",
+  "IsActive": 1,
+  "DataSource": "MealIngredients",
+  "QuantitySelected": 1,
+  "IsSelected": 0,
+  "Unit": null,
+  "store_location": "Aisle 7",
+  "RecipeNames": null,
+  "IsOptional": 0
  }
 ]

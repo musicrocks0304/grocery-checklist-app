@@ -78,6 +78,6 @@ describe('MealsCard', () => {
       <MealsCard activeMeal={null} items={withOptional} selected={new Set()} onToggle={() => {}} />
     );
     expect(screen.getByText('Sriracha')).toBeInTheDocument();
-    expect(screen.getByText(/optional/i)).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /sriracha.*optional/i })).toBeInTheDocument();
   });
 });

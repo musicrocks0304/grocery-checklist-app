@@ -5,11 +5,11 @@ import StaplesScreen from './StaplesScreen';
 
 const baseHook = {
   items: [
-    { ItemID: 1, ItemName: 'Milk',            Category: 'Dairy & eggs',       DataSource: 'Staples' },
-    { ItemID: 2, ItemName: 'Bread',           Category: 'Bakery & bread',     DataSource: 'Staples' },
-    { ItemID: 9, ItemName: 'Candles',         Category: 'Household & other',  DataSource: 'OneOff' },
-    { ItemID: 100, ItemName: 'Chicken thighs',Category: 'Meat & seafood',     DataSource: 'MealIngredients' },
-    { ItemID: 101, ItemName: 'Cilantro',      Category: 'Fruit & vegetables', DataSource: 'MealIngredients' },
+    { ItemID: 1, ItemName: 'Milk',            Category: 'Dairy & eggs',       DataSource: 'Staples', IsOptional: 0 },
+    { ItemID: 2, ItemName: 'Bread',           Category: 'Bakery & bread',     DataSource: 'Staples', IsOptional: 0 },
+    { ItemID: 9, ItemName: 'Candles',         Category: 'Household & other',  DataSource: 'OneOff', IsOptional: 0 },
+    { ItemID: 100, ItemName: 'Chicken thighs',Category: 'Meat & seafood',     DataSource: 'MealIngredients', IsOptional: 0 },
+    { ItemID: 101, ItemName: 'Cilantro',      Category: 'Fruit & vegetables', DataSource: 'MealIngredients', IsOptional: 0 },
   ],
   selected: new Set([1, 9, 100]),
   loading: false,
