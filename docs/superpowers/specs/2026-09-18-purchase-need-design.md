@@ -1,8 +1,7 @@
 # Purchase quantities — show the recipe need, size packages from the real product
 
 **Status: DESIGN, approved section by section by Corey 2026-09-18, then attacked by two
-adversarial reviews (both folded in). One open question remains — what ×N means — see the
-end.** Not yet implemented.
+adversarial reviews (both folded in). No open questions.** Not yet implemented.
 
 Two slices, one design. Slice 1 ships and is verified live before slice 2 starts.
 
@@ -58,6 +57,8 @@ built for a meal week**.
    `MealCreator.js:72-90` call `remove_weekly_selection` then `refreshMeals()` only), so a
    stored need would stay wrong for every shared ingredient until the list is regenerated.
    A derived need recalculates immediately.
+5. **×N means N times the recipe need**, not N of the suggested package. See "Resolved"
+   at the end.
 
 ---
 
@@ -483,15 +484,16 @@ Starts only once slice 1 is verified live; lands before the first meal-week cart
 - Showing a recipe's need on a checked staple that shadows it.
 - Converting `fluid ounce`, `gram` and the other units the pipeline has never converted —
   a change to both producers at once, for 2 live rows.
-- **Recipe 36's ten double-saved ingredient rows** (`recipe_ingredient_id` 350-359, exact
-  copies of 340-349). They double that recipe's need (20 oz chorizo for 10 oz). A live data
-  fix, awaiting Corey's go-ahead. Adding a unique key to prevent a recurrence would also
-  block recipe 59's legitimate duplicates, so any key must include `ingredient_order` or
-  `preparation_notes` — a separate decision.
+- ~~Recipe 36's ten double-saved ingredient rows~~ — **FIXED 2026-09-18** with Corey's
+  go-ahead, `migrations/2026-09-18_dedupe_recipe_36.sql` (rollback embedded). Exactly 10
+  rows removed; recipe 36 now has 10 ingredients and no duplicates; recipe 59's 3 genuine
+  pairs untouched; `recipe_ingredients` 898 → **888** rows. Preventing a recurrence with a
+  unique key is a separate decision: a key on `(recipe_id, ingredient_id)` would reject
+  recipe 59's legitimate rows, so it would need `ingredient_order` or `preparation_notes`.
 - `weekly_selections` 179-181, which carry a blank `WeekDateRange` (recipes 3, 20, 47,
   created 2026-09-17 18:39:09) and can never match anything. Not from the Create Recipe
-  path, which sends a week (`MealCreator.js:376`); cause unknown. Awaiting Corey's
-  go-ahead to delete.
+  path, which sends a week (`MealCreator.js:376`); cause unknown. **Corey chose to keep
+  them** (2026-09-18).
 
 ---
 
@@ -531,10 +533,19 @@ folded in above; the ones that would have produced a wrong number or a broken en
   `Format Output` had no size data to look up; the name merge needed an `IsSelected` filter.
 - "13 recipes list an ingredient twice" was wrong — 2 recipes, and one is bad data.
 
-## Open question — awaiting Corey
+## Resolved — what ×N means (Corey, 2026-09-18)
 
-**What ×N means.** Today ×3 means *three of the suggested package*:
-`Quantity = ceil(base) × multiplier`. This design shows it as *three times the need*
-(`= 12 oz`). A shopper who set ×3 to stock up on three bags would read "12 oz" in the store
-and could buy one. This must be settled before implementation, because it decides what
-`Quantity` and the need both mean when the multiplier is above 1.
+**×N means N times the recipe need**, not N of the suggested package. ×3 on 4 oz of sweet
+peppers reads `12 oz` everywhere, and slice 2 sizes packages for 12 oz. The old meaning
+multiplied a package guess that is wrong for 43-90% of rows (×3 of a "1 lb package" for a
+4 oz need is 3 lb), and the selector only went live on 2026-09-18 (F4), so there is no
+habit to break. A shopper who wants a specific number of bags sets it on the match card's
+stepper.
+
+This needs **no new mechanism**, which is a useful sign the design is coherent:
+- the derived need is already `× COALESCE(MAX(w2.RecipeMultiplier), 1)`;
+- `Quantity` keeps today's formula, `ceil(base) × N`, and that is still a valid **upper**
+  bound for N times the need, because `ceil(p) × N` is an integer at least `p × N`, hence
+  at least `ceil(p × N)`. Slice 2 therefore still cannot overshoot;
+- after a meal is removed the multiplier simply applies to whatever the week now needs, so
+  a multiplier set before a removal is not stale in any meaningful sense.
