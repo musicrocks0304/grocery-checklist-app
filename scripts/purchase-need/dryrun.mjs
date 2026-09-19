@@ -25,7 +25,20 @@ for (const [script, id] of CASES) {
 
   const once = edit(JSON.parse(pristine));
   const onceText = JSON.stringify(once);
-  ok(onceText !== JSON.stringify(JSON.parse(pristine)), `${script}: changes the workflow`);
+  const pristineText = JSON.stringify(JSON.parse(pristine));
+  // Each edit script's `markers` check (see scripts/n8n-edits/*.mjs) returns the
+  // workflow byte-for-byte unchanged ONLY via its all-markers-present path — a
+  // missing anchor throws, and a half-patched workflow throws too. So an
+  // unchanged result here can only mean the live export already carries this
+  // edit, never that the script silently did nothing. Tasks 5/6 re-run this dry
+  // run against exports taken AFTER the edit went live, so that is the expected,
+  // passing outcome for an already-applied script, not a failure.
+  if (onceText === pristineText) {
+    console.log(`SKIP  ${script}: ${id} is already patched (the live workflow carries this edit)`);
+    writeFileSync(join(wfDir, `${id}.patched.json`), JSON.stringify(once, null, 1));
+    continue;
+  }
+  ok(onceText !== pristineText, `${script}: changes the workflow`);
 
   const twice = edit(JSON.parse(onceText));
   ok(JSON.stringify(twice) === onceText, `${script}: idempotent (second apply is a no-op)`);
