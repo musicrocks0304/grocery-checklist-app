@@ -1,5 +1,5 @@
 import React from 'react';
-import { summarizePurchase } from '../../utils/formatPurchase';
+import { formatNeed, summarizePurchase } from '../../utils/formatPurchase';
 
 const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
   const inputId = `staple-item-${item.ItemID}`;
@@ -11,7 +11,10 @@ const ItemRow = React.memo(({ item, checked, onToggle, divider = false }) => {
   // F8: the list the shopper actually shops from showed names only, so an
   // inflated quantity was invisible until the H-E-B Cart Builder spent it.
   // summarizePurchase returns '' for a bare 1, so plain staples stay clean.
-  const purchase = summarizePurchase(item);
+  // Purchase-need slice 1: a row with a recipe need shows THE NEED ("4 oz"),
+  // not the package guess ("1 lb package"). formatNeed is '' for staples and
+  // one-offs, which keep F8's text.
+  const purchase = formatNeed(item) || summarizePurchase(item);
   return (
     <div
       className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] ${
