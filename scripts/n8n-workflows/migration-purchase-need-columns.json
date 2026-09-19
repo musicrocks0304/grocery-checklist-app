@@ -1,0 +1,89 @@
+{
+ "name": "Migration: purchase-need columns (units.to_base, WeeklyGroceryList.RecipeMultiplier)",
+ "nodes": [
+  {
+   "id": "webhook",
+   "name": "Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [0, 0],
+   "webhookId": "b61e4eb3-63dd-4bd5-9a28-3fb0cb3a38ae",
+   "parameters": {
+    "httpMethod": "GET",
+    "path": "migration_purchase_need_columns",
+    "responseMode": "responseNode",
+    "authentication": "headerAuth",
+    "options": {}
+   },
+   "credentials": { "httpHeaderAuth": { "id": "OzxeppJmnYuJpXbO", "name": "Grocery App API Key" } }
+  },
+  {
+   "id": "add-to-base",
+   "name": "Add units.to_base",
+   "type": "n8n-nodes-base.mySql",
+   "typeVersion": 2.4,
+   "position": [220, 0],
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "ALTER TABLE units ADD COLUMN to_base DECIMAL(10,4) NULL DEFAULT NULL",
+    "options": {}
+   },
+   "credentials": { "mySql": { "id": "lqIXlvVVqfE4v7DF", "name": "MySQL account" } }
+  },
+  {
+   "id": "seed-to-base",
+   "name": "Seed units.to_base",
+   "type": "n8n-nodes-base.mySql",
+   "typeVersion": 2.4,
+   "position": [440, 0],
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "UPDATE units SET to_base = CASE unit_name WHEN 'teaspoon' THEN 1 WHEN 'tablespoon' THEN 3 WHEN 'cup' THEN 48 WHEN 'pint' THEN 96 WHEN 'quart' THEN 192 WHEN 'ounce' THEN 1 WHEN 'pound' THEN 16 ELSE NULL END",
+    "options": {}
+   },
+   "credentials": { "mySql": { "id": "lqIXlvVVqfE4v7DF", "name": "MySQL account" } }
+  },
+  {
+   "id": "add-multiplier",
+   "name": "Add WeeklyGroceryList.RecipeMultiplier",
+   "type": "n8n-nodes-base.mySql",
+   "typeVersion": 2.4,
+   "position": [660, 0],
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "ALTER TABLE WeeklyGroceryList ADD COLUMN RecipeMultiplier TINYINT UNSIGNED NULL DEFAULT NULL AFTER Unit",
+    "options": {}
+   },
+   "credentials": { "mySql": { "id": "lqIXlvVVqfE4v7DF", "name": "MySQL account" } }
+  },
+  {
+   "id": "verify",
+   "name": "Verify",
+   "type": "n8n-nodes-base.mySql",
+   "typeVersion": 2.4,
+   "position": [880, 0],
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT unit_id, unit_name, unit_type, to_base FROM units ORDER BY unit_id",
+    "options": {}
+   },
+   "credentials": { "mySql": { "id": "lqIXlvVVqfE4v7DF", "name": "MySQL account" } }
+  },
+  {
+   "id": "respond",
+   "name": "Respond",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.4,
+   "position": [1100, 0],
+   "parameters": { "respondWith": "allIncomingItems", "options": {} }
+  }
+ ],
+ "connections": {
+  "Webhook": { "main": [[{ "node": "Add units.to_base", "type": "main", "index": 0 }]] },
+  "Add units.to_base": { "main": [[{ "node": "Seed units.to_base", "type": "main", "index": 0 }]] },
+  "Seed units.to_base": { "main": [[{ "node": "Add WeeklyGroceryList.RecipeMultiplier", "type": "main", "index": 0 }]] },
+  "Add WeeklyGroceryList.RecipeMultiplier": { "main": [[{ "node": "Verify", "type": "main", "index": 0 }]] },
+  "Verify": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+ },
+ "settings": { "executionOrder": "v1" }
+}
