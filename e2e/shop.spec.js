@@ -102,6 +102,26 @@ test.describe('Shop (In-Store Mode)', () => {
     await expect.poll(firstItemCalls, { timeout: 15000 }).toBe(beforeOnline + 1);
   });
 
+  // Purchase-need slice 1 — In-Store Mode is how Corey actually shops, so the
+  // pill IS the instruction. Injected rather than added to the shared fixture,
+  // so the other Shop tests keep their exact counts.
+  test('a meal row pill shows the recipe need, not the package guess', async ({ page, backend }) => {
+    const needRow = {
+      ItemID: 1196, ItemName: 'Ground turkey', Category: 'Meat & seafood', Store: 'HEB',
+      GroceryStoreSection: 'Meat & seafood', Type: 'Basic', IsActive: 1,
+      DataSource: 'MealIngredients', QuantitySelected: 3, IsSelected: 1, Unit: '1 lb package',
+      store_location: null, RecipeNames: 'Classic Turkey Taco Night with All the Fixings', IsOptional: 0,
+      NeedOz: '40.0000000', NeedTsp: null, NeedCount: null, NeedCountUnit: null, NeedUnspecified: 0,
+    };
+    backend.set('fetch_grocery_items', { body: [...items, needRow], times: 3 });
+    await seedIfNeeded(backend);
+    await open(page, 'shop');
+    const row = page.getByRole('checkbox', { name: nameRe(needRow.ItemName) });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText('2 lbs 8 oz');
+    await expect(row).not.toContainText('lb package');
+  });
+
   test('the ⋯ menu opens Feedback', async ({ page, backend }) => {
     await open(page, 'shop');
     await page.getByRole('button', { name: 'More' }).click();

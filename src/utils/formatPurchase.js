@@ -112,3 +112,100 @@ export const summarizePurchase = (item) => {
   const text = formatPurchase(raw, item.Unit);
   return text === '1' ? '' : text;
 };
+
+/**
+ * The recipe NEED as one string a shopper reads (purchase-need slice 1).
+ * Spec: docs/superpowers/specs/2026-09-18-purchase-need-design.md, section 2.
+ *
+ * WHY. `toPurchaseQuantity` guesses a package for every meal ingredient and the
+ * guess is poor: 43% of weight rows need 8 oz or less and all read "1 lb", 90%
+ * of volume rows read "1 small jar". Corey shops IN PERSON (385 In-Store
+ * check-offs against 3 cart builds), where the label IS the purchase
+ * instruction — "Sweet peppers · 1 lb package" at the shelf means a 1 lb bag
+ * for a 4 oz need. So every screen a human reads now shows what the recipes
+ * actually need.
+ *
+ * ONE SHAPE, ONE RENDERER. Two producers hand this function the same fields:
+ *   before submit  `Convert to Shopping List` (Ingredient Agent) — JS numbers
+ *   after submit   `Pull Grocery Staples` — MySQL DECIMALs, which the n8n MySQL
+ *                  node returns as STRINGS ("12.0000000", execution 27542)
+ * Every amount is coerced with Number() and rounded to 3 dp before formatting,
+ * so "12.0000000" reads "12" and float noise (0.30000000000000004) reads 0.3.
+ * The two producers apply the same counted-unit set and fold rule, so the same
+ * ingredient reads identically before and after submit.
+ *
+ *   NeedOz          ounces        "10 oz"; at 16+ "1 lb", "2 lbs", "1 lb 4 oz"
+ *   NeedTsp         teaspoons     under 3 "2 tsp"; under 48 "3 tbsp"; "1.5 cups"
+ *   NeedCount       counted amount, in NeedCountUnit:
+ *   NeedCountUnit     'piece' alone -> a bare number ("Corn tortillas · 12");
+ *                     otherwise worded ("3 cloves", "2 cans", "1 fluid ounce")
+ *   NeedUnspecified 1 when a recipe gave no amount -> "as needed", but ONLY when
+ *                   nothing else is known (a real amount wins, per TB-3b)
+ *
+ * Several groups join with " + " in a fixed order — weight, volume, count —
+ * "1 lb + 1.5 cups". Decimals are trimmed the way `Aggregate Ingredients`'
+ * formatQuantity trims them. NeedCountUnit 'mixed' means two counted units
+ * could not be folded, so NeedCount is not trustworthy and the WHOLE row falls
+ * back rather than show part of the need.
+ *
+ * `multiplier` is the pre-submit xN selector: xN is N times the need
+ * (decision 5), so x3 of 4 oz reads "12 oz". After submit the SQL has already
+ * applied RecipeMultiplier, so callers there pass nothing.
+ *
+ * Returns '' when there is nothing to say: no need fields at all (staples,
+ * one-offs, pre-2026-04-26 weeks, F7's unmatched rows, and a frontend deployed
+ * before the n8n change) or 'mixed'. Every render site then falls back to the
+ * purchase text it showed before — never to blank.
+ */
+const toAmount = (value, multiplier) => {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value) * multiplier;
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * 1000) / 1000;
+};
+
+const trimDecimals = (n) => (n % 1 === 0 ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''));
+
+const formatOunces = (oz) => {
+  if (oz < 16) return `${trimDecimals(oz)} oz`;
+  const lbs = Math.floor(oz / 16);
+  const rest = Math.round((oz - lbs * 16) * 1000) / 1000;
+  const lbText = `${lbs} lb${lbs > 1 ? 's' : ''}`;
+  return rest === 0 ? lbText : `${lbText} ${trimDecimals(rest)} oz`;
+};
+
+const formatTeaspoons = (tsp) => {
+  if (tsp >= 48) {
+    const cups = tsp / 48;
+    return cups % 1 === 0 ? `${cups} cup${cups > 1 ? 's' : ''}` : `${trimDecimals(cups)} cups`;
+  }
+  if (tsp >= 3) return `${trimDecimals(tsp / 3)} tbsp`;
+  return `${tsp} tsp`;
+};
+
+// "2 bunches", not formatQuantity's "2 bunchs"; "dozen" does not pluralise.
+const pluralUnit = (unit, n) => {
+  if (n <= 1 || unit === 'dozen') return unit;
+  return /(s|x|z|ch|sh)$/.test(unit) ? `${unit}es` : `${unit}s`;
+};
+
+export const formatNeed = (need, multiplier = 1) => {
+  if (!need || typeof need !== 'object') return '';
+  if (need.NeedCountUnit === 'mixed') return '';
+  const m = Number.isFinite(Number(multiplier)) && Number(multiplier) > 0 ? Number(multiplier) : 1;
+
+  const parts = [];
+  const oz = toAmount(need.NeedOz, m);
+  if (oz !== null) parts.push(formatOunces(oz));
+  const tsp = toAmount(need.NeedTsp, m);
+  if (tsp !== null) parts.push(formatTeaspoons(tsp));
+  const count = need.NeedCountUnit ? toAmount(need.NeedCount, m) : null;
+  if (count !== null) {
+    const unit = String(need.NeedCountUnit);
+    parts.push(unit === 'piece' && parts.length === 0
+      ? trimDecimals(count)
+      : `${trimDecimals(count)} ${pluralUnit(unit, count)}`);
+  }
+  if (parts.length) return parts.join(' + ');
+  return Number(need.NeedUnspecified) === 1 ? 'as needed' : '';
+};

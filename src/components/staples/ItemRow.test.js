@@ -106,3 +106,60 @@ describe('F8 — the purchase quantity is shown on the row', () => {
     expect(screen.getByRole('checkbox', { name: /Carrots.*2 items/ })).toBeInTheDocument();
   });
 });
+
+// Purchase-need slice 1: the Grocery List shows what the recipes NEED. The
+// package guess ("1 lb package") was wrong for 43-90% of meal rows, and in the
+// store the label IS the purchase instruction.
+describe('slice 1 — a meal row shows the recipe need', () => {
+  const mealRow = (fields) => ({
+    ItemID: 1084,
+    ItemName: 'Sweet peppers',
+    DataSource: 'MealIngredients',
+    QuantitySelected: 1,
+    Unit: '1 lb package',
+    NeedOz: null,
+    NeedTsp: null,
+    NeedCount: null,
+    NeedCountUnit: null,
+    NeedUnspecified: 0,
+    ...fields,
+  });
+
+  test('the need replaces the package guess', () => {
+    render(<ItemRow item={mealRow({ NeedOz: '4.0000000' })} checked={false} onToggle={() => {}} />);
+    const box = screen.getByRole('checkbox', { name: /Sweet peppers/ });
+    expect(box).toHaveAccessibleName(expect.stringContaining('4 oz'));
+    expect(box).not.toHaveAccessibleName(expect.stringContaining('lb package'));
+  });
+
+  test('a count arriving as a DECIMAL string reads as a clean number', () => {
+    render(
+      <ItemRow
+        item={mealRow({ ItemName: 'Corn tortillas', QuantitySelected: 36, Unit: 'items', NeedCount: '36.000', NeedCountUnit: 'piece' })}
+        checked={false}
+        onToggle={() => {}}
+      />
+    );
+    const box = screen.getByRole('checkbox', { name: /Corn tortillas/ });
+    expect(box).toHaveAccessibleName(expect.stringContaining('36'));
+    expect(box).not.toHaveAccessibleName(expect.stringMatching(/36\.0|36 items/));
+  });
+
+  test('a row with no need keys (frontend shipped before n8n) keeps its old text', () => {
+    render(
+      <ItemRow item={{ ItemID: 11, ItemName: 'Ground beef', QuantitySelected: 2, Unit: '1 lb package' }} checked={false} onToggle={() => {}} />
+    );
+    expect(screen.getByRole('checkbox', { name: /Ground beef/ })).toHaveAccessibleName(
+      expect.stringContaining('2 × 1 lb package')
+    );
+  });
+
+  test('a "mixed" need falls back to the purchase text, never to blank', () => {
+    render(
+      <ItemRow item={mealRow({ QuantitySelected: 2, NeedCount: '5.000', NeedCountUnit: 'mixed' })} checked={false} onToggle={() => {}} />
+    );
+    expect(screen.getByRole('checkbox', { name: /Sweet peppers/ })).toHaveAccessibleName(
+      expect.stringContaining('2 × 1 lb package')
+    );
+  });
+});

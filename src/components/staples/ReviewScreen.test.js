@@ -307,4 +307,25 @@ describe('ReviewScreen', () => {
     expect(row).toBeInTheDocument();
     expect(row.textContent).toBe('Bread');
   });
+
+  test('slice 1: a meal row shows its recipe need, not the package guess', () => {
+    render(
+      <ReviewScreen
+        items={[
+          { ItemID: 1203, ItemName: 'Sweet peppers', Category: 'Fruit & vegetables',
+            DataSource: 'MealIngredients', RecipeNames: 'Beef tacos',
+            QuantitySelected: 1, Unit: '1 lb package',
+            NeedOz: '4.0000000', NeedTsp: null, NeedCount: null, NeedCountUnit: null, NeedUnspecified: 0 },
+        ]}
+        selected={new Set([1203])}
+        meals={[]}
+        onToggle={() => {}}
+        onRemoveOneOff={() => {}}
+        onBack={() => {}}
+        onStartShopping={() => {}}
+      />
+    );
+    expect(screen.getByText('4 oz')).toBeInTheDocument();
+    expect(screen.queryByText(/lb package/)).not.toBeInTheDocument();
+  });
 });

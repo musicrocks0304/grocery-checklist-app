@@ -127,3 +127,75 @@ describe('RecipeIngredients quantity display', () => {
     expect(screen.getByText(/=\s*3\s*×\s*8 items/)).toBeInTheDocument();
   });
 });
+
+// Purchase-need slice 1: the pre-submit screen shows the recipe NEED, from the
+// structured fields `Convert to Shopping List` emits (JS numbers here). Both
+// items sit in one category so they render in one tab.
+const needListData = [
+  {
+    output: {
+      ingredients: [
+        {
+          name: 'sweet peppers',
+          category: 'grains',
+          purchaseQuantity: '1 lb',
+          purchaseUnit: '1 lb package',
+          recipeNeeds: '4 oz',
+          usedInRecipes: ['Test Recipe'],
+          NeedOz: 4, NeedTsp: null, NeedCount: null, NeedCountUnit: null, NeedUnspecified: 0,
+        },
+        {
+          name: 'corn tortillas',
+          category: 'grains',
+          purchaseQuantity: '12',
+          purchaseUnit: 'items',
+          recipeNeeds: '12 pieces',
+          usedInRecipes: ['Test Recipe'],
+          NeedOz: null, NeedTsp: null, NeedCount: 12, NeedCountUnit: 'piece', NeedUnspecified: 0,
+        },
+      ],
+    },
+  },
+];
+
+const renderNeedScreen = () =>
+  render(
+    <RecipeIngredients
+      selectedMeals={selectedMeals}
+      groceryListData={needListData}
+      onNavigate={() => {}}
+      debugMode={false}
+    />,
+  );
+
+describe('RecipeIngredients — slice 1 shows the recipe need', () => {
+  test('the selection list reads "Need: 4 oz", not the package guess', async () => {
+    renderNeedScreen();
+    expect(await screen.findByText('sweet peppers')).toBeInTheDocument();
+    expect(screen.getByText('4 oz')).toBeInTheDocument();
+    expect(screen.getAllByText(/^Need:/)).toHaveLength(2);
+    expect(screen.queryByText(/Buy:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/lb package/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Recipe needs:/)).not.toBeInTheDocument();
+  });
+
+  test('x3 reads as three times the need', async () => {
+    renderNeedScreen();
+    expect(await screen.findByText('sweet peppers')).toBeInTheDocument();
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '3' } });
+    expect(screen.getByText('= 12 oz')).toBeInTheDocument();
+    expect(screen.queryByText(/lb package/)).not.toBeInTheDocument();
+  });
+
+  test('the confirmation list shows the need times the multiplier', async () => {
+    renderNeedScreen();
+    expect(await screen.findByText('sweet peppers')).toBeInTheDocument();
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: /Review List/i }));
+    expect(await screen.findByText(/Recipe Grocery List/i)).toBeInTheDocument();
+    expect(screen.getByText('12 oz')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.queryByText(/×/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Recipe needs:/)).not.toBeInTheDocument();
+  });
+});

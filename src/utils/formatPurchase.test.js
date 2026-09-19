@@ -1,4 +1,4 @@
-import { formatPurchase, formatPurchaseBadge, summarizePurchase } from './formatPurchase';
+import { formatNeed, formatPurchase, formatPurchaseBadge, summarizePurchase } from './formatPurchase';
 
 // F6: `Convert to Shopping List` returns a purchaseQuantity that ALREADY carries
 // a unit noun ("1 small jar") and the UI appended purchaseUnit ("small jar"), so
@@ -163,5 +163,169 @@ describe('formatPurchaseBadge — the Cart Builder / In-Store pill', () => {
   test('an absent quantity still yields nothing, not a bare prefix', () => {
     expect(formatPurchaseBadge(null, null)).toBe('');
     expect(formatPurchaseBadge(0, 'items')).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatNeed — purchase-need slice 1. Two producers feed one renderer:
+// `Convert to Shopping List` before submit (JS numbers) and `Pull Grocery
+// Staples` after submit (MySQL DECIMALs that the n8n MySQL node returns as
+// STRINGS). Every amount below is a need observed in live recipe data on
+// 2026-09-18 (recipes 24, 56, 59, 61, 68 and the 2026-07-05 week).
+// ---------------------------------------------------------------------------
+const need = (fields) => ({
+  NeedOz: null, NeedTsp: null, NeedCount: null, NeedCountUnit: null, NeedUnspecified: 0, ...fields,
+});
+
+describe('formatNeed — weight, in ounces', () => {
+  test.each([
+    [4, '4 oz'],
+    [0.5, '0.5 oz'],
+    [12, '12 oz'],
+    [16, '1 lb'],
+    [20, '1 lb 4 oz'],
+    [24, '1 lb 8 oz'],
+    [28, '1 lb 12 oz'],
+    [32, '2 lbs'],
+    [36, '2 lbs 4 oz'],
+    [40, '2 lbs 8 oz'],
+    [80, '5 lbs'],
+  ])('%s oz -> %s', (oz, expected) => {
+    expect(formatNeed(need({ NeedOz: oz }))).toBe(expected);
+  });
+});
+
+describe('formatNeed — volume, in teaspoons', () => {
+  test.each([
+    [0.125, '0.125 tsp'],
+    [0.5, '0.5 tsp'],
+    [1.375, '1.375 tsp'],
+    [2.75, '2.75 tsp'],
+    [3, '1 tbsp'],
+    [5.5, '1.83 tbsp'],
+    [21, '7 tbsp'],
+    [22.5, '7.5 tbsp'],
+    [24, '8 tbsp'],
+    [48, '1 cup'],
+    [72, '1.5 cups'],
+    [84, '1.75 cups'],
+    [96, '2 cups'],
+  ])('%s tsp -> %s', (tsp, expected) => {
+    expect(formatNeed(need({ NeedTsp: tsp }))).toBe(expected);
+  });
+});
+
+describe('formatNeed — counted units', () => {
+  test.each([
+    [12, 'piece', '12'], // pieces alone read as a bare number: Corn tortillas · 12
+    [1, 'piece', '1'],
+    [1.5, 'piece', '1.5'],
+    [1, 'clove', '1 clove'],
+    [10, 'clove', '10 cloves'],
+    [2, 'can', '2 cans'],
+    [1, 'bunch', '1 bunch'],
+    [2, 'bunch', '2 bunches'],
+    [0.25, 'bunch', '0.25 bunch'],
+    [2, 'cube', '2 cubes'],
+    [1, 'fluid ounce', '1 fluid ounce'], // an unconvertible volume keeps its own name
+    [2, 'fluid ounce', '2 fluid ounces'],
+    [2, 'dozen', '2 dozen'],
+  ])('%s %s -> %s', (n, unit, expected) => {
+    expect(formatNeed(need({ NeedCount: n, NeedCountUnit: unit }))).toBe(expected);
+  });
+});
+
+describe('formatNeed — several groups', () => {
+  test('pieces are worded once they are not alone', () => {
+    expect(formatNeed(need({ NeedOz: 24, NeedCount: 2, NeedCountUnit: 'piece' }))).toBe('1 lb 8 oz + 2 pieces');
+  });
+
+  test('weight, then volume, then count — a fixed order', () => {
+    expect(formatNeed(need({ NeedTsp: 72, NeedOz: 16 }))).toBe('1 lb + 1.5 cups');
+    expect(formatNeed(need({ NeedOz: 28, NeedCount: 1, NeedCountUnit: 'can' }))).toBe('1 lb 12 oz + 1 can');
+  });
+});
+
+describe('formatNeed — an unspecified amount', () => {
+  test('alone, it reads "as needed"', () => {
+    expect(formatNeed(need({ NeedUnspecified: 1 }))).toBe('as needed');
+    expect(formatNeed(need({ NeedUnspecified: '1' }))).toBe('as needed');
+  });
+
+  test('beside a real amount, the amount wins (TB-3b)', () => {
+    expect(formatNeed(need({ NeedTsp: 1.375, NeedUnspecified: 1 }))).toBe('1.375 tsp');
+  });
+});
+
+describe('formatNeed — nothing to say, so the row falls back', () => {
+  test.each([
+    [undefined],
+    [null],
+    ['12'],
+    [{}],
+    [need({})],
+    // a staple row: no need keys at all (and a frontend deployed before n8n)
+    [{ ItemID: 23, ItemName: 'Bread', QuantitySelected: 1, Unit: null }],
+    // the clean-slate branch and every staple row: all five NULL on the wire
+    [{ NeedOz: null, NeedTsp: null, NeedCount: null, NeedCountUnit: null, NeedUnspecified: null }],
+  ])('%j -> ""', (value) => {
+    expect(formatNeed(value)).toBe('');
+  });
+
+  test('"mixed" counted units are not trusted: the whole row falls back', () => {
+    expect(formatNeed(need({ NeedCount: 5, NeedCountUnit: 'mixed' }))).toBe('');
+    expect(formatNeed(need({ NeedOz: 4, NeedCount: 5, NeedCountUnit: 'mixed' }))).toBe('');
+  });
+
+  test('a zero amount says nothing', () => {
+    expect(formatNeed(need({ NeedOz: 0 }))).toBe('');
+    expect(formatNeed(need({ NeedOz: '0.0000000', NeedUnspecified: 1 }))).toBe('as needed');
+  });
+});
+
+describe('formatNeed — the wire shapes', () => {
+  // execution 27542: DECIMAL came back as "10.000" (typeof string), and so does
+  // SUM(DECIMAL). Printed raw that is "12.0000000" or "0.5000000 tsp".
+  test.each([
+    [need({ NeedCount: '12.000', NeedCountUnit: 'piece' }), '12'],
+    [need({ NeedOz: '4.0000000' }), '4 oz'],
+    [need({ NeedTsp: '0.5000000' }), '0.5 tsp'],
+    [need({ NeedTsp: '2.7500000' }), '2.75 tsp'],
+    [need({ NeedOz: '40.0000000' }), '2 lbs 8 oz'],
+  ])('%j -> %s', (value, expected) => {
+    expect(formatNeed(value)).toBe(expected);
+  });
+
+  test('a need as numbers and the same need as DECIMAL strings read identically', () => {
+    const pairs = [
+      [need({ NeedTsp: 15.84 }), need({ NeedTsp: '15.8400000' })],
+      [need({ NeedCount: 10, NeedCountUnit: 'clove' }), need({ NeedCount: '10.000', NeedCountUnit: 'clove' })],
+      [need({ NeedOz: 16, NeedTsp: 72 }), need({ NeedOz: '16.0000000', NeedTsp: '72.0000000' })],
+    ];
+    for (const [asNumbers, asStrings] of pairs) {
+      expect(formatNeed(asStrings)).toBe(formatNeed(asNumbers));
+    }
+  });
+
+  test('float noise from summing in JS is rounded away', () => {
+    expect(formatNeed(need({ NeedTsp: 0.1 + 0.2 }))).toBe('0.3 tsp');
+    expect(formatNeed(need({ NeedTsp: 0.33 * 48 }))).toBe('5.28 tbsp');
+    expect(formatNeed(need({ NeedOz: 20.8 }))).toBe('1 lb 4.8 oz');
+  });
+});
+
+describe('formatNeed — the xN multiplier is N times the need (decision 5)', () => {
+  test.each([
+    [need({ NeedOz: 4 }), 3, '12 oz'],
+    [need({ NeedCount: 12, NeedCountUnit: 'piece' }), 3, '36'],
+    [need({ NeedTsp: 1.375 }), 2, '2.75 tsp'],
+    [need({ NeedOz: 40 }), 2, '5 lbs'],
+    [need({ NeedUnspecified: 1 }), 3, 'as needed'],
+  ])('%j x%s -> %s', (value, m, expected) => {
+    expect(formatNeed(value, m)).toBe(expected);
+  });
+
+  test.each([[undefined], [0], [-2], ['x'], [NaN]])('a meaningless multiplier (%s) reads as x1', (m) => {
+    expect(formatNeed(need({ NeedOz: 4 }), m)).toBe('4 oz');
   });
 });
