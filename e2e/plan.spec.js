@@ -14,19 +14,27 @@ const unselected = items.find(
   (i) => i.DataSource !== 'OneOff' && i.IsSelected === 0 && i.Category === selected.Category
 );
 const oneoff = items.find((i) => i.DataSource === 'OneOff');
-// F6/F8: a meal row whose Unit starts with a digit, to prove the shared
-// formatter puts a '×' between the count and the unit instead of printing
-// "2 1 lb package", and that the quantity reaches the list screen at all.
+// Purchase-need slice 1: a meal row with a derived need shows THE NEED; one
+// without (a week before 2026-04-26, F7's 900000 band) keeps its purchase text.
+const hasNeed = (i) =>
+  ['NeedOz', 'NeedTsp', 'NeedCount'].some((k) => i[k] !== null && i[k] !== undefined) ||
+  Number(i.NeedUnspecified) === 1;
+const needRow = items.find(
+  (i) => i.DataSource === 'MealIngredients' && i.NeedOz !== null && i.NeedOz !== undefined
+);
+// F6/F8: a need-less meal row whose Unit starts with a digit, to prove the
+// shared formatter puts a '×' between the count and the unit instead of
+// printing "2 1 lb package", and that the quantity reaches the list at all.
 const digitUnit = items.find(
-  (i) => i.DataSource === 'MealIngredients' && /^\d/.test(String(i.Unit || ''))
+  (i) => i.DataSource === 'MealIngredients' && !hasNeed(i) && /^\d/.test(String(i.Unit || ''))
 );
 const wordUnit = items.find(
-  (i) => i.DataSource === 'MealIngredients' && /^[a-z]/i.test(String(i.Unit || ''))
+  (i) => i.DataSource === 'MealIngredients' && !hasNeed(i) && /^[a-z]/i.test(String(i.Unit || ''))
 );
 
-if (!selected || !unselected || !oneoff || !digitUnit || !wordUnit) {
+if (!selected || !unselected || !oneoff || !digitUnit || !wordUnit || !needRow) {
   throw new Error(
-    'plan.spec fixture assumption broken after re-record: need a selected staple, an unselected staple in the same category, a one-off row, a MealIngredients row whose Unit starts with a digit, and one whose Unit starts with a letter, in e2e/fixtures/n8n/fetch_grocery_items.json'
+    'plan.spec fixture assumption broken after re-record: need a selected staple, an unselected staple in the same category, a one-off row, need-less MealIngredients rows whose Unit starts with a digit and with a letter, and a MealIngredients row carrying NeedOz, in e2e/fixtures/n8n/fetch_grocery_items.json'
   );
 }
 
@@ -65,6 +73,18 @@ test.describe('Plan', () => {
     await expect(
       main(page).getByText(`${wordUnit.QuantitySelected} ${wordUnit.Unit}`)
     ).toBeVisible();
+  });
+
+  // Purchase-need slice 1: the list shows what the recipe NEEDS. The fixture
+  // carries NeedOz as the DECIMAL STRING the n8n MySQL node really returns
+  // ("4.0000000") — a number here would hide the "4.0000000 oz" trap.
+  test('a meal row shows its recipe need, not the package guess', async ({ page, backend }) => {
+    await open(page, 'plan');
+    await expect(main(page).getByText('Grocery Staples')).toBeVisible();
+    const box = main(page).getByRole('checkbox', { name: new RegExp(`^${needRow.ItemName}`) });
+    await expect(box).toBeVisible();
+    await expect(box).toHaveAccessibleName(/4 oz/);
+    await expect(box).not.toHaveAccessibleName(/lb package|4\.0000000/);
   });
 
   test('toggling a staple posts selection_check with the full row', async ({ page, backend }) => {
