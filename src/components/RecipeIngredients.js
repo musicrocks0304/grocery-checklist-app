@@ -17,7 +17,7 @@ import { ENDPOINTS, apiJson } from '../config/api';
 import toast from 'react-hot-toast';
 import { getWeekDateRange, getWeekDates } from '../utils/weekDates';
 import { mapToCanonicalCategory } from '../utils/categoryMap';
-import { formatPurchase } from '../utils/formatPurchase';
+import { formatNeed, formatPurchase } from '../utils/formatPurchase';
 
 const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, debugMode = false }) => {
   const [ingredientsList, setIngredientsList] = useState([]);
@@ -175,6 +175,18 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
 
       if (webhookResponse[0]?.output?.ingredients && Array.isArray(webhookResponse[0].output.ingredients)) {
         webhookResponse[0].output.ingredients.forEach(ingredient => {
+          // The structured recipe need (purchase-need slice 1), emitted by
+          // `Convert to Shopping List`. An older Ingredient Agent sends none:
+          // formatNeed() of absent fields is '' and every render site below
+          // falls back to the purchase text it always showed.
+          const need = {
+            NeedOz: ingredient.NeedOz,
+            NeedTsp: ingredient.NeedTsp,
+            NeedCount: ingredient.NeedCount,
+            NeedCountUnit: ingredient.NeedCountUnit,
+            NeedUnspecified: ingredient.NeedUnspecified,
+          };
+          const needText = formatNeed(need);
           transformedIngredients.push({
             ItemID: itemId++,
             ItemName: ingredient.name,
@@ -189,8 +201,11 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
             Unit: ingredient.purchaseUnit || 'item',
             // Store recipe needs for reference
             RecipeNeeds: ingredient.recipeNeeds || '',
+            ...need,
             FromMeals: ingredient.usedInRecipes || selectedMeals.map(m => m.name),
-            Notes: ingredient.recipeNeeds ? `Recipe needs: ${ingredient.recipeNeeds}` : ''
+            Notes: needText
+              ? `Recipe needs: ${needText}`
+              : (ingredient.recipeNeeds ? `Recipe needs: ${ingredient.recipeNeeds}` : '')
           });
         });
       }
@@ -381,7 +396,11 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                 {categoryName}
               </h2>
               <div className="bg-surface border border-default rounded-xl overflow-hidden">
-                {items.map((item, index) => (
+                {items.map((item, index) => {
+                  // Slice 1: the need times the xN multiplier ("12 oz"), or '' when
+                  // the agent sent none, in which case fall back to the old purchase text.
+                  const need = formatNeed(item, item.quantity);
+                  return (
                   <div
                     key={item.ItemID}
                     className={`p-4 flex items-center justify-between ${
@@ -392,7 +411,7 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                       <div className="font-medium text-heading mb-1">
                         {item.ItemName}
                       </div>
-                      {item.RecipeNeeds && (
+                      {!need && item.RecipeNeeds && (
                         <div className="text-sm text-body">
                           Recipe needs: {item.RecipeNeeds}
                         </div>
@@ -400,13 +419,14 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold text-primary bg-primary-light px-3 py-1 rounded-full">
-                        {item.quantity > 1
+                        {need || (item.quantity > 1
                           ? `${item.quantity} \u00d7 ${formatPurchase(item.QuantitySelected, item.Unit)}`
-                          : formatPurchase(item.QuantitySelected, item.Unit)}
+                          : formatPurchase(item.QuantitySelected, item.Unit))}
                       </span>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -740,6 +760,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                 // No QuantitySelected fallback here — it would resurrect the
                 // "8 x 8 items" bug whenever the map misses.
                 const quantity = itemQuantities.get(item.ItemID.toString()) || 1;
+                // Slice 1: the recipe NEED ("4 oz"), not the package guess ("1 lb
+                // package"). '' when the agent sent none — fall back below.
+                const need = formatNeed(item);
 
                 return (
                   <div key={item.ItemID} className="p-4 hover:bg-background transition-colors">
@@ -757,13 +780,21 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                               {item.ItemName}
                             </h4>
                             <div className="mt-1 space-y-1">
-                              <div className="text-sm text-primary font-medium">
-                                Buy: <span className="text-primary">{formatPurchase(item.QuantitySelected, item.Unit)}</span>
-                              </div>
-                              {item.RecipeNeeds && (
-                                <div className="text-xs text-body">
-                                  Recipe needs: <span className="font-medium">{item.RecipeNeeds}</span>
+                              {need ? (
+                                <div className="text-sm text-primary font-medium">
+                                  Need: <span className="text-primary">{need}</span>
                                 </div>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-primary font-medium">
+                                    Buy: <span className="text-primary">{formatPurchase(item.QuantitySelected, item.Unit)}</span>
+                                  </div>
+                                  {item.RecipeNeeds && (
+                                    <div className="text-xs text-body">
+                                      Recipe needs: <span className="font-medium">{item.RecipeNeeds}</span>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
@@ -779,7 +810,9 @@ const RecipeIngredients = ({ selectedMeals = [], onNavigate, groceryListData, de
                                 ))}
                               </select>
                               <span className="text-xs text-muted">
-                                {quantity > 1 ? `= ${quantity} \u00d7 ${formatPurchase(item.QuantitySelected, item.Unit)}` : ""}
+                                {quantity > 1
+                                  ? `= ${need ? formatNeed(item, quantity) : `${quantity} \u00d7 ${formatPurchase(item.QuantitySelected, item.Unit)}`}`
+                                  : ""}
                               </span>
                             </div>
                           )}
